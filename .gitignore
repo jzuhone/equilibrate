@@ -1,2 +1,5 @@
 equilibrate.egg-info
 *.pyc
+*.so
+*.o
+*.c
