@@ -1,3 +1,3 @@
-from equilibrium_model import EquilibriumModel
-from hydrostatic import HydrostaticEquilibrium
-from virial import VirialEquilibrium
+from equilibrate.equilibrium_model import EquilibriumModel
+from equilibrate.hydrostatic import HydrostaticEquilibrium
+from equilibrate.virial import VirialEquilibrium
