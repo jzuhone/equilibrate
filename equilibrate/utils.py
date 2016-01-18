@@ -69,6 +69,8 @@ class InterpolateSplineWithUnits(InterpolatedUnivariateSpline):
             self.output_units = y.units
         else:
             self.output_units = "dimensionless"
+        self.no_units = self.input_units == "dimensionless" and \
+                        self.output_units == "dimensionless"
         super(InterpolateSplineWithUnits, self).__init__(x, y, **kwargs)
 
     def __call__(self, x, nu=0):
@@ -77,9 +79,11 @@ class InterpolateSplineWithUnits(InterpolatedUnivariateSpline):
         else:
             xx = x
         yy = super(InterpolateSplineWithUnits, self).__call__(xx, nu=nu)
-        y_units = self.output_units
-        if nu > 0 and str(self.input_units) != "dimensionless":
-            deriv_units = YTQuantity(1.0, self.input_units).units**nu
-            y_units /= deriv_units
-        return YTArray(super(InterpolateSplineWithUnits, self).__call__(xx, nu=nu),
-                       y_units)
+        if self.no_units:
+            return yy
+        else:
+            y_units = self.output_units
+            if nu > 0 and str(self.input_units) != "dimensionless":
+                deriv_units = YTQuantity(1.0, self.input_units).units**nu
+                y_units /= deriv_units
+            return YTArray(yy, y_units)

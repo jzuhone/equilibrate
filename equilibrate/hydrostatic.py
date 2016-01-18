@@ -3,7 +3,6 @@ from collections import OrderedDict
 from equilibrate.utils import \
     logspace, \
     InterpolateSplineWithUnits, \
-    InterpolatedUnivariateSpline, \
     YTArray, pc, \
     setup_units, \
     mylog, \
@@ -157,7 +156,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
                 fields["gravitational_field"] = grav
 
             if mode != "tden_only":
-                g = InterpolatedUnivariateSpline(xx.d, fields["gravitational_field"].d)
+                g = InterpolateSplineWithUnits(xx.d, fields["gravitational_field"].d)
                 dens = profiles["density"].unitless()
                 dPdr_int = lambda r: dens(r)*g(r)
                 mylog.info("Integrating pressure profile.")
