@@ -25,6 +25,19 @@ class EquilibriumModel(object):
 
     @classmethod
     def from_h5_file(cls, filename):
+        r"""
+        Generate an equilibrium model from an HDF5 file. 
+
+        Parameters
+        ----------
+        filename : string
+            The name of the file to read the model from.
+
+        Examples
+        --------
+        >>> from equilibrate import EquilibriumModel
+        >>> hse_model = EquilibriumModel.from_h5_file("hse_model.h5")
+        """
         f = h5py.File(filename)
         model_type = f["model_type"].value
 
@@ -118,17 +131,17 @@ class EquilibriumModel(object):
             else:
                 self.fields[field].write_hdf5(output_filename, dataset_name=field, group_name="fields")
 
-    def set_field(self, key, value):
+    def set_field(self, name, value):
         """
-        Set a field with name *key* to value *value*, which is a YTArray.
+        Set a field with name *name* to value *value*, which is a YTArray.
         The array will be checked to make sure that it has the appropriate size.
         """
         if not isinstance(value, YTArray):
             raise TypeError("value needs to be a YTArray")
         if len(value) == self.num_elements:
-            if key in self.fields:
+            if name in self.fields:
                 mylog.warning("Overwriting field %s." % key)
-            self.fields[key] = value
+            self.fields[name] = value
         else:
             raise ValueError("The length of the array needs to be %d elements!"
                              % self.num_elements)

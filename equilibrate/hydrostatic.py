@@ -27,6 +27,45 @@ class HydrostaticEquilibrium(EquilibriumModel):
     @classmethod
     def from_scratch(cls, xmin, xmax, profiles, input_units=None,
                      parameters=None, num_points=1000, geometry="spherical"):
+        r"""
+        Generate a set of profiles of physical quantities based on the assumption
+        of hydrostatic equilibrium. Currently assumes an ideal gas with a gamma-law
+        equation of state.
+
+        Parameters
+        ----------
+        mode : string
+            The method to generate the profiles from an initial set. Can be
+            one of the following:
+                "dens_temp": Generate the profiles given a gas density and
+                gas temperature profile.
+                "dens_tden": Generate the profiles given a gas density and
+                total density profile.
+                "dens_grav": Generate the profiles given a gas density and
+                gravitational acceleration profile.
+                "tden_only": Generate profiles of gravitational potential
+                and acceleration assuming an initial total density profile.
+        xmin : YTQuantity
+            The minimum radius or height for the profiles.
+        xmax : YTQuantity
+            The maximum radius or height for the profiles.
+        profiles : dict of functions
+            A dictionary of callable functions of radius or height which return
+            YTArrays of quantities such as density, total density, and so on.
+        input_units : dict of strings
+            The default units for the different basic dimensional quantities,
+            such as length, time, etc.
+        parameters : dict of floats
+            A dictionary of parameters needed for the calculation, which include:
+                "mu": The mean molecular weight of the gas. Default is to assume a
+                primordial H/He gas.
+                "gamma": The ratio of specific heats. Default: 5/3.
+        num_points : integer
+            The number of points at which to evaluate the profile.
+        geometry : string
+            The geometry of the model. Can be "cartesian" or "spherical", which will
+            determine whether or not the profiles are of "radius" or "height".
+        """
 
         if "density" in profiles and "temperature" in profiles:
             mode = DENS_TEMP
@@ -144,8 +183,10 @@ class HydrostaticEquilibrium(EquilibriumModel):
         return cls(num_points, fields, parameters, units)
 
     def compute_dark_matter_profiles(self):
-        """
-        If
+        r"""
+        If the total density profile and the gas density profile
+        are different, assume the rest is dark matter. Compute
+        the dark matter density and mass profiles and store them.
         """
         mdm = self["total_mass"]-self["gas_mass"]
         ddm = self["total_density"]-self["density"]
