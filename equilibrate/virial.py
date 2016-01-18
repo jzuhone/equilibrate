@@ -41,7 +41,7 @@ class VirialEquilibrium(EquilibriumModel):
     @classmethod
     def from_hse_model(cls, num_particles, hse_model, parameters=None):
         if hse_model.parameters["geometry"] != "spherical":
-            raise NotImplemented("VirialEquilibrium is only availabe for spherical geometries.")
+            raise NotImplemented("VirialEquilibrium is only available for spherical geometries.")
         hse_model.compute_dark_matter_profiles()
 
         return cls(num_particles, hse_model["radius"].v,
