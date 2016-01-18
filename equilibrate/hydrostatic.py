@@ -11,21 +11,31 @@ from equilibrate.utils import \
     integrate_toinf
 from equilibrate.equilibrium_model import EquilibriumModel
 
-DENS_TEMP = 1
-DENS_TDEN = 2
-DENS_GRAV = 3
-TDEN_ONLY = 4
+modes = {"dens_temp":("density","temperature"),
+         "dens_tden":("density","total_density"),
+         "dens_grav":("density","gravitational_field"),
+         "tden_only":("total_density",)}
+
+class RequiredProfilesError(Exception):
+    def __init__(self, mode):
+        self.mode = mode
+
+    def __str__(self):
+        ret = "Not all of the required profiles for mode \"%s\" have been set!\n" % self.mode
+        ret += "The following profiles are needed: %s" % modes[self.mode]
+        return ret
 
 class HydrostaticEquilibrium(EquilibriumModel):
 
     _type_name = "hydrostatic"
+    _xfield = None
 
     default_fields = ["density","temperature","pressure","total_density",
                       "gravitational_potential","gravitational_field",
                       "total_mass","thermal_energy"]
 
     @classmethod
-    def from_scratch(cls, xmin, xmax, profiles, input_units=None,
+    def from_scratch(cls, mode, xmin, xmax, profiles, input_units=None,
                      parameters=None, num_points=1000, geometry="spherical"):
         r"""
         Generate a set of profiles of physical quantities based on the assumption
@@ -67,20 +77,18 @@ class HydrostaticEquilibrium(EquilibriumModel):
             determine whether or not the profiles are of "radius" or "height".
         """
 
-        if "density" in profiles and "temperature" in profiles:
-            mode = DENS_TEMP
-        elif "density" in profiles and "total_density" in profiles:
-            mode = DENS_TDEN
-        elif "density" in profiles and "gravitational_field" in profiles:
-            mode = DENS_GRAV
-        elif "density" in profiles:
-            mode = DENS_TDEN
-            profiles["total_density"] = profiles["density"]
-        elif "total_density" in profiles:
-            mode = TDEN_ONLY
+        if mode == "dens_tden" or mode == "tden_only":
+            if "density" in profiles and "total_density" not in profiles:
+                mylog.warning("Mode \"%s\" was specified, but only with "
+                              "a density profile. Assuming density == total_density.")
+                profiles["total_density"] = profiles["density"]
 
-        if mode == DENS_TDEN and geometry != "spherical":
-            raise NotImplemented("Constructing a HydrostaticEquilibrium from gas density and "
+        for p in modes[mode]:
+            if p not in profiles:
+                raise RequiredProfilesError(mode)
+
+        if mode in ["dens_tden","tden_only"] and geometry != "spherical":
+            raise NotImplemented("Constructing a HydrostaticEquilibrium from gas density and/or "
                                  "total density profiles is only allowed in spherical geometry!")
 
         extra_fields = [field for field in profiles if field not in cls.default_fields]
@@ -118,10 +126,10 @@ class HydrostaticEquilibrium(EquilibriumModel):
 
         parameters["geometry"] = geometry
 
-        if mode != TDEN_ONLY:
+        if mode != "tden_only":
             fields["density"] = profiles["density"](xx).in_units(units["density"])
 
-        if mode == DENS_TEMP:
+        if mode == "dens_temp":
 
             mylog.info("Computing the profiles from density and temperature.")
 
@@ -130,34 +138,34 @@ class HydrostaticEquilibrium(EquilibriumModel):
             fields["pressure"] *= muinv/mp
 
             pressure_spline = InterpolateSplineWithUnits(xx, fields["pressure"])
-            dPdx = pressure_spline(xx,1)
+            dPdx = pressure_spline(xx, 1)
             fields["gravitational_field"] = dPdx/fields["density"]
 
         else:
 
-            if mode == DENS_TDEN or mode == TDEN_ONLY:
+            if mode == "dens_tden" or mode == "tden_only":
                 mylog.info("Computing the profiles from density and total density.")
                 tdens = profiles["total_density"](xx).in_units(units["density"])
                 fields["total_density"] = tdens
                 mylog.info("Integrating total mass profile.")
                 fields["total_mass"] = YTArray(integrate_mass(profiles["total_density"].unitless(), xx.d),
                                                units["mass"])
-                fields["gravitational_field"] = G*fields["total_mass"]/(fields["radius"]**2)
-            elif mode == DENS_GRAV:
+                fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
+            elif mode == "dens_grav":
                 mylog.info("Computing the profiles from density and gravitational acceleration.")
                 grav = profiles["gravitational_field"](xx).in_units(units["acceleration"])
                 fields["gravitational_field"] = grav
 
-            if mode != TDEN_ONLY:
+            if mode != "tden_only":
                 g = InterpolatedUnivariateSpline(xx.d, fields["gravitational_field"].d)
                 dens = profiles["density"].unitless()
                 dPdr_int = lambda r: dens(r)*g(r)
                 mylog.info("Integrating pressure profile.")
-                fields["pressure"] = YTArray(integrate_toinf(dPdr_int, xx.d), units["pressure"])
+                fields["pressure"] = -YTArray(integrate_toinf(dPdr_int, xx.d), units["pressure"])
                 fields["temperature"] = fields["pressure"]/fields["density"]
                 fields["temperature"] *= mp/muinv
 
-        if mode != TDEN_ONLY:
+        if mode != "tden_only":
             fields["thermal_energy"] = fields["pressure"]/(gamma-1.)/fields["density"]
 
         if geometry == "spherical":
@@ -172,7 +180,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
             gpot = YTArray(4.*np.pi*integrate_toinf(gpot_profile, xx.d), 
                            units["density"]*units["length"]**2)
             fields["gravitational_potential"] = -G*(fields["total_mass"]/fields["radius"] + gpot)
-            if mode != TDEN_ONLY:
+            if mode != "tden_only":
                 mylog.info("Integrating gas mass profile.")
                 fields["gas_mass"] = YTArray(integrate_mass(profiles["density"].unitless(), xx.d),
                                              units["mass"])
