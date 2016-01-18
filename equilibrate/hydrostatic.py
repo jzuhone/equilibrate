@@ -202,3 +202,24 @@ class HydrostaticEquilibrium(EquilibriumModel):
         ddm[ddm < 0.0][:] = 0.0
         self.set_field("dark_matter_density", ddm)
         self.set_field("dark_matter_mass", mdm)
+
+    @property
+    def x_field(self):
+        if self._xfield is None:
+            self._xfield = list(self.keys())[0]
+        return self._xfield
+
+    def check_model(self):
+        r"""
+        Determine the deviation of the model from hydrostatic equilibrium. Returns
+        an array containing the relative deviation at each radius or height.
+        """
+        xx = self.fields[self.x_field]
+        pressure_spline = InterpolateSplineWithUnits(xx, self.fields["pressure"])
+        dPdx = pressure_spline(xx,1)
+        rhog = self.fields["density"]*self.fields["gravitational_field"]
+        chk = dPdx - rhog
+        chk /= rhog
+        mylog.info("The maximum relative deviation of this profile from "
+                   "hydrostatic equilibrium is %g" % np.abs(chk).max())
+        return chk
