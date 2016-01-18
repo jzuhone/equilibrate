@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 from setuptools import setup
+from Cython.Build import cythonize
+from distutils.extension import Extension
+import numpy as np
+
+cython_utils = Extension("equilibrate.cython_utils",
+                         sources=["equilibrate/cython_utils.pyx"],
+                         language='c', libraries=["m"],
+                         include_dirs=[np.get_include()])
 
 setup(name='equilibrate',
       packages=['equilibrate'],
@@ -18,4 +26,6 @@ setup(name='equilibrate',
           'Programming Language :: Python :: 3.5',
           'Topic :: Scientific/Engineering :: Visualization',
       ],
+      ext_modules = cythonize([cython_utils]),
       )
+
