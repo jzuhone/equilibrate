@@ -1,6 +1,6 @@
 import numpy as np
 from collections import OrderedDict
-from equilibrate.utils import \
+from cluster_generator.utils import \
     InterpolatedUnivariateSpline, \
     YTArray, \
     mylog, \
@@ -8,7 +8,7 @@ from equilibrate.utils import \
     integrate_toinf, \
     mp, G
 
-from equilibrate.equilibrium_model import EquilibriumModel
+from cluster_generator.equilibrium_model import EquilibriumModel
 
 gamma = 5./3.
 muinv = 0.76/0.5 + 0.24/(4./3.)

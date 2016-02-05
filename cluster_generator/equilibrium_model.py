@@ -1,5 +1,5 @@
-from equilibrate.utils import mylog, \
-    YTArray, Unit
+from cluster_generator.utils import mylog, \
+    YTArray
 from collections import OrderedDict
 from six import add_metaclass
 import h5py
@@ -34,7 +34,7 @@ class EquilibriumModel(object):
 
         Examples
         --------
-        >>> from equilibrate import EquilibriumModel
+        >>> from cluster_generator import EquilibriumModel
         >>> hse_model = EquilibriumModel.from_h5_file("hse_model.h5")
         """
         f = h5py.File(filename)

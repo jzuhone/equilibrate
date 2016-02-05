@@ -1,5 +1,5 @@
 import numpy as np
-from equilibrate.utils import \
+from cluster_generator.utils import \
     InterpolatedUnivariateSpline, \
     YTArray, G, \
     mylog, quad, \
@@ -7,8 +7,8 @@ from equilibrate.utils import \
     get_pbar, \
     integrate_mass, \
     YTQuantity
-from equilibrate.equilibrium_model import EquilibriumModel
-from equilibrate.cython_utils import generate_velocities
+from cluster_generator.equilibrium_model import EquilibriumModel
+from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
 
 class VirialEquilibrium(EquilibriumModel):

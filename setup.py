@@ -4,19 +4,19 @@ from Cython.Build import cythonize
 from distutils.extension import Extension
 import numpy as np
 
-cython_utils = Extension("equilibrate.cython_utils",
-                         sources=["equilibrate/cython_utils.pyx"],
+cython_utils = Extension("cluster_generator.cython_utils",
+                         sources=["cluster_generator/cython_utils.pyx"],
                          language='c', libraries=["m"],
                          include_dirs=[np.get_include()])
 
-setup(name='equilibrate',
-      packages=['equilibrate'],
+setup(name='cluster_generator',
+      packages=['cluster_generator'],
       version='0.1.0',
-      description='Generating gravitational equilbrium models',
+      description='Generating equilbrium models of galaxy clusters.',
       author='John ZuHone',
       author_email='jzuhone@gmail.com',
-      url='http://github.com/jzuhone/equilibrate',
-      download_url='https://github.com/jzuhone/equilibrate/tarball/0.1.0',
+      url='http://github.com/jzuhone/cluster_generator',
+      download_url='https://github.com/jzuhone/cluster_generator/tarball/0.1.0',
       install_requires=["six","numpy","scipy","yt","cython"],
       classifiers=[
           'Intended Audience :: Science/Research',
