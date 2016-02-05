@@ -1,10 +1,7 @@
 import numpy as np
 from equilibrate.utils import \
-    logspace, \
     InterpolatedUnivariateSpline, \
-    unitful_zeros, \
-    YTArray, pc, \
-    setup_units, \
+    YTArray, G, \
     mylog, quad, \
     integrate_toinf, \
     get_pbar, \
@@ -20,37 +17,29 @@ class VirialEquilibrium(EquilibriumModel):
 
     @classmethod
     def from_scratch(cls, num_particles, rmin, rmax, profile,
-                     input_units=None, num_points=1000, parameters=None):
+                     num_points=1000):
 
-        units = setup_units(input_units)
+        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
 
-        G = pc.G.in_units(units["G"])
-
-        rr = logspace(rmin, rmax, num_points)
-
-        pden = profile(rr.d)
+        pden = profile(rr)
         mylog.info("Integrating dark matter mass profile.")
-        mdm = integrate_mass(profile.unitless(), rr.d)
+        mdm = integrate_mass(profile, rr)
         mylog.info("Integrating gravitational potential profile.")
-        gpot_int = profile.unitless()
-        gpot_profile = lambda r: gpot_int(r)*r
-        gpot = G.v*(mdm/rr.d + 4.*np.pi*integrate_toinf(gpot_profile, rr.d))
+        gpot_profile = lambda r: profile(r)*r
+        gpot = G.v*(mdm/rr + 4.*np.pi*integrate_toinf(gpot_profile, rr))
 
-        return cls(num_particles, rr, gpot, pden, mdm, units, parameters)
+        return cls(num_particles, rr, gpot, pden, mdm)
 
     @classmethod
-    def from_hse_model(cls, num_particles, hse_model, parameters=None):
-        if hse_model.parameters["geometry"] != "spherical":
+    def from_hse_model(cls, num_particles, hse_model):
+        if hse_model.geometry != "spherical":
             raise NotImplemented("VirialEquilibrium is only available for spherical geometries.")
-        hse_model.compute_dark_matter_profiles()
-
+        gpot = -hse_model["gravitational_potential"].in_units("kpc**2/Myr**2")
         return cls(num_particles, hse_model["radius"].v,
-                   -hse_model["gravitational_potential"].v,
-                   hse_model["dark_matter_density"].v,
-                   hse_model["dark_matter_mass"].v,
-                   hse_model.units, parameters)
+                   gpot.v, hse_model["dark_matter_density"].v,
+                   hse_model["dark_matter_mass"].v)
 
-    def __init__(self, num_particles, rr, gpot, pden, mdm, units, parameters):
+    def __init__(self, num_particles, rr, gpot, pden, mdm):
 
         fields = OrderedDict()
 
@@ -71,14 +60,6 @@ class VirialEquilibrium(EquilibriumModel):
         f = lambda e: g_spline(e, 1)/(np.sqrt(8.)*np.pi**2)
 
         mylog.info("We will be assigning %d particles." % num_particles)
-
-        fields["particle_position_x"] = unitful_zeros(num_particles, units["length"])
-        fields["particle_position_y"] = unitful_zeros(num_particles, units["length"])
-        fields["particle_position_z"] = unitful_zeros(num_particles, units["length"])
-        fields["particle_velocity_x"] = unitful_zeros(num_particles, units["velocity"])
-        fields["particle_velocity_y"] = unitful_zeros(num_particles, units["velocity"])
-        fields["particle_velocity_z"] = unitful_zeros(num_particles, units["velocity"])
-
         mylog.info("Compute particle positions.")
 
         u = np.random.uniform(size=num_particles)
@@ -89,10 +70,10 @@ class VirialEquilibrium(EquilibriumModel):
         theta = np.arccos(np.random.uniform(low=-1.,high=1.,size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
-        fields["particle_radius"] = YTArray(radius, units["length"])
-        fields["particle_position_x"][:] = radius*np.sin(theta)*np.cos(phi)
-        fields["particle_position_y"][:] = radius*np.sin(theta)*np.sin(phi)
-        fields["particle_position_z"][:] = radius*np.cos(theta)
+        fields["particle_radius"] = YTArray(radius, "kpc")
+        fields["particle_position_x"] = radius*np.sin(theta)*np.cos(phi)
+        fields["particle_position_y"] = radius*np.sin(theta)*np.sin(phi)
+        fields["particle_position_z"] = radius*np.cos(theta)
 
         mylog.info("Compute particle velocities.")
 
@@ -104,13 +85,13 @@ class VirialEquilibrium(EquilibriumModel):
         theta = np.arccos(np.random.uniform(low=-1.,high=1.,size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
-        fields["particle_velocity"] = YTQuantity(velocity, units["velocity"])
-        fields["particle_velocity_x"][:] = velocity*np.sin(theta)*np.cos(phi)
-        fields["particle_velocity_y"][:] = velocity*np.sin(theta)*np.sin(phi)
-        fields["particle_velocity_z"][:] = velocity*np.cos(theta)
+        fields["particle_velocity"] = YTArray(velocity, "kpc/Myr").in_units("km/s")
+        fields["particle_velocity_x"] = velocity*np.sin(theta)*np.cos(phi)
+        fields["particle_velocity_y"] = velocity*np.sin(theta)*np.sin(phi)
+        fields["particle_velocity_z"] = velocity*np.cos(theta)
 
-        fields["particle_mass"] = YTQuantity(mdm.max()/num_particles, units["mass"])
-        fields["particle_potential"] = YTQuantity(psi, units["specific_energy"])
+        fields["particle_mass"] = YTQuantity(mdm.max()/num_particles, "Msun")
+        fields["particle_potential"] = YTArray(psi, "kpc**2/Myr**2").in_units("km**2/s**2")
         fields["particle_energy"] = fields["particle_potential"]-0.5*fields["particle_velocity"]**2
 
-        super(VirialEquilibrium, self).__init__(num_particles, fields, parameters, units)
+        super(VirialEquilibrium, self).__init__(num_particles, fields, "spherical")

@@ -17,11 +17,10 @@ class RegisteredEquilibriumModel(type):
 class EquilibriumModel(object):
     _skip_add = False
 
-    def __init__(self, num_elements, fields, parameters, units):
+    def __init__(self, num_elements, fields, geometry):
         self.num_elements = num_elements
         self.fields = fields
-        self.parameters = parameters
-        self.units = units
+        self.geometry = geometry
 
     @classmethod
     def from_h5_file(cls, filename):
@@ -41,16 +40,7 @@ class EquilibriumModel(object):
         f = h5py.File(filename)
         model_type = f["model_type"].value
 
-        if "parameters" in f:
-            parameters = {}
-            for param in f["parameters"]:
-                parameters[param] = f["parameters"][param].value
-        else:
-            parameters = None
-
-        units = {}
-        for unit in f["units"]:
-            units[unit] = Unit(f["units"][unit].value)
+        geometry = f["geometry"].value
 
         f.close()
 
@@ -60,7 +50,7 @@ class EquilibriumModel(object):
 
         num_elements = f["num_elements"].value
 
-        return equilibrium_model_registry[model_type](num_elements, fields, parameters, units)
+        return equilibrium_model_registry[model_type](num_elements, fields, geometry)
 
     def __getitem__(self, key):
         return self.fields[key]
@@ -112,18 +102,9 @@ class EquilibriumModel(object):
         if os.path.exists(output_filename) and not clobber:
             raise IOError("Cannot create %s. It exists and clobber=False." % output_filename)
         f = h5py.File(output_filename, "w")
-        g = f.create_group("parameters")
-        for key, value in self.parameters.items():
-            g.create_dataset(key, data=value)
-        g = f.create_group("units")
-        for key, unit in self.units.items():
-            if in_cgs:
-                u = str(unit.get_cgs_equivalent())
-            else:
-                u = str(unit)
-            d = g.create_dataset(key, data=u)
         f.create_dataset("model_type", data=self._type_name)
         f.create_dataset("num_elements", data=self.num_elements)
+        f.create_dataset("geometry", data=self.geometry)
         f.close()
         for field in list(self.fields.keys()):
             if in_cgs:
@@ -140,7 +121,7 @@ class EquilibriumModel(object):
             raise TypeError("value needs to be a YTArray")
         if len(value) == self.num_elements:
             if name in self.fields:
-                mylog.warning("Overwriting field %s." % key)
+                mylog.warning("Overwriting field %s." % name)
             self.fields[name] = value
         else:
             raise ValueError("The length of the array needs to be %d elements!"
