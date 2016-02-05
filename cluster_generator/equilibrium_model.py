@@ -2,6 +2,7 @@ from cluster_generator.utils import mylog, \
     YTArray
 from collections import OrderedDict
 from six import add_metaclass
+from yt import savetxt
 import h5py
 import os
 
@@ -39,14 +40,13 @@ class EquilibriumModel(object):
         """
         f = h5py.File(filename)
         model_type = f["model_type"].value
-
         geometry = f["geometry"].value
-
         f.close()
 
         fields = OrderedDict
         for field in f["fields"]:
-            fields[field] = YTArray.from_hdf5(filename, dataset_name=field, group_name="fields")
+            fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
+                                              group_name="fields")
 
         num_elements = f["num_elements"].value
 
@@ -58,7 +58,7 @@ class EquilibriumModel(object):
     def keys(self):
         return self.fields.keys()
 
-    def write_model_to_ascii(self, output_filename):
+    def write_model_to_ascii(self, output_filename, in_cgs=False, clobber=False):
         """
         Write the equilibrium model to an HDF5 file.
 
@@ -66,25 +66,27 @@ class EquilibriumModel(object):
         ----------
         output_filename : string
             The file to write the model to.
+        in_cgs : boolean, optional
+            Whether to convert the units to cgs before writing. Default False.
+        clobber : boolean, optional
+            Overwrite an existing file with the same name. Default False.
         """
-        field_list = self.fields.keys()
+        if os.path.exists(output_filename) and not clobber:
+            raise IOError("Cannot create %s. It exists and clobber=False." % output_filename)
+        field_list = list(self.fields.keys())
         num_fields = len(field_list)
-
-        format_str = "%g\t"*(num_fields-1)+"%g\n"
         name_fmt_str = "# " + "%s\t"*(num_fields-1)+"%s\n"
-        unit_fmt_str = "# " + "%s\t"*(num_fields-1)+"%s\n"
+        header = name_fmt_str % tuple(field_list)
 
-        outlines = [name_fmt_str % tuple(field_list)]
-        units = [str(self[field].units) for field in field_list]
-        outlines.append(unit_fmt_str % tuple(units))
+        fields = self.fields.deepcopy()
+        if in_cgs:
+            for k,v in fields.items():
+                if k == "temperature":
+                    fields[k] = v.to_equivalent("K", "thermal")
+                else:
+                    v.convert_to_cgs()
 
-        for i in xrange(self.num_elements):
-            current_line = [self[field][i] for field in field_list]
-            outlines.append(format_str % tuple(current_line))
-
-        f = open(output_filename, "w")
-        f.writelines(outlines)
-        f.close()
+        savetxt(output_filename, list(fields.values()), header=header)
 
     def write_model_to_h5(self, output_filename, in_cgs=False, clobber=False):
         """
@@ -108,9 +110,15 @@ class EquilibriumModel(object):
         f.close()
         for field in list(self.fields.keys()):
             if in_cgs:
-                self.fields[field].in_cgs().write_hdf5(output_filename, dataset_name=field, group_name="fields")
+                if field == "temperature":
+                    fd = self.fields[field].to_equivalent("K", "thermal")
+                else:
+                    fd = self.fields[field]
+                fd.in_cgs().write_hdf5(output_filename, dataset_name=field, 
+                                       group_name="fields")
             else:
-                self.fields[field].write_hdf5(output_filename, dataset_name=field, group_name="fields")
+                self.fields[field].write_hdf5(output_filename, dataset_name=field,
+                                              group_name="fields")
 
     def set_field(self, name, value):
         """
