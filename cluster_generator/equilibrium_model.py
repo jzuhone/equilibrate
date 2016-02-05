@@ -75,16 +75,18 @@ class EquilibriumModel(object):
             raise IOError("Cannot create %s. It exists and clobber=False." % output_filename)
         field_list = list(self.fields.keys())
         num_fields = len(field_list)
-        name_fmt_str = "# " + "%s\t"*(num_fields-1)+"%s\n"
+        name_fmt_str = " Fields\n"+" %s\t"*(num_fields-1)+"%s"
         header = name_fmt_str % tuple(field_list)
 
-        fields = self.fields.deepcopy()
         if in_cgs:
-            for k,v in fields.items():
+            fields = OrderedDict()
+            for k,v in self.fields.items():
                 if k == "temperature":
                     fields[k] = v.to_equivalent("K", "thermal")
                 else:
-                    v.convert_to_cgs()
+                    fields[k] = v.in_cgs()
+        else:
+            fields = self.fields
 
         savetxt(output_filename, list(fields.values()), header=header)
 
