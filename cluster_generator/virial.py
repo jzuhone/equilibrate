@@ -59,6 +59,11 @@ class VirialEquilibrium(EquilibriumModel):
         g_spline = InterpolatedUnivariateSpline(ee, g)
         f = lambda e: g_spline(e, 1)/(np.sqrt(8.)*np.pi**2)
 
+        self.ee = ee
+        self.f = f
+        self.rr = rr
+        self.pden = pden
+
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
@@ -95,3 +100,14 @@ class VirialEquilibrium(EquilibriumModel):
         fields["particle_energy"] = fields["particle_potential"]-0.5*fields["particle_velocity"]**2
 
         super(VirialEquilibrium, self).__init__(num_particles, fields, "spherical")
+
+    def check_model(self):
+        n = len(self.ee)
+        rho = np.zeros(n)
+        rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
+        for i, e in enumerate(self.ee[::-1]):
+            rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e))[0]
+        chk = np.abs(rho-self.pden)/self.pden
+        mylog.info("The maximum relative deviation of this profile from "
+                   "virial equilibrium is %g" % np.abs(chk).max())
+        return rho, chk
