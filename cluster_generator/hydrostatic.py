@@ -16,7 +16,7 @@ muinv = 0.76/0.5 + 0.24/(4./3.)
 modes = {"dens_temp":("density","temperature"),
          "dens_tden":("density","total_density"),
          "dens_grav":("density","gravitational_field"),
-         "tden_only":("total_density",)}
+         "dm_only":("total_density",)}
 
 class RequiredProfilesError(Exception):
     def __init__(self, mode):
@@ -56,8 +56,8 @@ class HydrostaticEquilibrium(EquilibriumModel):
                 total density profile.
                 "dens_grav": Generate the profiles given a gas density and
                 gravitational acceleration profile.
-                "tden_only": Generate profiles of gravitational potential
-                and acceleration assuming an initial total density profile.
+                "dm_only": Generate profiles of gravitational potential
+                and acceleration assuming an initial DM density profile.
         xmin : float
             The minimum radius or height for the profiles, assumed to be in kpc.
         xmax : float
@@ -87,7 +87,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
             if p not in profiles:
                 raise RequiredProfilesError(mode)
 
-        if mode in ["dens_tden","tden_only"] and geometry != "spherical":
+        if mode in ["dens_tden","dm_only"] and geometry != "spherical":
             raise NotImplemented("Constructing a HydrostaticEquilibrium from gas density and/or "
                                  "total density profiles is only allowed in spherical geometry!")
 
@@ -103,7 +103,11 @@ class HydrostaticEquilibrium(EquilibriumModel):
         xx = np.logspace(np.log10(xmin), np.log10(xmax), num_points, endpoint=True)
         fields[x_field] = YTArray(xx, "kpc")
 
-        if mode != "tden_only":
+        if mode == "dm_only":
+            fields["density"] = YTArray(np.zeros(num_points), "Msun/kpc**3")
+            fields["pressure"] = YTArray(np.zeros(num_points), "Msun/kpc/Myr**2")
+            fields["temperature"] = YTArray(np.zeros(num_points), "keV")
+        else:
             fields["density"] = YTArray(profiles["density"](xx), "Msun/kpc**3")
 
         if mode == "dens_temp":
@@ -122,7 +126,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
 
         else:
 
-            if mode == "dens_tden" or mode == "tden_only":
+            if mode == "dens_tden" or mode == "dm_only":
                 mylog.info("Computing the profiles from density and total density.")
                 fields["total_density"] = YTArray(profiles["total_density"](xx), "Msun/kpc**3")
                 mylog.info("Integrating total mass profile.")
@@ -133,7 +137,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
                 mylog.info("Computing the profiles from density and gravitational acceleration.")
                 fields["gravitational_field"] = YTArray(profiles["gravitational_field"](xx), "kpc/Myr**2")
 
-            if mode != "tden_only":
+            if mode != "dm_only":
                 g = fields["gravitational_field"].in_units("kpc/Myr**2").v
                 g_r = InterpolatedUnivariateSpline(xx, g)
                 dPdr_int = lambda r: profiles["density"](r)*g_r(r)
@@ -153,13 +157,13 @@ class HydrostaticEquilibrium(EquilibriumModel):
             gpot = YTArray(4.*np.pi*integrate_toinf(gpot_profile, xx), "Msun/kpc")
             fields["gravitational_potential"] = -G*(fields["total_mass"]/fields["radius"] + gpot)
             fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
-            if mode != "tden_only":
+            if mode != "dm_only":
                 mylog.info("Integrating gas mass profile.")
                 fields["gas_mass"] = YTArray(integrate_mass(profiles["density"], xx), "Msun")
 
         mdm = fields["total_mass"].copy()
         ddm = fields["total_density"].copy()
-        if mode != "tden_only":
+        if mode != "dm_only":
             mdm -= fields["gas_mass"]
             ddm -= fields["density"]
             mdm[ddm.v < 0.0][:] = mdm.max()
