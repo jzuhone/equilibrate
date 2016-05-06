@@ -90,13 +90,13 @@ class VirialEquilibrium(EquilibriumModel):
         theta = np.arccos(np.random.uniform(low=-1.,high=1.,size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
-        fields["particle_velocity"] = YTArray(velocity, "kpc/Myr").in_units("km/s")
+        fields["particle_velocity"] = YTArray(velocity, "kpc/Myr").in_units("kpc/Myr")
         fields["particle_velocity_x"] = velocity*np.sin(theta)*np.cos(phi)
         fields["particle_velocity_y"] = velocity*np.sin(theta)*np.sin(phi)
         fields["particle_velocity_z"] = velocity*np.cos(theta)
 
         fields["particle_mass"] = YTQuantity(mdm.max()/num_particles, "Msun")
-        fields["particle_potential"] = YTArray(psi, "kpc**2/Myr**2").in_units("km**2/s**2")
+        fields["particle_potential"] = YTArray(psi, "kpc**2/Myr**2")
         fields["particle_energy"] = fields["particle_potential"]-0.5*fields["particle_velocity"]**2
 
         super(VirialEquilibrium, self).__init__(num_particles, fields, "spherical")

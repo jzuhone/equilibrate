@@ -65,12 +65,12 @@ class HydrostaticEquilibrium(EquilibriumModel):
         profiles : dict of functions
             A dictionary of callable functions of radius or height which return
             quantities such as density, total density, and so on. The functions 
-            are not unit-aware for speed purposes, but they assume the radius or
-            height is in kpc and that they have the following units:
-                "density": "Msun/kpc**3"
-                "total_density": "Msun/kpc**3"
+            are not unit-aware for speed purposes, but they assume that the base
+            units are:
+                "length": "kpc"
+                "time": "Myr"
+                "mass": "Msun"
                 "temperature": "keV"
-                "gravitational_field": "km/s**2"
         parameters : dict of floats
             A dictionary of parameters needed for the calculation, which include:
                 "mu": The mean molecular weight of the gas. Default is to assume a
@@ -113,12 +113,12 @@ class HydrostaticEquilibrium(EquilibriumModel):
             fields["temperature"] = YTArray(profiles["temperature"](xx), "keV")
             fields["pressure"] = fields["density"]*fields["temperature"]
             fields["pressure"] *= muinv/mp
-            fields["pressure"].convert_to_units("keV/cm**3")
+            fields["pressure"].convert_to_units("Msun/(Myr**2*kpc)")
 
             pressure_spline = InterpolatedUnivariateSpline(xx, fields["pressure"].v)
-            dPdx = YTArray(pressure_spline(xx, 1), "keV/cm**3/kpc")
+            dPdx = YTArray(pressure_spline(xx, 1), "Msun/(Myr**2*kpc**2)")
             fields["gravitational_field"] = dPdx/fields["density"]
-            fields["gravitational_field"].convert_to_units("km/s**2")
+            fields["gravitational_field"].convert_to_units("kpc/Myr**2")
 
         else:
 
@@ -128,10 +128,10 @@ class HydrostaticEquilibrium(EquilibriumModel):
                 mylog.info("Integrating total mass profile.")
                 fields["total_mass"] = YTArray(integrate_mass(profiles["total_density"], xx), "Msun")
                 fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
-                fields["gravitational_field"].convert_to_units("km/s**2")
+                fields["gravitational_field"].convert_to_units("kpc/Myr**2")
             elif mode == "dens_grav":
                 mylog.info("Computing the profiles from density and gravitational acceleration.")
-                fields["gravitational_field"] = YTArray(profiles["gravitational_field"](xx), "km/s**2")
+                fields["gravitational_field"] = YTArray(profiles["gravitational_field"](xx), "kpc/Myr**2")
 
             if mode != "tden_only":
                 g = fields["gravitational_field"].in_units("kpc/Myr**2").v
@@ -139,9 +139,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
                 dPdr_int = lambda r: profiles["density"](r)*g_r(r)
                 mylog.info("Integrating pressure profile.")
                 fields["pressure"] = -YTArray(integrate_toinf(dPdr_int, xx), "Msun/kpc/Myr**2")
-                fields["temperature"] = fields["pressure"]/fields["density"]
-                fields["temperature"] *= mp/muinv
-                fields["pressure"].convert_to_units("keV/cm**3")
+                fields["temperature"] = fields["pressure"]*mp/fields["density"]/muinv
                 fields["temperature"].convert_to_units("keV")
 
         if geometry == "spherical":
@@ -154,7 +152,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
             gpot_profile = lambda r: profiles["total_density"](r)*r
             gpot = YTArray(4.*np.pi*integrate_toinf(gpot_profile, xx), "Msun/kpc")
             fields["gravitational_potential"] = -G*(fields["total_mass"]/fields["radius"] + gpot)
-            fields["gravitational_potential"].convert_to_units("km**2/s**2")
+            fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
             if mode != "tden_only":
                 mylog.info("Integrating gas mass profile.")
                 fields["gas_mass"] = YTArray(integrate_mass(profiles["density"], xx), "Msun")
@@ -187,7 +185,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
         """
         xx = self.fields[self.x_field].v
         pressure_spline = InterpolatedUnivariateSpline(xx, self.fields["pressure"].v)
-        dPdx = YTArray(pressure_spline(xx, 1), "keV/cm**3/kpc")
+        dPdx = YTArray(pressure_spline(xx, 1), "Msun/(Myr**2*kpc**2)")
         rhog = self.fields["density"]*self.fields["gravitational_field"]
         chk = dPdx - rhog
         chk /= rhog
