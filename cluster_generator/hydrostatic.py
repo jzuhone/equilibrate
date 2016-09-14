@@ -1,22 +1,21 @@
 import numpy as np
 from collections import OrderedDict
+from yt import YTArray, YTQuantity, mylog
+from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
-    InterpolatedUnivariateSpline, \
-    YTArray, \
-    mylog, \
+    integrate, \
     integrate_mass, \
-    integrate_toinf, \
     mp, G
 
-from cluster_generator.equilibrium_model import EquilibriumModel
+from cluster_generator.cluster_model import ClusterModel
 
 gamma = 5./3.
 muinv = 0.76/0.5 + 0.24/(4./3.)
 
-modes = {"dens_temp":("density","temperature"),
-         "dens_tden":("density","total_density"),
-         "dens_grav":("density","gravitational_field"),
-         "dm_only":("total_density",)}
+modes = {"dens_temp": ("density","temperature"),
+         "dens_tden": ("density","total_density"),
+         "dens_grav": ("density","gravitational_field"),
+         "dm_only": ("total_density",)}
 
 class RequiredProfilesError(Exception):
     def __init__(self, mode):
@@ -27,7 +26,7 @@ class RequiredProfilesError(Exception):
         ret += "The following profiles are needed: %s" % modes[self.mode]
         return ret
 
-class HydrostaticEquilibrium(EquilibriumModel):
+class HydrostaticEquilibrium(ClusterModel):
 
     _type_name = "hydrostatic"
     _xfield = None
@@ -39,7 +38,7 @@ class HydrostaticEquilibrium(EquilibriumModel):
 
     @classmethod
     def from_scratch(cls, mode, xmin, xmax, profiles, input_units=None,
-                     num_points=1000, geometry="spherical"):
+                     num_points=1000, geometry="spherical", P_amb=0.0):
         r"""
         Generate a set of profiles of physical quantities based on the assumption
         of hydrostatic equilibrium. Currently assumes an ideal gas with a gamma-law
@@ -82,6 +81,10 @@ class HydrostaticEquilibrium(EquilibriumModel):
             The geometry of the model. Can be "cartesian" or "spherical", which will
             determine whether or not the profiles are of "radius" or "height".
         """
+
+        if not isinstance(P_amb, YTQuantity):
+            P_amb = YTQuantity(P_amb, "erg/cm**3")
+        P_amb.convert_to_units("Msun/(Myr**2*kpc)")
 
         for p in modes[mode]:
             if p not in profiles:
@@ -142,19 +145,24 @@ class HydrostaticEquilibrium(EquilibriumModel):
                 g_r = InterpolatedUnivariateSpline(xx, g)
                 dPdr_int = lambda r: profiles["density"](r)*g_r(r)
                 mylog.info("Integrating pressure profile.")
-                fields["pressure"] = -YTArray(integrate_toinf(dPdr_int, xx), "Msun/kpc/Myr**2")
+                fields["pressure"] = -YTArray(integrate(dPdr_int, xx), "Msun/kpc/Myr**2")
                 fields["temperature"] = fields["pressure"]*mp/fields["density"]/muinv
                 fields["temperature"].convert_to_units("keV")
 
         if geometry == "spherical":
             if "total_mass" not in fields:
-                fields["total_mass"] = fields["radius"]**2*fields["gravitational_field"]/G
+                fields["total_mass"] = -fields["radius"]**2*fields["gravitational_field"]/G
+            if "total_density" not in fields:
                 total_mass_spline = InterpolatedUnivariateSpline(xx, fields["total_mass"].v)
                 dMdr = YTArray(total_mass_spline(xx, 1), "Msun/kpc")
                 fields["total_density"] = dMdr/(4.*np.pi*fields["radius"]**2)
             mylog.info("Integrating gravitational potential profile.")
-            gpot_profile = lambda r: profiles["total_density"](r)*r
-            gpot = YTArray(4.*np.pi*integrate_toinf(gpot_profile, xx), "Msun/kpc")
+            if "total_density" in profiles:
+                tdens_func = profiles["total_density"]
+            else:
+                tdens_func = InterpolatedUnivariateSpline(xx, fields["total_density"].d)
+            gpot_profile = lambda r: tdens_func(r)*r
+            gpot = YTArray(4.*np.pi*integrate(gpot_profile, xx), "Msun/kpc")
             fields["gravitational_potential"] = -G*(fields["total_mass"]/fields["radius"] + gpot)
             fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
             if mode != "dm_only":
@@ -170,6 +178,8 @@ class HydrostaticEquilibrium(EquilibriumModel):
             ddm[ddm.v < 0.0][:] = 0.0
         fields["dark_matter_density"] = ddm
         fields["dark_matter_mass"] = mdm
+
+        fields['pressure'] += P_amb
 
         for field in extra_fields:
             fields[field] = profiles[field](xx)

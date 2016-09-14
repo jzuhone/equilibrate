@@ -1,17 +1,15 @@
 import numpy as np
+from yt import YTArray, YTQuantity, mylog, get_pbar
+from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
-    InterpolatedUnivariateSpline, \
-    YTArray, G, \
-    mylog, quad, \
+    G, quad, \
     integrate_toinf, \
-    get_pbar, \
-    integrate_mass, \
-    YTQuantity
-from cluster_generator.equilibrium_model import EquilibriumModel
+    integrate_mass
+from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
 
-class VirialEquilibrium(EquilibriumModel):
+class VirialEquilibrium(ClusterModel):
 
     _type_name = "virial"
 
@@ -76,9 +74,9 @@ class VirialEquilibrium(EquilibriumModel):
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
         fields["particle_radius"] = YTArray(radius, "kpc")
-        fields["particle_position_x"] = radius*np.sin(theta)*np.cos(phi)
-        fields["particle_position_y"] = radius*np.sin(theta)*np.sin(phi)
-        fields["particle_position_z"] = radius*np.cos(theta)
+        fields["particle_position_x"] = YTArray(radius*np.sin(theta)*np.cos(phi), "kpc")
+        fields["particle_position_y"] = YTArray(radius*np.sin(theta)*np.sin(phi), "kpc")
+        fields["particle_position_z"] = YTArray(radius*np.cos(theta), "kpc")
 
         mylog.info("Compute particle velocities.")
 
@@ -90,12 +88,12 @@ class VirialEquilibrium(EquilibriumModel):
         theta = np.arccos(np.random.uniform(low=-1.,high=1.,size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
-        fields["particle_velocity"] = YTArray(velocity, "kpc/Myr").in_units("kpc/Myr")
-        fields["particle_velocity_x"] = velocity*np.sin(theta)*np.cos(phi)
-        fields["particle_velocity_y"] = velocity*np.sin(theta)*np.sin(phi)
-        fields["particle_velocity_z"] = velocity*np.cos(theta)
+        fields["particle_velocity"] = YTArray(velocity, "kpc/Myr")
+        fields["particle_velocity_x"] = YTArray(velocity*np.sin(theta)*np.cos(phi), "kpc/Myr")
+        fields["particle_velocity_y"] = YTArray(velocity*np.sin(theta)*np.sin(phi), "kpc/Myr")
+        fields["particle_velocity_z"] = YTArray(velocity*np.cos(theta), "kpc/Myr")
 
-        fields["particle_mass"] = YTQuantity(mdm.max()/num_particles, "Msun")
+        fields["particle_mass"] = YTArray([mdm.max()/num_particles], "Msun")
         fields["particle_potential"] = YTArray(psi, "kpc**2/Myr**2")
         fields["particle_energy"] = fields["particle_potential"]-0.5*fields["particle_velocity"]**2
 

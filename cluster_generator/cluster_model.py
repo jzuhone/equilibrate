@@ -1,22 +1,19 @@
-from cluster_generator.utils import mylog, \
-    YTArray
 from collections import OrderedDict
 from six import add_metaclass
-from yt import savetxt
+from yt import savetxt, mylog, YTArray
 import h5py
 import os
 
 equilibrium_model_registry = {}
 
-class RegisteredEquilibriumModel(type):
+class RegisteredClusterModel(type):
     def __init__(cls, name, b, d):
         type.__init__(cls, name, b, d)
-        if hasattr(cls, "_type_name") and not cls._skip_add:
+        if hasattr(cls, "_type_name"):
             equilibrium_model_registry[cls._type_name] = cls
 
-@add_metaclass(RegisteredEquilibriumModel)
-class EquilibriumModel(object):
-    _skip_add = False
+@add_metaclass(RegisteredClusterModel)
+class ClusterModel(object):
 
     def __init__(self, num_elements, fields, geometry):
         self.num_elements = num_elements
@@ -35,20 +32,24 @@ class EquilibriumModel(object):
 
         Examples
         --------
-        >>> from cluster_generator import EquilibriumModel
-        >>> hse_model = EquilibriumModel.from_h5_file("hse_model.h5")
+        >>> from cluster_generator import ClusterModel
+        >>> hse_model = ClusterModel.from_h5_file("hse_model.h5")
         """
         f = h5py.File(filename)
+
         model_type = f["model_type"].value
         geometry = f["geometry"].value
+        num_elements = f["num_elements"].value
+        fnames = list(f['fields'].keys())
+
         f.close()
 
-        fields = OrderedDict
-        for field in f["fields"]:
-            fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
-                                              group_name="fields")
-
-        num_elements = f["num_elements"].value
+        fields = OrderedDict()
+        for field in fnames:
+            if field in ["particle_mass"]:
+            else:
+                fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
+                                                  group_name="fields").in_base("galactic")
 
         return equilibrium_model_registry[model_type](num_elements, fields, geometry)
 
