@@ -46,10 +46,8 @@ class ClusterModel(object):
 
         fields = OrderedDict()
         for field in fnames:
-            if field in ["particle_mass"]:
-            else:
-                fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
-                                                  group_name="fields").in_base("galactic")
+            fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
+                                              group_name="fields").in_base("galactic")
 
         return equilibrium_model_registry[model_type](num_elements, fields, geometry)
 
