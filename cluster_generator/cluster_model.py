@@ -87,7 +87,7 @@ class ClusterModel(object):
         if "particle_mass" in fields:
             particle_mass = fields.pop("particle_mass")
             header += "\n Particle mass = %g %s" % (particle_mass[0].v, 
-                                                 particle_mass[0].units)
+                                                    particle_mass[0].units)
 
         savetxt(output_filename, list(fields.values()), header=header)
 
