@@ -79,13 +79,15 @@ class ClusterModel(object):
 
         if in_cgs:
             fields = OrderedDict()
-            for k,v in self.fields.items():
-                if k == "temperature":
-                    fields[k] = v.to_equivalent("K", "thermal")
-                else:
-                    fields[k] = v.in_cgs()
+            for k, v in self.fields.items():
+                fields[k] = v.in_cgs()
         else:
             fields = self.fields
+
+        if "particle_mass" in fields:
+            particle_mass = fields.pop("particle_mass")
+            header += "\n Particle mass = %g %s" % (particle_mass[0].v, 
+                                                 particle_mass[0].units)
 
         savetxt(output_filename, list(fields.values()), header=header)
 
