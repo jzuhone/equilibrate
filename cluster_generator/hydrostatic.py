@@ -37,8 +37,8 @@ class HydrostaticEquilibrium(ClusterModel):
                       "dark_matter_density"]
 
     @classmethod
-    def from_scratch(cls, mode, xmin, xmax, profiles, input_units=None,
-                     num_points=1000, geometry="spherical", P_amb=0.0):
+    def from_scratch(cls, mode, xmin, xmax, profiles, num_points=1000,
+                     geometry="spherical", P_amb=0.0):
         r"""
         Generate a set of profiles of physical quantities based on the assumption
         of hydrostatic equilibrium. Currently assumes an ideal gas with a gamma-law
