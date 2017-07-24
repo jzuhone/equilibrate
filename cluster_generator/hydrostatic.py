@@ -78,6 +78,10 @@ class HydrostaticEquilibrium(ClusterModel):
             The number of points at which to evaluate the profile.
         """
 
+        for k, p in profiles.items():
+            if hasattr(p, "unitless"):
+                profiles[k] = p.unitless()
+
         if not isinstance(P_amb, YTQuantity):
             P_amb = YTQuantity(P_amb, "erg/cm**3")
         P_amb.convert_to_units("Msun/(Myr**2*kpc)")
