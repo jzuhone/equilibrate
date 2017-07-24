@@ -55,7 +55,7 @@ class ClusterModel(object):
     def keys(self):
         return self.fields.keys()
 
-    def write_model_to_ascii(self, output_filename, in_cgs=False, clobber=False):
+    def write_model_to_ascii(self, output_filename, in_cgs=False, overwrite=False):
         """
         Write the equilibrium model to an HDF5 file.
 
@@ -65,11 +65,11 @@ class ClusterModel(object):
             The file to write the model to.
         in_cgs : boolean, optional
             Whether to convert the units to cgs before writing. Default False.
-        clobber : boolean, optional
+        overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
         """
-        if os.path.exists(output_filename) and not clobber:
-            raise IOError("Cannot create %s. It exists and clobber=False." % output_filename)
+        if os.path.exists(output_filename) and not overwrite:
+            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
         field_list = list(self.fields.keys())
         num_fields = len(field_list)
         name_fmt_str = " Fields\n"+" %s\t"*(num_fields-1)+"%s"
@@ -89,7 +89,7 @@ class ClusterModel(object):
 
         savetxt(output_filename, list(fields.values()), header=header)
 
-    def write_model_to_h5(self, output_filename, in_cgs=False, clobber=False):
+    def write_model_to_h5(self, output_filename, in_cgs=False, overwrite=False):
         """
         Write the equilibrium model to an HDF5 file.
 
@@ -99,11 +99,11 @@ class ClusterModel(object):
             The file to write the model to.
         in_cgs : boolean, optional
             Whether to convert the units to cgs before writing. Default False.
-        clobber : boolean, optional
+        overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
         """
-        if os.path.exists(output_filename) and not clobber:
-            raise IOError("Cannot create %s. It exists and clobber=False." % output_filename)
+        if os.path.exists(output_filename) and not overwrite:
+            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
         f = h5py.File(output_filename, "w")
         f.create_dataset("model_type", data=self._type_name)
         f.create_dataset("num_elements", data=self.num_elements)
