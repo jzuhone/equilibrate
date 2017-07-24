@@ -29,7 +29,6 @@ class RequiredProfilesError(Exception):
 class HydrostaticEquilibrium(ClusterModel):
 
     _type_name = "hydrostatic"
-    _xfield = None
 
     default_fields = ["density","temperature","pressure","total_density",
                       "gravitational_potential","gravitational_field",
@@ -38,7 +37,7 @@ class HydrostaticEquilibrium(ClusterModel):
 
     @classmethod
     def from_scratch(cls, mode, xmin, xmax, profiles, num_points=1000,
-                     geometry="spherical", P_amb=0.0):
+                     P_amb=0.0):
         r"""
         Generate a set of profiles of physical quantities based on the assumption
         of hydrostatic equilibrium. Currently assumes an ideal gas with a gamma-law
@@ -77,9 +76,6 @@ class HydrostaticEquilibrium(ClusterModel):
                 "gamma": The ratio of specific heats. Default: 5/3.
         num_points : integer
             The number of points at which to evaluate the profile.
-        geometry : string
-            The geometry of the model. Can be "cartesian" or "spherical", which will
-            determine whether or not the profiles are of "radius" or "height".
         """
 
         if not isinstance(P_amb, YTQuantity):
@@ -90,21 +86,12 @@ class HydrostaticEquilibrium(ClusterModel):
             if p not in profiles:
                 raise RequiredProfilesError(mode)
 
-        if mode in ["dens_tden","dm_only"] and geometry != "spherical":
-            raise NotImplemented("Constructing a HydrostaticEquilibrium from gas density and/or "
-                                 "total density profiles is only allowed in spherical geometry!")
-
         extra_fields = [field for field in profiles if field not in cls.default_fields]
-
-        if geometry == "cartesian":
-            x_field = "height"
-        elif geometry == "spherical":
-            x_field = "radius"
 
         fields = OrderedDict()
 
         xx = np.logspace(np.log10(xmin), np.log10(xmax), num_points, endpoint=True)
-        fields[x_field] = YTArray(xx, "kpc")
+        fields["radius"] = YTArray(xx, "kpc")
 
         if mode == "dm_only":
             fields["density"] = YTArray(np.zeros(num_points), "Msun/kpc**3")
@@ -149,25 +136,24 @@ class HydrostaticEquilibrium(ClusterModel):
                 fields["temperature"] = fields["pressure"]*mp/fields["density"]/muinv
                 fields["temperature"].convert_to_units("keV")
 
-        if geometry == "spherical":
-            if "total_mass" not in fields:
-                fields["total_mass"] = -fields["radius"]**2*fields["gravitational_field"]/G
-            if "total_density" not in fields:
-                total_mass_spline = InterpolatedUnivariateSpline(xx, fields["total_mass"].v)
-                dMdr = YTArray(total_mass_spline(xx, 1), "Msun/kpc")
-                fields["total_density"] = dMdr/(4.*np.pi*fields["radius"]**2)
-            mylog.info("Integrating gravitational potential profile.")
-            if "total_density" in profiles:
-                tdens_func = profiles["total_density"]
-            else:
-                tdens_func = InterpolatedUnivariateSpline(xx, fields["total_density"].d)
-            gpot_profile = lambda r: tdens_func(r)*r
-            gpot = YTArray(4.*np.pi*integrate(gpot_profile, xx), "Msun/kpc")
-            fields["gravitational_potential"] = -G*(fields["total_mass"]/fields["radius"] + gpot)
-            fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
-            if mode != "dm_only":
-                mylog.info("Integrating gas mass profile.")
-                fields["gas_mass"] = YTArray(integrate_mass(profiles["density"], xx), "Msun")
+        if "total_mass" not in fields:
+            fields["total_mass"] = -fields["radius"]**2*fields["gravitational_field"]/G
+        if "total_density" not in fields:
+            total_mass_spline = InterpolatedUnivariateSpline(xx, fields["total_mass"].v)
+            dMdr = YTArray(total_mass_spline(xx, 1), "Msun/kpc")
+            fields["total_density"] = dMdr/(4.*np.pi*fields["radius"]**2)
+        mylog.info("Integrating gravitational potential profile.")
+        if "total_density" in profiles:
+            tdens_func = profiles["total_density"]
+        else:
+            tdens_func = InterpolatedUnivariateSpline(xx, fields["total_density"].d)
+        gpot_profile = lambda r: tdens_func(r)*r
+        gpot = YTArray(4.*np.pi*integrate(gpot_profile, xx), "Msun/kpc")
+        fields["gravitational_potential"] = -G*(fields["total_mass"]/fields["radius"] + gpot)
+        fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
+        if mode != "dm_only":
+            mylog.info("Integrating gas mass profile.")
+            fields["gas_mass"] = YTArray(integrate_mass(profiles["density"], xx), "Msun")
 
         mdm = fields["total_mass"].copy()
         ddm = fields["total_density"].copy()
@@ -184,20 +170,14 @@ class HydrostaticEquilibrium(ClusterModel):
         for field in extra_fields:
             fields[field] = profiles[field](xx)
 
-        return cls(num_points, fields, geometry)
-
-    @property
-    def x_field(self):
-        if self._xfield is None:
-            self._xfield = list(self.keys())[0]
-        return self._xfield
+        return cls(num_points, fields)
 
     def check_model(self):
         r"""
         Determine the deviation of the model from hydrostatic equilibrium. Returns
         an array containing the relative deviation at each radius or height.
         """
-        xx = self.fields[self.x_field].v
+        xx = self.fields["radius"].v
         pressure_spline = InterpolatedUnivariateSpline(xx, self.fields["pressure"].v)
         dPdx = YTArray(pressure_spline(xx, 1), "Msun/(Myr**2*kpc**2)")
         rhog = self.fields["density"]*self.fields["gravitational_field"]

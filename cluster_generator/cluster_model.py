@@ -15,10 +15,9 @@ class RegisteredClusterModel(type):
 @add_metaclass(RegisteredClusterModel)
 class ClusterModel(object):
 
-    def __init__(self, num_elements, fields, geometry):
+    def __init__(self, num_elements, fields):
         self.num_elements = num_elements
         self.fields = fields
-        self.geometry = geometry
 
     @classmethod
     def from_h5_file(cls, filename):
@@ -38,7 +37,6 @@ class ClusterModel(object):
         f = h5py.File(filename)
 
         model_type = f["model_type"].value
-        geometry = f["geometry"].value
         num_elements = f["num_elements"].value
         fnames = list(f['fields'].keys())
 
@@ -49,7 +47,7 @@ class ClusterModel(object):
             fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
                                               group_name="fields").in_base("galactic")
 
-        return equilibrium_model_registry[model_type](num_elements, fields, geometry)
+        return equilibrium_model_registry[model_type](num_elements, fields)
 
     def __getitem__(self, key):
         return self.fields[key]
@@ -109,7 +107,6 @@ class ClusterModel(object):
         f = h5py.File(output_filename, "w")
         f.create_dataset("model_type", data=self._type_name)
         f.create_dataset("num_elements", data=self.num_elements)
-        f.create_dataset("geometry", data=self.geometry)
         f.close()
         for field in list(self.fields.keys()):
             if in_cgs:

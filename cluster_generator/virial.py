@@ -30,8 +30,6 @@ class VirialEquilibrium(ClusterModel):
 
     @classmethod
     def from_hse_model(cls, num_particles, hse_model):
-        if hse_model.geometry != "spherical":
-            raise NotImplemented("VirialEquilibrium is only available for spherical geometries.")
         gpot = -hse_model["gravitational_potential"].in_units("kpc**2/Myr**2")
         return cls(num_particles, hse_model["radius"].v,
                    gpot.v, hse_model["dark_matter_density"].v,
@@ -97,7 +95,7 @@ class VirialEquilibrium(ClusterModel):
         fields["particle_potential"] = YTArray(psi, "kpc**2/Myr**2")
         fields["particle_energy"] = fields["particle_potential"]-0.5*fields["particle_velocity"]**2
 
-        super(VirialEquilibrium, self).__init__(num_particles, fields, "spherical")
+        super(VirialEquilibrium, self).__init__(num_particles, fields)
 
     def check_model(self):
         n = len(self.ee)
