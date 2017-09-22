@@ -221,6 +221,16 @@ class GaussianRandomField(object):
         f.flush()
         f.close()
 
+    def map_field_to_particles(self, cluster_particles, ptype="gas"):
+        from scipy.interpolate import RegularGridInterpolator
+        for i, ax in enumerate("xyz"):
+            func = RegularGridInterpolator((self["x"], self["y"], self["z"]),
+                                           self[self._name+"_"+ax])
+            v = func(cluster_particles["particle_position"][:, 0],
+                     cluster_particles["particle_position"][:, 1],
+                     cluster_particles["particle_position"][:, 2])
+            cluster_particles.set_field(ptype, "particle_%s_%s" % (self._name, ax), v)
+
 class RandomMagneticField(GaussianRandomField):
     _units = "gauss"
     _name = "magnetic_field"
