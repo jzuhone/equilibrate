@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from six import add_metaclass
 from yt import savetxt, mylog, YTArray
+from yt.funcs import ensure_list
 import h5py
 import os
 
@@ -82,11 +83,6 @@ class ClusterModel(object):
         else:
             fields = self.fields
 
-        if "particle_mass" in fields:
-            particle_mass = fields.pop("particle_mass")
-            header += "\n Particle mass = %g %s" % (particle_mass[0].v, 
-                                                    particle_mass[0].units)
-
         savetxt(output_filename, list(fields.values()), header=header)
 
     def write_model_to_h5(self, output_filename, in_cgs=False, overwrite=False):
@@ -135,4 +131,76 @@ class ClusterModel(object):
             raise ValueError("The length of the array needs to be %d elements!"
                              % self.num_elements)
 
+gadget_type_map = {"gas": "PartType0", 
+                   "dm": "PartType1"}
+gadget_field_map = {"position": "Coordinates", 
+                    "velocity": "Velocities",
+                    "masses": "Masses"}
 
+class ClusterParticles(object):
+    def __init__(self, particle_types, fields):
+        self.particle_types = ensure_list(particle_types)
+        self.num_particles = {}
+        for ptype in self.particle_types:
+            self.num_particles[ptype] = fields["particle_mass"].size
+        self.fields = fields
+
+    @classmethod
+    def from_h5_file(cls, filename):
+        r"""
+        Generate cluster particles from an HDF5 file.
+
+        Parameters
+        ----------
+        filename : string
+            The name of the file to read the model from.
+
+        Examples
+        --------
+        >>> from cluster_generator import ClusterParticles
+        >>> dm_particles = ClusterParticles.from_h5_file("dm_particles.h5")
+        """
+        names = {}
+        f = h5py.File(filename)
+        particle_types = list(f.keys())
+        for ptype in f:
+            names[ptype] = list(f[ptype].keys())
+        f.close()
+
+        fields = OrderedDict()
+        for ptype in particle_types:
+            for field in names[ptype]:
+                fields[ptype, field] = YTArray.from_hdf5(filename, dataset_name=field,
+                                                         group_name=ptype).in_base("galactic")
+        return cls(particle_types, fields)
+
+    def write_particles_to_h5(self, output_filename, in_cgs=False, overwrite=False):
+        """
+        Write the particles to an HDF5 file.
+
+        Parameters
+        ----------
+        output_filename : string
+            The file to write the particles to.
+        in_cgs : boolean, optional
+            Whether to convert the units to cgs before writing. Default False.
+        overwrite : boolean, optional
+            Overwrite an existing file with the same name. Default False.
+        """
+        if os.path.exists(output_filename) and not overwrite:
+            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
+        for field in self.fields:
+            if in_cgs:
+                fd = self.fields[field].in_cgs()
+            else:
+                fd = self.fields[field]
+            fd.write_hdf5(output_filename, dataset_name=field[1],
+                          group_name=field[0])
+
+    def __add__(self, other):
+        fields = self.fields.copy()
+        fields.update(other.fields)
+        particle_types = self.particle_types + other.particle_types
+        return ClusterParticles(particle_types, fields)
+
+    

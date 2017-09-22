@@ -1,3 +1,3 @@
-from cluster_generator.cluster_model import ClusterModel
+from cluster_generator.cluster_model import ClusterModel, ClusterParticles
 from cluster_generator.hydrostatic import HydrostaticEquilibrium
 from cluster_generator.virial import VirialEquilibrium

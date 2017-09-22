@@ -5,7 +5,8 @@ from cluster_generator.utils import \
     G, quad, \
     integrate_toinf, \
     integrate_mass
-from cluster_generator.cluster_model import ClusterModel
+from cluster_generator.cluster_model import ClusterModel, \
+    ClusterParticles
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
 import os
@@ -80,7 +81,7 @@ class VirialEquilibrium(ClusterModel):
                    "virial equilibrium is %g" % np.abs(chk).max())
         return rho, chk
 
-    def generate_particles(self, filename, num_particles, overwrite=False):
+    def generate_dm_particles(self, filename, num_particles, overwrite=False):
         """
         Generate a set of dark matter particles in virial equilibrium
         and write them to an HDF5 file.
@@ -111,10 +112,10 @@ class VirialEquilibrium(ClusterModel):
 
         fields = OrderedDict()
 
-        fields["particle_radius"] = YTArray(radius, "kpc")
-        fields["particle_position_x"] = YTArray(radius*np.sin(theta)*np.cos(phi), "kpc")
-        fields["particle_position_y"] = YTArray(radius*np.sin(theta)*np.sin(phi), "kpc")
-        fields["particle_position_z"] = YTArray(radius*np.cos(theta), "kpc")
+        fields["dm","particle_radius"] = YTArray(radius, "kpc")
+        fields["dm","particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
+                                                    radius*np.sin(theta)*np.sin(phi),
+                                                    radius*np.cos(theta)], "kpc")
 
         mylog.info("Compute particle velocities.")
 
@@ -126,14 +127,13 @@ class VirialEquilibrium(ClusterModel):
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
-        fields["particle_velocity"] = YTArray(velocity, "kpc/Myr")
-        fields["particle_velocity_x"] = YTArray(velocity*np.sin(theta)*np.cos(phi), "kpc/Myr")
-        fields["particle_velocity_y"] = YTArray(velocity*np.sin(theta)*np.sin(phi), "kpc/Myr")
-        fields["particle_velocity_z"] = YTArray(velocity*np.cos(theta), "kpc/Myr")
+        fields["dm","particle_speed"] = YTArray(velocity, "kpc/Myr")
+        fields["dm","particle_velocity"] = YTArray([velocity*np.sin(theta)*np.cos(phi),
+                                                    velocity*np.sin(theta)*np.sin(phi),
+                                                    velocity*np.cos(theta)], "kpc/Myr")
 
-        fields["particle_mass"] = YTArray([self.mdm.max()/num_particles], "Msun")
-        fields["particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
-        fields["particle_energy"] = fields["particle_potential"]+0.5*fields["particle_velocity"]**2
+        fields["dm","particle_mass"] = YTArray([self.mdm.max()/num_particles]*num_particles, "Msun")
+        fields["dm","particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
+        fields["dm","particle_energy"] = fields["particle_potential"]+0.5*fields["particle_speed"]**2
 
-        for name, array in fields.items():
-            array.write_hdf5(filename, dataset_name=name)
+        return ClusterParticles("dm", fields)

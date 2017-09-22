@@ -6,8 +6,9 @@ from cluster_generator.utils import \
     integrate, \
     integrate_mass, \
     mp, G
-
-from cluster_generator.cluster_model import ClusterModel
+import os
+from cluster_generator.cluster_model import ClusterModel, \
+    ClusterParticles
 
 gamma = 5./3.
 muinv = 0.76/0.5 + 0.24/(4./3.)
@@ -190,3 +191,56 @@ class HydrostaticEquilibrium(ClusterModel):
         mylog.info("The maximum relative deviation of this profile from "
                    "hydrostatic equilibrium is %g" % np.abs(chk).max())
         return chk
+
+    def generate_gas_particles(self, filename, num_particles, overwrite=False):
+        """
+        Generate a set of gas particles in hydrostatic equilibrium and write 
+        them to an HDF5 file.
+
+        Parameters
+        ----------
+        filename : string
+            The filename to write the particle file to. 
+        num_particles : integer
+            The number of particles to generate.
+        overwrite : boolean, optional
+            If True, overwrite a file with the same name.
+        """
+        if not overwrite and os.path.exists(filename):
+            raise IOError("Filename %s already exists and overwrite=False!" % filename)
+
+        mylog.info("We will be assigning %d particles." % num_particles)
+        mylog.info("Compute particle positions.")
+
+        mgas = self.fields["gas_mass"].d
+        r = np.insert(self.fields["radius"].d, 0, 0.0)
+        u = np.random.uniform(size=num_particles)
+        P_r = np.insert(mgas, 0, 0.0)
+        P_r /= P_r[-1]
+        radius = np.interp(u, P_r, r, left=0.0, right=1.0)
+
+        theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
+        phi = 2.*np.pi*np.random.uniform(size=num_particles)
+
+        fields = OrderedDict()
+
+        fields["particle_radius"] = YTArray(radius, "kpc")
+        fields["particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
+                                               radius*np.sin(theta)*np.sin(phi),
+                                               radius*np.cos(theta)], "kpc")
+
+        mylog.info("Compute particle thermal energies and masses.")
+
+        e_arr = 1.5*self.fields["pressure"]/self.fields["density"]
+
+        e_int = np.interp(radius, self.fields["radius"], e_arr)
+
+        fields["particle_thermal_energy"] = YTArray(e_int, "kpc**2/Myr**2")
+
+        fields["particle_mass"] = YTArray([mgas.max()/num_particles]*num_particles, "Msun")
+
+        mylog.info("Set particle velocities to zero.")
+
+        fields["particle_velocity"] = YTArray(np.zeros(num_particles, 3), "kpc/Myr")
+
+        return ClusterParticles("gas", fields)
