@@ -144,9 +144,9 @@ class GaussianRandomField(object):
         gz *= g_rms
 
         self.data = {}
-        self.data["x"] = YTArray(x, "kpc")
-        self.data["y"] = YTArray(y, "kpc")
-        self.data["z"] = YTArray(z, "kpc")
+        self.data["x"] = YTArray(x[:,0,0], "kpc")
+        self.data["y"] = YTArray(y[0,:,0], "kpc")
+        self.data["z"] = YTArray(z[0,0,:], "kpc")
 
         del x, y, z, g_rms
 
