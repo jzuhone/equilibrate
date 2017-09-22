@@ -5,7 +5,7 @@ from yt.funcs import iterable
 def parse_value(value, default_units):
     if isinstance(value, YTArray):
         return YTArray(value.v, value.units).in_units(default_units)
-    elif iterable(value):
+    elif isinstance(value, tuple):
         return YTArray(value[0], value[1]).in_units(default_units)
     else:
         return YTArray(value, default_units)
