@@ -124,7 +124,7 @@ class ClusterModel(object):
         """
         if not isinstance(value, YTArray):
             raise TypeError("value needs to be a YTArray")
-        if len(value) == self.num_elements:
+        if value.size == self.num_elements:
             if name in self.fields:
                 mylog.warning("Overwriting field %s." % name)
             self.fields[name] = value
@@ -258,3 +258,19 @@ class ClusterParticles(object):
         hg.attrs["Flag_IC_Info"] = 0
         f.flush()
         f.close()
+
+    def set_field(self, ptype, name, value):
+        """
+        Set a field with name *name* to value *value*, which is a YTArray.
+        The array will be checked to make sure that it has the appropriate size.
+        """
+        if not isinstance(value, YTArray):
+            raise TypeError("value needs to be a YTArray")
+        num_particles = self.num_particles[ptype]
+        if value.size == num_particles:
+            if (ptype, name) in self.fields:
+                mylog.warning("Overwriting field (%s, %s)." % (ptype, name))
+            self.fields[ptype, name] = value
+        else:
+            raise ValueError("The length of the array needs to be %d particles!"
+                             % num_particles)
