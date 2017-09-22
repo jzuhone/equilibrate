@@ -4,6 +4,7 @@ from yt import savetxt, mylog, YTArray
 from yt.funcs import ensure_list
 import h5py
 import os
+import numpy as np
 
 equilibrium_model_registry = {}
 
@@ -131,11 +132,21 @@ class ClusterModel(object):
             raise ValueError("The length of the array needs to be %d elements!"
                              % self.num_elements)
 
-gadget_type_map = {"gas": "PartType0", 
-                   "dm": "PartType1"}
-gadget_field_map = {"position": "Coordinates", 
-                    "velocity": "Velocities",
-                    "masses": "Masses"}
+gadget_dm_fields = ["Coordinates", "Velocities", "Masses"]
+gadget_gas_fields = ["Coordinates", "Velocities", "Masses",
+                     "InternalEnergy", "MagneticField"]
+
+gadget_field_map = {"Coordinates": "particle_position",
+                    "Velocities": "particle_velocity",
+                    "Masses": "particle_mass",
+                    "InternalEnergy": "particle_thermal_energy",
+                    "MagneticField": "particle_magnetic_field"}
+
+gadget_field_units = {"Coordinates": "kpc",
+                      "Velocities": "km/s",
+                      "Masses": "1e10*Msun",
+                      "InternalEnergy": "km**2/s**2",
+                      "MagneticField": "gauss"}
 
 class ClusterParticles(object):
     def __init__(self, particle_types, fields):
@@ -203,4 +214,47 @@ class ClusterParticles(object):
         particle_types = self.particle_types + other.particle_types
         return ClusterParticles(particle_types, fields)
 
-    
+    def _write_gadget_fields(self, ptype, h5_group):
+        for field in gadget_gas_fields:
+            my_field = gadget_field_map[field]
+            units = gadget_field_units[field]
+            data = self.fields[ptype, my_field].in_units(units).d
+            h5_group.create_dataset(field, data=data)
+
+    def write_to_gadget_ics(self, ic_filename, box_size, overwrite=False):
+        if os.path.exists(ic_filename) and not overwrite:
+            raise IOError("Cannot create %s. It exists and overwrite=False." % ic_filename)
+        num_particles = 0
+        f = h5py.File(ic_filename, "w")
+        if "gas" in self.particle_types:
+            gasg = f.create_group("PartType0")
+            self._write_gadget_fields("gas", gasg)
+            gasg.create_dataset("ParticleIDs", data=np.arange(self.num_particles["gas"])+num_particles)
+            num_particles += self.num_particles["gas"]
+        if "dm" in self.particle_types:
+            dmg = f.create_group("PartType1")
+            self._write_gadget_fields("dm", dmg)
+            dmg.create_dataset("ParticleIDs", data=np.arange(self.num_particles["dm"]) + num_particles)
+        f.flush()
+        hg = f.create_group("Header")
+        hg.attrs["Time"] = 0.0
+        hg.attrs["Redshift"] = 0.0
+        hg.attrs["BoxSize"] = box_size
+        hg.attrs["Omega0"] = 0.0
+        hg.attrs["OmegaLambda"] = 0.0
+        hg.attrs["HubbleParam"] = 1.0
+        hg.attrs["NumPartThisFile"] = np.array([self.num_particles["gas"],
+                                                self.num_particles["dm"]], dtype='uint32')
+        hg.attrs["NumPartTotal"] = hg.attrs["NumPartThisFile"]
+        hg.attrs["NumPart_Total_HighWord"] = np.zeros(6, dtype='uint32')
+        hg.attrs["NumFilesPerSnapshot"] = 1
+        hg.attrs["MassTable"] = np.zeros(6)
+        hg.attrs["Flag_Sfr"] = 0
+        hg.attrs["Flag_Cooling"] = 0
+        hg.attrs["Flag_StellarAge"] = 0
+        hg.attrs["Flag_Metals"] = 0
+        hg.attrs["Flag_Feedback"] = 0
+        hg.attrs["Flag_DoublePrecision"] = 0
+        hg.attrs["Flag_IC_Info"] = 0
+        f.flush()
+        f.close()
