@@ -185,6 +185,26 @@ class ClusterParticles(object):
                                                          group_name=ptype).in_base("galactic")
         return cls(particle_types, fields)
 
+    @classmethod
+    def from_gadget_ics(cls, filename):
+        fields = OrderedDict()
+        f = h5py.File(filename, "r")
+        if "PartType0" in f:
+            gas = f["PartType0"]
+            for field in gadget_gas_fields:
+                if field in gas:
+                    fd = gadget_field_map[field]
+                    units = gadget_field_units[field]
+                    fields["gas", fd] = YTArray(gas[field], units).in_base("galactic")
+        if "PartType1" in f:
+            dm = f["PartType1"]
+            for field in gadget_dm_fields:
+                if field in dm:
+                    fd = gadget_field_map[field]
+                    units = gadget_field_units[field]
+                    fields["dm", fd] = YTArray(dm[field], units).in_base("galactic")
+        f.close()
+
     def write_particles_to_h5(self, output_filename, in_cgs=False, overwrite=False):
         """
         Write the particles to an HDF5 file.
