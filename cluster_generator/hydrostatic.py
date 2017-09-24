@@ -216,10 +216,10 @@ class HydrostaticEquilibrium(ClusterModel):
 
         fields = OrderedDict()
 
-        fields["particle_radius"] = YTArray(radius, "kpc")
-        fields["particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
-                                               radius*np.sin(theta)*np.sin(phi),
-                                               radius*np.cos(theta)], "kpc")
+        fields["gas", "particle_radius"] = YTArray(radius, "kpc")
+        fields["gas", "particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
+                                                      radius*np.sin(theta)*np.sin(phi),
+                                                      radius*np.cos(theta)], "kpc")
 
         mylog.info("Compute particle thermal energies and masses.")
 
@@ -227,12 +227,12 @@ class HydrostaticEquilibrium(ClusterModel):
 
         e_int = np.interp(radius, self.fields["radius"], e_arr)
 
-        fields["particle_thermal_energy"] = YTArray(e_int, "kpc**2/Myr**2")
+        fields["gas", "particle_thermal_energy"] = YTArray(e_int, "kpc**2/Myr**2")
 
-        fields["particle_mass"] = YTArray([mgas.max()/num_particles]*num_particles, "Msun")
+        fields["gas", "particle_mass"] = YTArray([mgas.max()/num_particles]*num_particles, "Msun")
 
         mylog.info("Set particle velocities to zero.")
 
-        fields["particle_velocity"] = YTArray(np.zeros((num_particles, 3)), "kpc/Myr")
+        fields["gas", "particle_velocity"] = YTArray(np.zeros((num_particles, 3)), "kpc/Myr")
 
         return ClusterParticles("gas", fields)
