@@ -192,22 +192,15 @@ class HydrostaticEquilibrium(ClusterModel):
                    "hydrostatic equilibrium is %g" % np.abs(chk).max())
         return chk
 
-    def generate_gas_particles(self, filename, num_particles, overwrite=False):
+    def generate_gas_particles(self, num_particles):
         """
-        Generate a set of gas particles in hydrostatic equilibrium and write 
-        them to an HDF5 file.
+        Generate a set of gas particles in hydrostatic equilibrium.
 
         Parameters
         ----------
-        filename : string
-            The filename to write the particle file to. 
         num_particles : integer
             The number of particles to generate.
-        overwrite : boolean, optional
-            If True, overwrite a file with the same name.
         """
-        if not overwrite and os.path.exists(filename):
-            raise IOError("Filename %s already exists and overwrite=False!" % filename)
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
