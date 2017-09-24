@@ -153,7 +153,7 @@ class ClusterParticles(object):
         self.particle_types = ensure_list(particle_types)
         self.num_particles = {}
         for ptype in self.particle_types:
-            self.num_particles[ptype] = fields["particle_mass"].size
+            self.num_particles[ptype] = fields[ptype, "particle_mass"].size
         self.fields = fields
 
     @classmethod
