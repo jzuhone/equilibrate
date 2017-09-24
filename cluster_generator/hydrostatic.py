@@ -219,7 +219,7 @@ class HydrostaticEquilibrium(ClusterModel):
         fields["gas", "particle_radius"] = YTArray(radius, "kpc")
         fields["gas", "particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
                                                       radius*np.sin(theta)*np.sin(phi),
-                                                      radius*np.cos(theta)], "kpc")
+                                                      radius*np.cos(theta)], "kpc").T
 
         mylog.info("Compute particle thermal energies and masses.")
 
