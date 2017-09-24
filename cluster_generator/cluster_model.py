@@ -234,6 +234,15 @@ class ClusterParticles(object):
         particle_types = self.particle_types + other.particle_types
         return ClusterParticles(particle_types, fields)
 
+    def add_offsets(self, r_ctr, v_ctr):
+        if not isinstance(r_ctr, YTArray):
+            r_ctr = YTArray(r_ctr, "kpc")
+        if not isinstance(v_ctr, YTArray):
+            v_ctr = YTArray(v_ctr, "kpc/Myr")
+        for ptype in self.particle_types:
+            self.fields[ptype, "particle_position"] += r_ctr
+            self.fields[ptype, "particle_velocity"] += v_ctr
+
     def _write_gadget_fields(self, ptype, h5_group):
         for field in gadget_gas_fields:
             my_field = gadget_field_map[field]
