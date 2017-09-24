@@ -241,6 +241,6 @@ class HydrostaticEquilibrium(ClusterModel):
 
         mylog.info("Set particle velocities to zero.")
 
-        fields["particle_velocity"] = YTArray(np.zeros(num_particles, 3), "kpc/Myr")
+        fields["particle_velocity"] = YTArray(np.zeros((num_particles, 3)), "kpc/Myr")
 
         return ClusterParticles("gas", fields)
