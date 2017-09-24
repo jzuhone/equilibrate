@@ -6,7 +6,6 @@ from cluster_generator.utils import \
     integrate, \
     integrate_mass, \
     mp, G
-import os
 from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
 

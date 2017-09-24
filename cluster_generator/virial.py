@@ -9,7 +9,6 @@ from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
-import os
 
 class VirialEquilibrium(ClusterModel):
 
