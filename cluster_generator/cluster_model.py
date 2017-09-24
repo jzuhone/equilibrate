@@ -224,6 +224,8 @@ class ClusterParticles(object):
         """
         if os.path.exists(output_filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
+        if overwrite and os.path.exists(output_filename):
+            os.remove(output_filename)
         for field in self.fields:
             if in_cgs:
                 fd = self.fields[field].in_cgs()
