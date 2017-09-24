@@ -49,7 +49,8 @@ class VirialEquilibrium(ClusterModel):
         dgdp = lambda t, e: 2*density_spline(e-t*t, 1)
         pbar = get_pbar("Computing particle DF.", num_points)
         for i in range(num_points):
-            g[i] = quad(dgdp, 0., np.sqrt(ee[i]), args=(ee[i]))[0]
+            g[i] = quad(dgdp, 0., np.sqrt(ee[i]), epsabs=1.49e-05,
+                        epsrel=1.49e-05, args=(ee[i]))[0]
             pbar.update(i)
         pbar.finish()
         g_spline = InterpolatedUnivariateSpline(ee, g)
