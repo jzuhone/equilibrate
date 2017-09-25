@@ -191,7 +191,7 @@ class HydrostaticEquilibrium(ClusterModel):
                    "hydrostatic equilibrium is %g" % np.abs(chk).max())
         return chk
 
-    def generate_gas_particles(self, num_particles):
+    def generate_gas_particles(self, num_particles, id_function=None):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 
@@ -200,6 +200,8 @@ class HydrostaticEquilibrium(ClusterModel):
         num_particles : integer
             The number of particles to generate.
         """
+        if id_function is None:
+            id_function = lambda n_part: np.arange(n_part).astype("uint32")
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
@@ -209,7 +211,8 @@ class HydrostaticEquilibrium(ClusterModel):
         u = np.random.uniform(size=num_particles)
         P_r = np.insert(mgas, 0, 0.0)
         P_r /= P_r[-1]
-        radius = np.interp(u, P_r, r, left=0.0, right=1.0)
+        get_radius = InterpolatedUnivariateSpline(P_r, r, ext=3)
+        radius = get_radius(u)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
@@ -224,8 +227,9 @@ class HydrostaticEquilibrium(ClusterModel):
         mylog.info("Compute particle thermal energies and masses.")
 
         e_arr = 1.5*self.fields["pressure"]/self.fields["density"]
-
-        e_int = np.interp(radius, self.fields["radius"], e_arr)
+        get_energy = InterpolatedUnivariateSpline(self.fields["radius"],
+                                                  e_arr)
+        e_int = get_energy(radius)
 
         fields["gas", "particle_thermal_energy"] = YTArray(e_int, "kpc**2/Myr**2")
 
@@ -234,5 +238,7 @@ class HydrostaticEquilibrium(ClusterModel):
         mylog.info("Set particle velocities to zero.")
 
         fields["gas", "particle_velocity"] = YTArray(np.zeros((num_particles, 3)), "kpc/Myr")
+
+        fields["gas", "particle_index"] = id_function(num_particles)
 
         return ClusterParticles("gas", fields)

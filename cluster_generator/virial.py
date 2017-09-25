@@ -81,7 +81,7 @@ class VirialEquilibrium(ClusterModel):
                    "virial equilibrium is %g" % np.abs(chk).max())
         return rho, chk
 
-    def generate_dm_particles(self, num_particles):
+    def generate_dm_particles(self, num_particles, id_function=None):
         """
         Generate a set of dark matter particles in virial equilibrium.
 
@@ -90,6 +90,9 @@ class VirialEquilibrium(ClusterModel):
         num_particles : integer
             The number of particles to generate.
         """
+        if id_function is None:
+            id_function = lambda n_part: np.arange(n_part).astype("uint32")
+
         energy_spline = InterpolatedUnivariateSpline(self.rr, self.ee[::-1])
 
         mylog.info("We will be assigning %d particles." % num_particles)
@@ -98,7 +101,9 @@ class VirialEquilibrium(ClusterModel):
         u = np.random.uniform(size=num_particles)
         P_r = np.insert(self.mdm, 0, 0.0)
         P_r /= P_r[-1]
-        radius = np.interp(u, P_r, np.insert(self.rr, 0, 0.0), left=0.0, right=1.0)
+        r = np.insert(self.rr, 0, 0.0)
+        get_radius = InterpolatedUnivariateSpline(P_r, r, ext=3)
+        radius = get_radius(u)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
@@ -128,5 +133,7 @@ class VirialEquilibrium(ClusterModel):
         fields["dm", "particle_mass"] = YTArray([self.mdm.max()/num_particles]*num_particles, "Msun")
         fields["dm", "particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
         fields["dm", "particle_energy"] = fields["dm", "particle_potential"]+0.5*fields["dm", "particle_speed"]**2
+
+        fields["dm", "particle_index"] = id_function(num_particles)
 
         return ClusterParticles("dm", fields)
