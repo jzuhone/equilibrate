@@ -278,9 +278,8 @@ class ClusterParticles(object):
         hg.attrs["Omega0"] = 0.0
         hg.attrs["OmegaLambda"] = 0.0
         hg.attrs["HubbleParam"] = 1.0
-        hg.attrs["NumPartThisFile"] = np.array([self.num_particles["gas"],
-                                                self.num_particles["dm"]], dtype='uint32')
-        hg.attrs["NumPartTotal"] = hg.attrs["NumPartThisFile"]
+        hg.attrs["NumPart_ThisFile"] = np.array([gidxs.sum(), didxs.sum()], dtype='uint32')
+        hg.attrs["NumPart_Total"] = hg.attrs["NumPart_ThisFile"]
         hg.attrs["NumPart_Total_HighWord"] = np.zeros(6, dtype='uint32')
         hg.attrs["NumFilesPerSnapshot"] = 1
         hg.attrs["MassTable"] = np.zeros(6)
