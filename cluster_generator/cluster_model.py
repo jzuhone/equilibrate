@@ -249,27 +249,41 @@ class ClusterParticles(object):
             self.fields[ptype, "particle_position"] += r_ctr
             self.fields[ptype, "particle_velocity"] += v_ctr
 
-    def _write_gadget_fields(self, ptype, h5_group):
+    def _clip_to_box(self, ptype, box_size):
+        pos = self.fields[ptype, "particle_position"]
+        return ~np.logical_or((pos < 0.0).any(axis=1), (pos > box_size).any(axis=1))
+
+    def _write_gadget_fields(self, ptype, h5_group, idxs):
         for field in gadget_gas_fields:
             my_field = gadget_field_map[field]
-            units = gadget_field_units[field]
-            data = self.fields[ptype, my_field].in_units(units).d
-            h5_group.create_dataset(field, data=data)
+            if (ptype, my_field) in self.fields:
+                units = gadget_field_units[field]
+                data = self.fields[ptype, my_field][idxs].in_units(units).d.astype("float32")
+                h5_group.create_dataset(field, data=data)
 
     def write_to_gadget_ics(self, ic_filename, box_size, overwrite=False):
         if os.path.exists(ic_filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % ic_filename)
         num_particles = 0
+        num_gas_particles = 0
+        num_dm_particles = 0
         f = h5py.File(ic_filename, "w")
         if "gas" in self.particle_types:
+            gidxs = self._clip_to_box("gas", box_size)
+            num_gas_particles = gidxs.sum()
             gasg = f.create_group("PartType0")
-            self._write_gadget_fields("gas", gasg)
-            gasg.create_dataset("ParticleIDs", data=np.arange(self.num_particles["gas"])+num_particles)
-            num_particles += self.num_particles["gas"]
+            self._write_gadget_fields("gas", gasg, gidxs)
+            ids = np.arange(num_gas_particles)+num_particles
+            gasg.create_dataset("ParticleIDs", data=ids.astype('uint32'))
+            num_particles += num_gas_particles
         if "dm" in self.particle_types:
+            didxs = self._clip_to_box("dm", box_size)
+            num_dm_particles = didxs.sum()
             dmg = f.create_group("PartType1")
-            self._write_gadget_fields("dm", dmg)
-            dmg.create_dataset("ParticleIDs", data=np.arange(self.num_particles["dm"]) + num_particles)
+            self._write_gadget_fields("dm", dmg, didxs)
+            ids = np.arange(num_dm_particles)+num_particles
+            dmg.create_dataset("ParticleIDs", data=ids.astype('uint32'))
+            num_particles += num_dm_particles
         f.flush()
         hg = f.create_group("Header")
         hg.attrs["Time"] = 0.0
@@ -278,7 +292,8 @@ class ClusterParticles(object):
         hg.attrs["Omega0"] = 0.0
         hg.attrs["OmegaLambda"] = 0.0
         hg.attrs["HubbleParam"] = 1.0
-        hg.attrs["NumPart_ThisFile"] = np.array([gidxs.sum(), didxs.sum()], dtype='uint32')
+        hg.attrs["NumPart_ThisFile"] = np.array([num_gas_particles, num_dm_particles], 
+                                                dtype='uint32')
         hg.attrs["NumPart_Total"] = hg.attrs["NumPart_ThisFile"]
         hg.attrs["NumPart_Total_HighWord"] = np.zeros(6, dtype='uint32')
         hg.attrs["NumFilesPerSnapshot"] = 1
