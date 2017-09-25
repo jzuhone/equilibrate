@@ -9,6 +9,7 @@ from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
+from tqdm import tqdm
 
 class VirialEquilibrium(ClusterModel):
 
@@ -47,7 +48,7 @@ class VirialEquilibrium(ClusterModel):
 
         g = np.zeros(num_points)
         dgdp = lambda t, e: 2*density_spline(e-t*t, 1)
-        pbar = get_pbar("Computing particle DF.", num_points)
+        pbar = get_pbar("Computing particle DF", num_points)
         for i in range(num_points):
             g[i] = quad(dgdp, 0., np.sqrt(ee[i]), epsabs=1.49e-05,
                         epsrel=1.49e-05, args=(ee[i]))[0]
@@ -110,7 +111,6 @@ class VirialEquilibrium(ClusterModel):
 
         fields = OrderedDict()
 
-        fields["dm", "particle_radius"] = YTArray(radius, "kpc")
         fields["dm", "particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
                                                      radius*np.sin(theta)*np.sin(phi),
                                                      radius*np.cos(theta)], "kpc").T
@@ -121,18 +121,42 @@ class VirialEquilibrium(ClusterModel):
         vesc = 2.*psi
         fv2esc = vesc*self.f(psi)
         vesc = np.sqrt(vesc)
-        velocity = generate_velocities(psi, vesc, fv2esc, self.f)
+
+        #velocity = generate_velocities(psi, vesc, fv2esc, self.f)
+
+        velocity = -np.ones(num_particles)
+
+        pbar = tqdm(leave=True, total=num_particles, desc="Assigning velocities")
+
+        todo = velocity < 0.0
+
+        n_part = num_particles
+
+        while np.any(todo):
+            u = np.random.uniform(size=n_part)
+            t = np.random.uniform(size=n_part)
+            v2 = u*vesc[todo]
+            v2 *= v2
+            e = psi[todo]-0.5*v2
+            done = self.f(e)*v2 > t*fv2esc[todo]
+            idxs = np.where(todo)[0][done]
+            velocity[idxs] = v2[done]
+            todo = velocity < 0.0
+            n_part = todo.sum()
+            pbar.update(done.sum())
+
+        velocity = np.sqrt(velocity)
+
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
-        fields["dm", "particle_speed"] = YTArray(velocity, "kpc/Myr")
         fields["dm", "particle_velocity"] = YTArray([velocity*np.sin(theta)*np.cos(phi),
                                                      velocity*np.sin(theta)*np.sin(phi),
                                                      velocity*np.cos(theta)], "kpc/Myr").T
 
         fields["dm", "particle_mass"] = YTArray([self.mdm.max()/num_particles]*num_particles, "Msun")
         fields["dm", "particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
-        fields["dm", "particle_energy"] = fields["dm", "particle_potential"]+0.5*fields["dm", "particle_speed"]**2
+        fields["dm", "particle_energy"] = fields["dm", "particle_potential"]+0.5*YTArray(velocity, "kpc/Myr")**2
 
         fields["dm", "particle_index"] = id_function(num_particles)
 

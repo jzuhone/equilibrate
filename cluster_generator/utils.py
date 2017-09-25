@@ -4,6 +4,7 @@ from yt import units
 
 mp = units.mp.in_units("Msun")
 G = units.G.in_units("kpc**3/Msun/Myr**2")
+kboltz = units.kboltz
 
 def integrate_mass(profile, rr):
     mass_int = lambda r: profile(r)*r*r

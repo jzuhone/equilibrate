@@ -5,12 +5,13 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     integrate, \
     integrate_mass, \
-    mp, G
+    mp, G, kboltz
 from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
 
 gamma = 5./3.
 muinv = 0.76/0.5 + 0.24/(4./3.)
+mu = 1.0/muinv
 
 modes = {"dens_temp": ("density","temperature"),
          "dens_tden": ("density","total_density"),
@@ -219,21 +220,25 @@ class HydrostaticEquilibrium(ClusterModel):
 
         fields = OrderedDict()
 
-        fields["gas", "particle_radius"] = YTArray(radius, "kpc")
         fields["gas", "particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
                                                       radius*np.sin(theta)*np.sin(phi),
                                                       radius*np.cos(theta)], "kpc").T
 
-        mylog.info("Compute particle thermal energies and masses.")
+        mylog.info("Compute particle thermal energies, densities, and masses.")
 
         e_arr = 1.5*self.fields["pressure"]/self.fields["density"]
-        get_energy = InterpolatedUnivariateSpline(self.fields["radius"],
-                                                  e_arr)
+        get_energy = InterpolatedUnivariateSpline(self.fields["radius"], e_arr)
         e_int = get_energy(radius)
 
         fields["gas", "particle_thermal_energy"] = YTArray(e_int, "kpc**2/Myr**2")
+        fields["gas", "particle_temperature"] = fields["gas", "particle_thermal_energy"]*mu*mp/1.5
+        fields["gas", "particle_temperature"].convert_to_units("keV")
 
         fields["gas", "particle_mass"] = YTArray([mgas.max()/num_particles]*num_particles, "Msun")
+
+        get_density = InterpolatedUnivariateSpline(self.fields["radius"], self.fields["density"])
+
+        fields["gas", "particle_density"] = YTArray(get_density(radius), "Msun/kpc**3")
 
         mylog.info("Set particle velocities to zero.")
 
