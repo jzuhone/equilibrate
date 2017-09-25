@@ -309,3 +309,9 @@ class ClusterParticles(object):
         else:
             raise ValueError("The length of the array needs to be %d particles!"
                              % num_particles)
+
+    def __getitem__(self, key):
+        return self.fields[key]
+
+    def keys(self):
+        return self.fields.keys()
