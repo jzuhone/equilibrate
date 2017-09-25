@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from six import add_metaclass
-from yt import savetxt, mylog, YTArray
+from yt import savetxt, mylog, YTArray, load_particles
 from yt.funcs import ensure_list
 import h5py
 import os
@@ -339,3 +339,14 @@ class ClusterParticles(object):
 
     def keys(self):
         return self.fields.keys()
+
+    def to_yt_dataset(self, box_size):
+        data = self.fields.copy()
+        for ptype in self.particle_types:
+            pos = data.pop((ptype, "particle_position"))
+            vel = data.pop((ptype, "particle_velocity"))
+            for i, ax in enumerate("xyz"):
+                data[ptype,"particle_position_%s" % ax] = pos[:,i]
+                data[ptype,"particle_velocity_%s" % ax] = vel[:,i]
+        return load_particles(data, length_unit="kpc", bbox=[[0.0, box_size]]*3, 
+                              mass_unit="Msun", time_unit="Myr")
