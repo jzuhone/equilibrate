@@ -225,15 +225,21 @@ class ClusterParticles(object):
         """
         if os.path.exists(output_filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
-        if overwrite and os.path.exists(output_filename):
-            os.remove(output_filename)
+        f = h5py.File(output_filename, "w")
+        for ptype in self.particle_types:
+            g = f.create_group(ptype)
+            g.create_dataset("particle_index", data=self[ptype, "particle_index"])
+        f.flush()
+        f.close()
         for field in self.fields:
-            if in_cgs:
-                fd = self.fields[field].in_cgs()
-            else:
-                fd = self.fields[field]
-            fd.write_hdf5(output_filename, dataset_name=field[1],
-                          group_name=field[0])
+            if field[1] != "particle_index":
+                if in_cgs:
+                    fd = self.fields[field].in_cgs()
+                else:
+                    fd = self.fields[field]
+
+                fd.write_hdf5(output_filename, dataset_name=field[1],
+                              group_name=field[0])
 
     def __add__(self, other):
         fields = self.fields.copy()
