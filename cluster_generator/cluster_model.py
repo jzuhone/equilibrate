@@ -5,6 +5,7 @@ from yt.funcs import ensure_list
 import h5py
 import os
 import numpy as np
+from yt.units.yt_array import uconcatenate
 
 equilibrium_model_registry = {}
 
@@ -236,7 +237,11 @@ class ClusterParticles(object):
 
     def __add__(self, other):
         fields = self.fields.copy()
-        fields.update(other.fields)
+        for field in other.fields:
+            if field in fields:
+                fields[field] = uconcatenate(self[field], other[field])
+            else:
+                fields[field] = other[field]
         particle_types = self.particle_types + other.particle_types
         return ClusterParticles(particle_types, fields)
 
@@ -253,15 +258,16 @@ class ClusterParticles(object):
         pos = self.fields[ptype, "particle_position"]
         return ~np.logical_or((pos < 0.0).any(axis=1), (pos > box_size).any(axis=1))
 
-    def _write_gadget_fields(self, ptype, h5_group, idxs):
+    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype):
         for field in gadget_gas_fields:
             my_field = gadget_field_map[field]
             if (ptype, my_field) in self.fields:
                 units = gadget_field_units[field]
-                data = self.fields[ptype, my_field][idxs].in_units(units).d.astype("float32")
+                data = self.fields[ptype, my_field][idxs].in_units(units).d.astype(dtype)
                 h5_group.create_dataset(field, data=data)
 
-    def write_to_gadget_ics(self, ic_filename, box_size, overwrite=False):
+    def write_to_gadget_ics(self, ic_filename, box_size, 
+                            dtype='float32', overwrite=False):
         if os.path.exists(ic_filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % ic_filename)
         num_particles = 0
@@ -272,17 +278,15 @@ class ClusterParticles(object):
             gidxs = self._clip_to_box("gas", box_size)
             num_gas_particles = gidxs.sum()
             gasg = f.create_group("PartType0")
-            self._write_gadget_fields("gas", gasg, gidxs)
-            ids = np.arange(num_gas_particles)+num_particles
-            gasg.create_dataset("ParticleIDs", data=ids.astype('uint32'))
+            self._write_gadget_fields("gas", gasg, gidxs, dtype)
+            gasg.create_dataset("ParticleIDs", data=self["gas", "particle_index"])
             num_particles += num_gas_particles
         if "dm" in self.particle_types:
             didxs = self._clip_to_box("dm", box_size)
             num_dm_particles = didxs.sum()
             dmg = f.create_group("PartType1")
-            self._write_gadget_fields("dm", dmg, didxs)
-            ids = np.arange(num_dm_particles)+num_particles
-            dmg.create_dataset("ParticleIDs", data=ids.astype('uint32'))
+            self._write_gadget_fields("dm", dmg, didxs, dtype)
+            dmg.create_dataset("ParticleIDs", data=self["dm", "particle_index"])
             num_particles += num_dm_particles
         f.flush()
         hg = f.create_group("Header")
