@@ -122,30 +122,7 @@ class VirialEquilibrium(ClusterModel):
         fv2esc = vesc*self.f(psi)
         vesc = np.sqrt(vesc)
 
-        #velocity = generate_velocities(psi, vesc, fv2esc, self.f)
-
-        velocity = -np.ones(num_particles)
-
-        pbar = tqdm(leave=True, total=num_particles, desc="Assigning velocities")
-
-        todo = velocity < 0.0
-
-        n_part = num_particles
-
-        while np.any(todo):
-            u = np.random.uniform(size=n_part)
-            t = np.random.uniform(size=n_part)
-            v2 = u*vesc[todo]
-            v2 *= v2
-            e = psi[todo]-0.5*v2
-            done = self.f(e)*v2 > t*fv2esc[todo]
-            idxs = np.where(todo)[0][done]
-            velocity[idxs] = v2[done]
-            todo = velocity < 0.0
-            n_part = todo.sum()
-            pbar.update(done.sum())
-
-        velocity = np.sqrt(velocity)
+        velocity = generate_velocities(psi, vesc, fv2esc, self.ee, self.f(self.ee))
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
