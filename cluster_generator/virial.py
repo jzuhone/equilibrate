@@ -122,7 +122,10 @@ class VirialEquilibrium(ClusterModel):
         fv2esc = vesc*self.f(psi)
         vesc = np.sqrt(vesc)
 
-        velocity = generate_velocities(psi, vesc, fv2esc, self.ee, self.f(self.ee))
+        elog = np.logspace(np.log10(self.ee[0]), np.log10(self.ee[-1]), self.ee.size)
+        flog = self.f(elog)
+
+        velocity = generate_velocities(psi, vesc, fv2esc, elog, flog)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)

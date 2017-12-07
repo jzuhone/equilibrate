@@ -41,8 +41,8 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
                         np.ndarray[DTYPE_t, ndim=1] f):
     cdef DTYPE_t v2, ee, fe, r
     cdef np.uint8_t not_done
-    cdef unsigned int i, p, j, ne
-    cdef int num_particles
+    cdef unsigned int i, p, ne
+    cdef int num_particles, j
     cdef long int seedval
     cdef np.ndarray[np.float64_t, ndim=1] velocity
     seedval = -100
@@ -59,12 +59,11 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
             ee = psi[i]-0.5*v2
             r = log10(ee/e[0])/dloge
             j = <int>floor(r)
-            if r < 0:
-                fe = f[0]
-            elif j == ne-1:
-                fe = f[j]
-            else:
-                fe = f[j]*pow(f[j+1]/f[j], r-j)
+            if j < 0:
+                j = 0
+            elif j >= ne-1:
+                j = ne-2
+            fe = f[j]*pow(f[j+1]/f[j], r-j)
             not_done = fe*v2 < drand48()*fv2esc[i]
         velocity[i] = sqrt(v2)
         p = int(fmod(float(i), float(num_particles/10)))
