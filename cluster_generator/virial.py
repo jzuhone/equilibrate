@@ -67,6 +67,7 @@ class VirialEquilibrium(ClusterModel):
         fields["dark_matter_density"] = YTArray(pden, "Msun/kpc**3")
         fields["dark_matter_mass"] = YTArray(mdm, "Msun")
         fields["gravitational_potential"] = YTArray(-ee[::-1], "kpc**2/Myr**2")
+        fields["gravitational_field"] = -G*fields["dark_matter_mass"]/fields["radius"]**2
         fields["distribution_function"] = YTArray(f(ee)[::-1], "Msun*Myr**3/kpc**6")
 
         super(VirialEquilibrium, self).__init__(num_points, fields)
