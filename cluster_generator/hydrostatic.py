@@ -212,7 +212,7 @@ class HydrostaticEquilibrium(ClusterModel):
         u = np.random.uniform(size=num_particles)
         P_r = np.insert(mgas, 0, 0.0)
         P_r /= P_r[-1]
-        get_radius = InterpolatedUnivariateSpline(P_r, r, ext=3)
+        get_radius = InterpolatedUnivariateSpline(P_r, r)
         radius = get_radius(u)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))

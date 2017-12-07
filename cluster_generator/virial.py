@@ -103,8 +103,7 @@ class VirialEquilibrium(ClusterModel):
         P_r = np.insert(self.mdm, 0, 0.0)
         P_r /= P_r[-1]
         r = np.insert(self.rr, 0, 0.0)
-        get_radius = InterpolatedUnivariateSpline(P_r, r, ext=3)
-        radius = get_radius(u)
+        radius = np.interp(u, P_r, r, left=0.0, right=1.0)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
