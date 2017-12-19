@@ -36,7 +36,7 @@ class GaussianRandomField(object):
     _name = "vector"
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 g_rms=1.0, ctr1=None, ctr2=None, r1=None,
+                 alpha=-11./3., g_rms=1.0, ctr1=None, ctr2=None, r1=None,
                  r2=None, g1=None, g2=None, vector_potential=False,
                  prng=np.random):
 
@@ -87,7 +87,7 @@ class GaussianRandomField(object):
         kz *= 2.*np.pi/(nz*dz)
         kk = np.sqrt(kx*kx+ky*ky+kz*kz)
         with np.errstate(invalid='ignore', divide='ignore'):
-            sigma = np.exp(-(k1/kk)**2)*(kk**(-11./6.))*np.exp(-(kk/k0)**2)
+            sigma = (1.0+(kk/k1)**2)**(0.25*alpha)*np.exp(-(kk/k0)**2)
         sigma[np.isinf(sigma)] = 0.0
         sigma[np.isnan(sigma)] = 0.0
 
@@ -137,16 +137,15 @@ class GaussianRandomField(object):
                 idxs2 = np.searchsorted(r2, rr2) - 1
                 dr2 = (rr2-r2[idxs2])/(r2[idxs2+1]-r2[idxs2])
                 g_rms += ((1.-dr2)*g2[idxs2] + dr2*g2[idxs2+1])**2
-            g_rms = np.sqrt(g_rms).to_units(self._units).d
+            g_rms = np.sqrt(g_rms).in_units(self._units).d
 
         gx *= g_rms
         gy *= g_rms
         gz *= g_rms
 
-        self.data = {}
-        self.data["x"] = YTArray(x[:,0,0], "kpc")
-        self.data["y"] = YTArray(y[0,:,0], "kpc")
-        self.data["z"] = YTArray(z[0,0,:], "kpc")
+        self.data = {"x": YTArray(x[:,0,0], "kpc"),
+                     "y": YTArray(y[0,:,0], "kpc"),
+                     "z": YTArray(z[0,0,:], "kpc")}
 
         del x, y, z, g_rms
 
@@ -237,14 +236,14 @@ class RandomMagneticField(GaussianRandomField):
     _vector_potential = False
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 B_rms=1.0, ctr1=None, ctr2=None, profile1=None,
-                 profile2=None, prng=np.random):
+                 alpha=-11./3., B_rms=1.0, ctr1=None, ctr2=None,
+                 profile1=None, profile2=None, prng=np.random):
         if profile1 is None:
             r1 = None
             B1 = None
         else:
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
-                                   group_name="fields")
+                                   group_name="fields").d
             B1 = YTArray.from_hdf5(profile1, dataset_name="magnetic_field_strength",
                                    group_name="fields")
         if profile2 is None:
@@ -252,14 +251,15 @@ class RandomMagneticField(GaussianRandomField):
             B2 = None
         else:
             r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
-                                   group_name="fields")
+                                   group_name="fields").d
             B2 = YTArray.from_hdf5(profile2, dataset_name="magnetic_field_strength",
                                    group_name="fields")
-        super(RandomMagneticField, self).__init__(left_edge, right_edge, 
-            ddims, l_min, l_max, g_rms=B_rms, ctr1=ctr1, ctr2=ctr2, r1=r1, 
-            r2=r2, g1=B1, g2=B2, vector_potential=self._vector_potential, prng=prng)
+        super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
+            l_min, l_max, alpha=alpha, g_rms=B_rms, ctr1=ctr1, ctr2=ctr2, r1=r1,
+            r2=r2, g1=B1, g2=B2, vector_potential=self._vector_potential,
+            prng=prng)
 
-class RandomMagneticVectorPotential(GaussianRandomField):
+class RandomMagneticVectorPotential(RandomMagneticField):
     _name = "magnetic_vector_potential"
     _vector_potential = True
 
@@ -268,14 +268,14 @@ class RandomVelocityField(GaussianRandomField):
     _name = "velocity"
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 V_rms=1.0, ctr1=None, ctr2=None, profile1=None,
-                 profile2=None, prng=np.random):
+                 V_rms=1.0, alpha=-11./3., ctr1=None, ctr2=None,
+                 profile1=None, profile2=None, prng=np.random):
         if profile1 is None:
             r1 = None
             V1 = None
         else:
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
-                                   group_name="fields")
+                                   group_name="fields").d
             V1 = YTArray.from_hdf5(profile1, dataset_name="velocity_dispersion",
                                    group_name="fields")
         if profile2 is None:
@@ -283,9 +283,9 @@ class RandomVelocityField(GaussianRandomField):
             V2 = None
         else:
             r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
-                                   group_name="fields")
+                                   group_name="fields").d
             V2 = YTArray.from_hdf5(profile2, dataset_name="velocity_dispersion",
                                    group_name="fields")
         super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims, 
-            l_min, l_max, g_rms=V_rms, ctr1=ctr1, ctr2=ctr2, r1=r1, r2=r2, g1=V1, 
-            g2=V2, prng=prng)
+            l_min, l_max, g_rms=V_rms, alpha=alpha, ctr1=ctr1, ctr2=ctr2, r1=r1,
+            r2=r2, g1=V1, g2=V2, prng=prng)
