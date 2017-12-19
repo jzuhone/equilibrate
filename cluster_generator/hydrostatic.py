@@ -5,7 +5,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     integrate, \
     integrate_mass, \
-    mp, G, kboltz
+    mp, G
 from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
 
@@ -68,13 +68,14 @@ class HydrostaticEquilibrium(ClusterModel):
                 "time": "Myr"
                 "mass": "Msun"
                 "temperature": "keV"
-        parameters : dict of floats
-            A dictionary of parameters needed for the calculation, which include:
-                "mu": The mean molecular weight of the gas. Default is to assume a
-                primordial H/He gas.
-                "gamma": The ratio of specific heats. Default: 5/3.
         num_points : integer
             The number of points at which to evaluate the profile.
+        P_amb : float, optional
+            The ambient pressure in units of erg/cm**3, used as a boundary
+            condition on the pressure integral. Default: 0.0.
+        mu : float, optional
+            The mean molecular weight. If not specified, it will be calculated
+            assuming a fully ionized gas with primordial abundances.
         """
         if mu is None:
             muinv = 0.76/0.5 + 0.24/(4./3.)
