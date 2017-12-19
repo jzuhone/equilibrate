@@ -10,8 +10,6 @@ from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
 
 gamma = 5./3.
-muinv = 0.76/0.5 + 0.24/(4./3.)
-mu = 1.0/muinv
 
 modes = {"dens_temp": ("density","temperature"),
          "dens_tden": ("density","total_density"),
@@ -38,7 +36,7 @@ class HydrostaticEquilibrium(ClusterModel):
 
     @classmethod
     def from_scratch(cls, mode, rmin, rmax, profiles, num_points=1000,
-                     P_amb=0.0):
+                     P_amb=0.0, mu=None):
         r"""
         Generate a set of profiles of physical quantities based on the assumption
         of hydrostatic equilibrium. Currently assumes an ideal gas with a gamma-law
@@ -78,6 +76,11 @@ class HydrostaticEquilibrium(ClusterModel):
         num_points : integer
             The number of points at which to evaluate the profile.
         """
+        if mu is None:
+            muinv = 0.76/0.5 + 0.24/(4./3.)
+            mu = 1.0/muinv
+        else:
+            muinv = 1.0/mu
 
         for k, p in profiles.items():
             if hasattr(p, "unitless"):
