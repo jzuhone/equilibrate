@@ -243,7 +243,7 @@ class RandomMagneticField(GaussianRandomField):
             B1 = None
         else:
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
-                                   group_name="fields").d
+                                   group_name="fields").to('kpc').d
             B1 = YTArray.from_hdf5(profile1, dataset_name="magnetic_field_strength",
                                    group_name="fields")
         if profile2 is None:
@@ -251,7 +251,7 @@ class RandomMagneticField(GaussianRandomField):
             B2 = None
         else:
             r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
-                                   group_name="fields").d
+                                   group_name="fields").to('kpc').d
             B2 = YTArray.from_hdf5(profile2, dataset_name="magnetic_field_strength",
                                    group_name="fields")
         super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
