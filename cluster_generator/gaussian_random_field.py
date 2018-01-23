@@ -172,7 +172,7 @@ class GaussianRandomField(object):
             gxk, gyk, gzk = rot_3d(2, gxk, gyk, gzk, beta)
 
             with np.errstate(invalid='ignore', divide='ignore'):
-                gxk, gyk = [(0.0+1.0j)*gyk/kk, -(0.0+1.0j)*gxk/kk]
+                gxk, gyk = ((0.0+1.0j)*gyk/kk, -(0.0+1.0j)*gxk/kk)
                 gzk = np.zeros(gxk.shape, dtype="complex")
 
             gxk[np.isinf(gxk)] = 0.0
