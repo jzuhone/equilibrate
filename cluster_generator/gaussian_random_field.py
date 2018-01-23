@@ -1,6 +1,7 @@
 import numpy as np
 from yt.units.yt_array import YTArray
 import os
+from six import string_types
 
 def parse_value(value, default_units):
     if isinstance(value, YTArray):
@@ -54,6 +55,13 @@ class GaussianRandomField(object):
         if ctr2 is not None:
             num_halos = 2
             ctr2 = parse_value(ctr2, "kpc")
+
+        if num_halos >= 1:
+            r1 = parse_value(r1, "kpc")
+            g1 = parse_value(g1, self._units)
+        if num_halos == 2:
+            r2 = parse_value(r2, "kpc")
+            g2 = parse_value(g2, self._units)
 
         # Derived stuff
 
@@ -240,19 +248,23 @@ class RandomMagneticField(GaussianRandomField):
         if profile1 is None:
             r1 = None
             B1 = None
-        else:
+        elif isinstance(profile1, string_types):
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
                                    group_name="fields").to('kpc').d
             B1 = YTArray.from_hdf5(profile1, dataset_name="magnetic_field_strength",
                                    group_name="fields")
+        else:
+            r1, B1 = profile1
         if profile2 is None:
             r2 = None
             B2 = None
-        else:
+        elif isinstance(profile2, string_types):
             r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
                                    group_name="fields").to('kpc').d
             B2 = YTArray.from_hdf5(profile2, dataset_name="magnetic_field_strength",
                                    group_name="fields")
+        else:
+            r2, B2 = profile2
         super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
             l_min, l_max, alpha=alpha, g_rms=B_rms, ctr1=ctr1, ctr2=ctr2, r1=r1,
             r2=r2, g1=B1, g2=B2, vector_potential=self._vector_potential,
@@ -272,19 +284,23 @@ class RandomVelocityField(GaussianRandomField):
         if profile1 is None:
             r1 = None
             V1 = None
-        else:
+        elif isinstance(profile1, string_types):
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
                                    group_name="fields").d
             V1 = YTArray.from_hdf5(profile1, dataset_name="velocity_dispersion",
                                    group_name="fields")
+        else:
+            r1, V1 = profile1
         if profile2 is None:
             r2 = None
             V2 = None
-        else:
+        elif isinstance(profile2, string_types):
             r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
                                    group_name="fields").d
             V2 = YTArray.from_hdf5(profile2, dataset_name="velocity_dispersion",
                                    group_name="fields")
+        else:
+            r2, V2 = profile2
         super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims, 
             l_min, l_max, g_rms=V_rms, alpha=alpha, ctr1=ctr1, ctr2=ctr2, r1=r1,
             r2=r2, g1=V1, g2=V2, prng=prng)
