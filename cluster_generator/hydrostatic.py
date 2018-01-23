@@ -179,7 +179,7 @@ class HydrostaticEquilibrium(ClusterModel):
         for field in extra_fields:
             fields[field] = profiles[field](rr)
 
-        return cls(num_points, fields)
+        return cls(num_points, fields, parameters={"mu": mu})
 
     def check_model(self):
         r"""
@@ -205,6 +205,8 @@ class HydrostaticEquilibrium(ClusterModel):
         num_particles : integer
             The number of particles to generate.
         """
+        mu = self.parameters["mu"]
+
         if id_function is None:
             id_function = lambda n_part: np.arange(n_part).astype("uint32")
 
