@@ -53,7 +53,6 @@ class GaussianRandomField(object):
                 ctr1 = 0.5*(le+re)
             else:
                 ctr1 = parse_value(ctr1, "kpc").v
-            print("help!")
             r1 = parse_value(r1, "kpc")
             g1 = parse_value(g1, self._units)
         if num_halos == 2:
