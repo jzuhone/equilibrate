@@ -1,5 +1,6 @@
 import numpy as np
 from yt.units.yt_array import YTArray
+from yt import mylog
 import os
 from six import string_types
 
@@ -72,6 +73,8 @@ class GaussianRandomField(object):
         k0 = 2.*np.pi/l_min
         k1 = 2.*np.pi/l_max
 
+        mylog.info("Setting up the Gaussian random fields.")
+
         v = np.exp(2.*np.pi*1j*prng.random((3,nx,ny,nz)))
 
         v[:,0,0,0] = 2.*np.sign((v[:,0,0,0].imag < 0.0).astype("int"))-1.+0j
@@ -133,13 +136,16 @@ class GaussianRandomField(object):
 
         if num_halos == 0:
             g_rms = parse_value(g_rms, self._units)
+            mylog.info("Scaling the fields by the constant value %s." % g_rms)
         else:
             if num_halos == 1:
+                mylog.info("Scaling the fields by cluster 1.")
                 rr1 = np.sqrt((x-ctr1[0])**2 + (y-ctr1[1])**2 + (z-ctr1[2])**2)
                 idxs1 = np.searchsorted(r1, rr1) - 1
                 dr1 = (rr1-r1[idxs1])/(r1[idxs1+1]-r1[idxs1])
                 g_rms = ((1.-dr1)*g1[idxs1] + dr1*g1[idxs1+1])**2
             if num_halos == 2:
+                mylog.info("Scaling the fields by cluster 2.")
                 rr2 = np.sqrt((x-ctr2[0])**2 + (y-ctr2[1])**2 + (z-ctr2[2])**2)
                 idxs2 = np.searchsorted(r2, rr2) - 1
                 dr2 = (rr2-r2[idxs2])/(r2[idxs2+1]-r2[idxs2])
@@ -157,6 +163,8 @@ class GaussianRandomField(object):
         del x, y, z, g_rms
 
         if divergence_clean:
+
+            mylog.info("Perform divergence cleaning.")
 
             gx = np.fft.fftn(gx)
             gy = np.fft.fftn(gy)
@@ -188,6 +196,8 @@ class GaussianRandomField(object):
             del kxd, kyd, kzd, kkd
 
         if self.vector_potential:
+
+            mylog.info("Compute vector potential.")
 
             # Rotate vector potential
 
