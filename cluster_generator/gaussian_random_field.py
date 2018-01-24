@@ -53,13 +53,13 @@ class GaussianRandomField(object):
                 ctr1 = 0.5*(le+re)
             else:
                 ctr1 = parse_value(ctr1, "kpc").v
-            r1 = parse_value(r1, "kpc")
+            r1 = parse_value(r1, "kpc").v
             g1 = parse_value(g1, self._units)
         if num_halos == 2:
             if ctr2 is None:
                 raise RuntimeError("Need to specify 'ctr2' for the second halo!")
             ctr2 = parse_value(ctr2, "kpc").v
-            r2 = parse_value(r2, "kpc")
+            r2 = parse_value(r2, "kpc").v
             g2 = parse_value(g2, self._units)
 
         # Derived stuff
@@ -169,9 +169,13 @@ class GaussianRandomField(object):
             kyd = np.sin(ky*dy)/dy
             kzd = np.sin(kz*dz)/dz
             kkd = np.sqrt(kxd*kxd+kyd*kyd+kzd*kzd)
-            kxd /= kkd
-            kyd /= kkd
-            kzd /= kkd
+            with np.errstate(invalid='ignore', divide='ignore'):
+                kxd /= kkd
+                kyd /= kkd
+                kzd /= kkd
+                kxd[np.isnan(kxd)] = 0.0
+                kyd[np.isnan(kyd)] = 0.0
+                kzd[np.isnan(kzd)] = 0.0
 
             gx, gy, gz = [(1.0-kxd*kxd)*gx-kxd*kyd*gy-kxd*kzd*gz,
                           -kyd*kxd*gx+(1.0-kyd*kyd)*gy-kyd*kzd*gz,
@@ -257,10 +261,9 @@ class GaussianRandomField(object):
         from scipy.interpolate import RegularGridInterpolator
         for i, ax in enumerate("xyz"):
             func = RegularGridInterpolator((self["x"], self["y"], self["z"]),
-                                           self[self._name+"_"+ax])
-            v = func(cluster_particles["particle_position"][:, 0],
-                     cluster_particles["particle_position"][:, 1],
-                     cluster_particles["particle_position"][:, 2])
+                                           self[self._name+"_"+ax], bounds_error=False)
+            v = YTArray(func(cluster_particles[ptype, "particle_position"].d), 
+                        self.units)
             cluster_particles.set_field(ptype, "particle_%s_%s" % (self._name, ax), v,
                                         units=units)
 
