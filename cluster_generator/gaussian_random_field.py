@@ -63,8 +63,6 @@ class GaussianRandomField(object):
             r2 = parse_value(r2, "kpc")
             g2 = parse_value(g2, self._units)
 
-        print(num_halos, r1, g1)
-
         # Derived stuff
 
         dx, dy, dz = (re-le)/ddims
