@@ -10,7 +10,7 @@ def parse_value(value, default_units):
         val = YTArray(value[0], value[1]).in_units(default_units)
     else:
         val = YTArray(value, default_units)
-    return val.v
+    return val
 
 def rot_3d(axis, gx, gy, gz, ang):
 
@@ -37,8 +37,8 @@ class GaussianRandomField(object):
 
         self.vector_potential = vector_potential
 
-        le = parse_value(left_edge, "kpc")
-        re = parse_value(right_edge, "kpc")
+        le = parse_value(left_edge, "kpc").v
+        re = parse_value(right_edge, "kpc").v
 
         nx, ny, nz = ddims
 
@@ -52,22 +52,25 @@ class GaussianRandomField(object):
             if ctr1 is None:
                 ctr1 = 0.5*(le+re)
             else:
-                ctr1 = parse_value(ctr1, "kpc")
+                ctr1 = parse_value(ctr1, "kpc").v
+            print("help!")
             r1 = parse_value(r1, "kpc")
             g1 = parse_value(g1, self._units)
         if num_halos == 2:
             if ctr2 is None:
                 raise RuntimeError("Need to specify 'ctr2' for the second halo!")
-            ctr2 = parse_value(ctr2, "kpc")
+            ctr2 = parse_value(ctr2, "kpc").v
             r2 = parse_value(r2, "kpc")
             g2 = parse_value(g2, self._units)
+
+        print(num_halos, r1, g1)
 
         # Derived stuff
 
         dx, dy, dz = (re-le)/ddims
 
-        l_min = parse_value(l_min, "kpc")
-        l_max = parse_value(l_max, "kpc")
+        l_min = parse_value(l_min, "kpc").v
+        l_max = parse_value(l_max, "kpc").v
 
         k0 = 2.*np.pi/l_min
         k1 = 2.*np.pi/l_max
