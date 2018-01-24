@@ -12,25 +12,19 @@ def parse_value(value, default_units):
         val = YTArray(value, default_units)
     return val.v
 
-def rot_3d(axis, x1, y1, z1, ang):
+def rot_3d(axis, gx, gy, gz, ang):
 
     c = np.cos(ang)
     s = np.sin(ang)
 
     if axis == 1:
-        x2 =  x1
-        y2 =  c*y1 + s*z1
-        z2 = -s*y1 + c*z1
+        gy, gz = (c*gy + s*gz, -s*gy + c*gz)
     elif axis == 2:
-        x2 = c*x1 - s*z1
-        y2 = y1
-        z2 = s*x1 + c*z1
+        gx, gz = (c*gx - s*gz, s*gx + c*gz)
     elif axis == 3:
-        x2 =  c*x1 + s*y1
-        y2 = -s*x1 + c*y1
-        z2 = z1
+        gx, gy = (c*gx + s*gy, -s*gx + c*gy)
 
-    return x2, y2, z2
+    return gx, gy, gz
 
 class GaussianRandomField(object):
     _units = "dimensionless"
