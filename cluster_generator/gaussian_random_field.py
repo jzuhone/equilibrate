@@ -49,17 +49,22 @@ class GaussianRandomField(object):
         nx, ny, nz = ddims
 
         num_halos = 0
-        if ctr1 is not None:
-            ctr1 = parse_value(ctr1, "kpc")
-            num_halos = 1
-        if ctr2 is not None:
-            num_halos = 2
-            ctr2 = parse_value(ctr2, "kpc")
+        if r1 is not None:
+            num_halos += 1
+        if r2 is not None:
+            num_halos += 2
 
         if num_halos >= 1:
+            if ctr1 is None:
+                ctr1 = 0.5*(le+re)
+            else:
+                ctr1 = parse_value(ctr1, "kpc")
             r1 = parse_value(r1, "kpc")
             g1 = parse_value(g1, self._units)
         if num_halos == 2:
+            if ctr2 is None:
+                raise RuntimeError("Need to specify 'ctr2' for the second halo!")
+            ctr2 = parse_value(ctr2, "kpc")
             r2 = parse_value(r2, "kpc")
             g2 = parse_value(g2, self._units)
 
