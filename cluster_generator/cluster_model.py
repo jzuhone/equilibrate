@@ -144,9 +144,9 @@ class ClusterModel(object):
             raise ValueError("The length of the array needs to be %d elements!"
                              % self.num_elements)
 
-gadget_dm_fields = ["Coordinates", "Velocities", "Masses", "ParticleIDs"]
-gadget_gas_fields = ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                     "InternalEnergy", "MagneticField"]
+gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs"],
+                 "gas": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
+                         "InternalEnergy", "MagneticField"]}
 
 gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
@@ -206,7 +206,7 @@ class ClusterParticles(object):
         if "PartType0" in f:
             particle_types.append("gas")
             gas = f["PartType0"]
-            for field in gadget_gas_fields:
+            for field in gadget_fields['gas']:
                 if field in gas:
                     fd = gadget_field_map[field]
                     if field == "ParticleIDs":
@@ -217,11 +217,11 @@ class ClusterParticles(object):
         if "PartType1" in f:
             particle_types.append("dm")
             dm = f["PartType1"]
-            for field in gadget_dm_fields:
+            for field in gadget_fields['dm']:
                 if field in dm:
                     fd = gadget_field_map[field]
                     if field == "ParticleIDs":
-                        fields["dm", "particle_index"] = gas[field].value
+                        fields["dm", "particle_index"] = dm[field].value
                     else:
                         units = gadget_field_units[field]
                         fields["dm", fd] = YTArray(dm[field], units).in_base("galactic")
@@ -283,7 +283,9 @@ class ClusterParticles(object):
         return ~np.logical_or((pos < 0.0).any(axis=1), (pos > box_size).any(axis=1))
 
     def _write_gadget_fields(self, ptype, h5_group, idxs, dtype):
-        for field in gadget_gas_fields:
+        for field in gadget_fields[ptype]:
+            if field == "ParticleIDs":
+                continue
             my_field = gadget_field_map[field]
             if (ptype, my_field) in self.fields:
                 units = gadget_field_units[field]
