@@ -160,9 +160,9 @@ class GaussianRandomField(object):
 
             # Rotate vector potential
 
-            gxk = np.fft.fftn(gx)
-            gyk = np.fft.fftn(gy)
-            gzk = np.fft.fftn(gz)
+            gx = np.fft.fftn(gx)
+            gy = np.fft.fftn(gy)
+            gz = np.fft.fftn(gz)
 
             with np.errstate(invalid='ignore', divide='ignore'):
                 alpha = np.arccos(kx/np.sqrt(kx*kx+ky*ky))
@@ -175,24 +175,24 @@ class GaussianRandomField(object):
             beta[np.isnan(beta)] = 0.0
             beta[np.isinf(beta)] = 0.0
 
-            gxk, gyk, gzk = rot_3d(3, gxk, gyk, gzk, alpha)
-            gxk, gyk, gzk = rot_3d(2, gxk, gyk, gzk, beta)
+            gx, gy, gz = rot_3d(3, gx, gy, gz, alpha)
+            gx, gy, gz = rot_3d(2, gx, gy, gz, beta)
 
             with np.errstate(invalid='ignore', divide='ignore'):
-                gxk, gyk = ((0.0+1.0j)*gyk/kk, -(0.0+1.0j)*gxk/kk)
-                gzk = np.zeros(gxk.shape, dtype="complex")
+                gx, gy = ((0.0+1.0j)*gy/kk, -(0.0+1.0j)*gx/kk)
+                gz = np.zeros(gx.shape, dtype="complex")
 
-            gxk[np.isinf(gxk)] = 0.0
-            gxk[np.isnan(gxk)] = 0.0
-            gyk[np.isinf(gyk)] = 0.0
-            gyk[np.isnan(gyk)] = 0.0
+            gx[np.isinf(gx)] = 0.0
+            gx[np.isnan(gx)] = 0.0
+            gy[np.isinf(gy)] = 0.0
+            gy[np.isnan(gy)] = 0.0
 
-            gxk, gyk, gzk = rot_3d(2, gxk, gyk, gzk,  -beta)
-            gxk, gyk, gzk = rot_3d(3, gxk, gyk, gzk, -alpha)
+            gx, gy, gz = rot_3d(2, gx, gy, gz,  -beta)
+            gx, gy, gz = rot_3d(3, gx, gy, gz, -alpha)
 
-            self.data[self._name+"_x"] = YTArray(np.fft.ifftn(gxk).real, "%s*kpc" % self._units)
-            self.data[self._name+"_y"] = YTArray(np.fft.ifftn(gyk).real, "%s*kpc" % self._units)
-            self.data[self._name+"_z"] = YTArray(np.fft.ifftn(gzk).real, "%s*kpc" % self._units)
+            self.data[self._name+"_x"] = YTArray(np.fft.ifftn(gx).real, "%s*kpc" % self._units)
+            self.data[self._name+"_y"] = YTArray(np.fft.ifftn(gy).real, "%s*kpc" % self._units)
+            self.data[self._name+"_z"] = YTArray(np.fft.ifftn(gz).real, "%s*kpc" % self._units)
 
         else:
 
@@ -236,6 +236,7 @@ class GaussianRandomField(object):
                      cluster_particles["particle_position"][:, 2])
             cluster_particles.set_field(ptype, "particle_%s_%s" % (self._name, ax), v,
                                         units=units)
+
 
 class RandomMagneticField(GaussianRandomField):
     _units = "gauss"
