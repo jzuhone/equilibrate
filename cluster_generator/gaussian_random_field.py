@@ -33,7 +33,7 @@ class GaussianRandomField(object):
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  alpha=-11./3., g_rms=1.0, ctr1=None, ctr2=None, r1=None,
                  r2=None, g1=None, g2=None, vector_potential=False,
-                 prng=np.random):
+                 divergence_clean=False, prng=np.random):
 
         self.vector_potential = vector_potential
 
@@ -156,6 +156,33 @@ class GaussianRandomField(object):
 
         del x, y, z, g_rms
 
+        if divergence_clean:
+
+            gx = np.fft.fftn(gx)
+            gy = np.fft.fftn(gy)
+            gz = np.fft.fftn(gz)
+
+            # These k's are different because we are
+            # using the finite difference form of the
+            # divergence operator.
+            kxd = np.sin(kx*dx)/dx
+            kyd = np.sin(ky*dy)/dy
+            kzd = np.sin(kz*dz)/dz
+            kkd = np.sqrt(kxd*kxd+kyd*kyd+kzd*kzd)
+            kxd /= kkd
+            kyd /= kkd
+            kzd /= kkd
+
+            gx, gy, gz = [(1.0-kxd*kxd)*gx-kxd*kyd*gy-kxd*kzd*gz,
+                          -kyd*kxd*gx+(1.0-kyd*kyd)*gy-kyd*kzd*gz,
+                          -kzd*kxd*gx-kzd*kyd*gy+(1.0-kzd*kzd)*gz]
+
+            gx = np.fft.ifftn(gx).real
+            gy = np.fft.ifftn(gy).real
+            gz = np.fft.ifftn(gz).real
+
+            del kxd, kyd, kzd, kkd
+
         if self.vector_potential:
 
             # Rotate vector potential
@@ -268,8 +295,8 @@ class RandomMagneticField(GaussianRandomField):
             r2, B2 = profile2
         super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
             l_min, l_max, alpha=alpha, g_rms=B_rms, ctr1=ctr1, ctr2=ctr2, r1=r1,
-            r2=r2, g1=B1, g2=B2, vector_potential=self._vector_potential,
-            prng=prng)
+            r2=r2, g1=B1, g2=B2, divergence_clean=True,
+            vector_potential=self._vector_potential, prng=prng)
 
 class RandomMagneticVectorPotential(RandomMagneticField):
     _name = "magnetic_vector_potential"
@@ -281,7 +308,8 @@ class RandomVelocityField(GaussianRandomField):
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  V_rms=1.0, alpha=-11./3., ctr1=None, ctr2=None,
-                 profile1=None, profile2=None, prng=np.random):
+                 profile1=None, profile2=None, divergence_clean=False,
+                 prng=np.random):
         if profile1 is None:
             r1 = None
             V1 = None
@@ -304,4 +332,4 @@ class RandomVelocityField(GaussianRandomField):
             r2, V2 = profile2
         super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims, 
             l_min, l_max, g_rms=V_rms, alpha=alpha, ctr1=ctr1, ctr2=ctr2, r1=r1,
-            r2=r2, g1=V1, g2=V2, prng=prng)
+            r2=r2, g1=V1, g2=V2, divergence_clean=divergence_clean, prng=prng)
