@@ -144,15 +144,16 @@ class ClusterModel(object):
             raise ValueError("The length of the array needs to be %d elements!"
                              % self.num_elements)
 
-gadget_dm_fields = ["Coordinates", "Velocities", "Masses"]
-gadget_gas_fields = ["Coordinates", "Velocities", "Masses",
+gadget_dm_fields = ["Coordinates", "Velocities", "Masses", "ParticleIDs"]
+gadget_gas_fields = ["Coordinates", "Velocities", "Masses", "ParticleIDs",
                      "InternalEnergy", "MagneticField"]
 
 gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
                     "Masses": "particle_mass",
                     "InternalEnergy": "particle_thermal_energy",
-                    "MagneticField": "particle_magnetic_field"}
+                    "MagneticField": "particle_magnetic_field",
+                    "ParticleIDs": "particle_index"}
 
 gadget_field_units = {"Coordinates": "kpc",
                       "Velocities": "km/s",
@@ -208,16 +209,22 @@ class ClusterParticles(object):
             for field in gadget_gas_fields:
                 if field in gas:
                     fd = gadget_field_map[field]
-                    units = gadget_field_units[field]
-                    fields["gas", fd] = YTArray(gas[field], units).in_base("galactic")
+                    if field == "ParticleIDs":
+                        fields["gas", "particle_index"] = gas[field].value
+                    else:
+                        units = gadget_field_units[field]
+                        fields["gas", fd] = YTArray(gas[field], units).in_base("galactic")
         if "PartType1" in f:
             particle_types.append("dm")
             dm = f["PartType1"]
             for field in gadget_dm_fields:
                 if field in dm:
                     fd = gadget_field_map[field]
-                    units = gadget_field_units[field]
-                    fields["dm", fd] = YTArray(dm[field], units).in_base("galactic")
+                    if field == "ParticleIDs":
+                        fields["dm", "particle_index"] = gas[field].value
+                    else:
+                        units = gadget_field_units[field]
+                        fields["dm", fd] = YTArray(dm[field], units).in_base("galactic")
         f.close()
         return cls(particle_types, fields)
 
