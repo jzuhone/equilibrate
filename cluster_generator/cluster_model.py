@@ -329,7 +329,7 @@ class ClusterParticles(object):
         f.flush()
         f.close()
 
-    def set_field(self, ptype, name, value):
+    def set_field(self, ptype, name, value, units=None):
         """
         Set a field with name *name* to value *value*, which is a YTArray.
         The array will be checked to make sure that it has the appropriate size.
@@ -341,6 +341,8 @@ class ClusterParticles(object):
             if (ptype, name) in self.fields:
                 mylog.warning("Overwriting field (%s, %s)." % (ptype, name))
             self.fields[ptype, name] = value
+            if units is not None:
+                self.fields[ptype, name].convert_to_units(units)
         else:
             raise ValueError("The length of the array needs to be %d particles!"
                              % num_particles)
