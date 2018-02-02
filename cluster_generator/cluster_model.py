@@ -305,14 +305,16 @@ class ClusterParticles(object):
             num_gas_particles = gidxs.sum()
             gasg = f.create_group("PartType0")
             self._write_gadget_fields("gas", gasg, gidxs, dtype)
-            gasg.create_dataset("ParticleIDs", data=self["gas", "particle_index"])
+            ids = np.arange(num_gas_particles)
+            gasg.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             num_particles += num_gas_particles
         if "dm" in self.particle_types:
             didxs = self._clip_to_box("dm", box_size)
             num_dm_particles = didxs.sum()
             dmg = f.create_group("PartType1")
             self._write_gadget_fields("dm", dmg, didxs, dtype)
-            dmg.create_dataset("ParticleIDs", data=self["dm", "particle_index"])
+            ids = np.arange(num_gas_particles)+num_particles
+            dmg.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             num_particles += num_dm_particles
         f.flush()
         hg = f.create_group("Header")
