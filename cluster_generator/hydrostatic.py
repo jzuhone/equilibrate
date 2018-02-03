@@ -196,7 +196,7 @@ class HydrostaticEquilibrium(ClusterModel):
                    "hydrostatic equilibrium is %g" % np.abs(chk).max())
         return chk
 
-    def generate_gas_particles(self, num_particles, id_function=None):
+    def generate_gas_particles(self, num_particles):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 
@@ -206,9 +206,6 @@ class HydrostaticEquilibrium(ClusterModel):
             The number of particles to generate.
         """
         mu = self.parameters["mu"]
-
-        if id_function is None:
-            id_function = lambda n_part: np.arange(n_part).astype("uint32")
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
@@ -249,7 +246,5 @@ class HydrostaticEquilibrium(ClusterModel):
         mylog.info("Set particle velocities to zero.")
 
         fields["gas", "particle_velocity"] = YTArray(np.zeros((num_particles, 3)), "kpc/Myr")
-
-        fields["gas", "particle_index"] = id_function(num_particles)
 
         return ClusterParticles("gas", fields)

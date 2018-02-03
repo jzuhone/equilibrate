@@ -152,8 +152,7 @@ gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
                     "Masses": "particle_mass",
                     "InternalEnergy": "particle_thermal_energy",
-                    "MagneticField": "particle_magnetic_field",
-                    "ParticleIDs": "particle_index"}
+                    "MagneticField": "particle_magnetic_field"}
 
 gadget_field_units = {"Coordinates": "kpc",
                       "Velocities": "km/s",
@@ -209,9 +208,7 @@ class ClusterParticles(object):
             for field in gadget_fields['gas']:
                 if field in gas:
                     fd = gadget_field_map[field]
-                    if field == "ParticleIDs":
-                        fields["gas", "particle_index"] = gas[field].value
-                    else:
+                    if field != "ParticleIDs":
                         units = gadget_field_units[field]
                         fields["gas", fd] = YTArray(gas[field], units).in_base("galactic")
         if "PartType1" in f:
@@ -220,9 +217,7 @@ class ClusterParticles(object):
             for field in gadget_fields['dm']:
                 if field in dm:
                     fd = gadget_field_map[field]
-                    if field == "ParticleIDs":
-                        fields["dm", "particle_index"] = dm[field].value
-                    else:
+                    if field != "ParticleIDs":
                         units = gadget_field_units[field]
                         fields["dm", fd] = YTArray(dm[field], units).in_base("galactic")
         f.close()
@@ -244,20 +239,17 @@ class ClusterParticles(object):
         if os.path.exists(output_filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
         f = h5py.File(output_filename, "w")
-        for ptype in self.particle_types:
-            g = f.create_group(ptype)
-            g.create_dataset("particle_index", data=self[ptype, "particle_index"])
+        [f.create_group(ptype) for ptype in self.particle_types]
         f.flush()
         f.close()
         for field in self.fields:
-            if field[1] != "particle_index":
-                if in_cgs:
-                    fd = self.fields[field].in_cgs()
-                else:
-                    fd = self.fields[field]
+            if in_cgs:
+                fd = self.fields[field].in_cgs()
+            else:
+                fd = self.fields[field]
 
-                fd.write_hdf5(output_filename, dataset_name=field[1],
-                              group_name=field[0])
+            fd.write_hdf5(output_filename, dataset_name=field[1],
+                          group_name=field[0])
 
     def __add__(self, other):
         fields = self.fields.copy()
