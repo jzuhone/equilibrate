@@ -146,17 +146,19 @@ class ClusterModel(object):
 
 gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs"],
                  "gas": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                         "InternalEnergy", "MagneticField"]}
+                         "InternalEnergy", "MagneticField","Density"]}
 
 gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
                     "Masses": "particle_mass",
+                    "Density": "particle_density",
                     "InternalEnergy": "particle_thermal_energy",
                     "MagneticField": "particle_magnetic_field"}
 
 gadget_field_units = {"Coordinates": "kpc",
                       "Velocities": "km/s",
                       "Masses": "1e10*Msun",
+                      "Density": "1e10*Msun/kpc**3",
                       "InternalEnergy": "km**2/s**2",
                       "MagneticField": "gauss"}
 
