@@ -82,7 +82,7 @@ class VirialEquilibrium(ClusterModel):
                    "virial equilibrium is %g" % np.abs(chk).max())
         return rho, chk
 
-    def generate_dm_particles(self, num_particles):
+    def generate_dm_particles(self, num_particles, r_max=None):
         """
         Generate a set of dark matter particles in virial equilibrium.
 
@@ -90,16 +90,24 @@ class VirialEquilibrium(ClusterModel):
         ----------
         num_particles : integer
             The number of particles to generate.
+        r_max : float, optional
+            The maximum radius in kpc within which to generate 
+            particle positions. If not supplied, it will generate
+            positions out to the maximum radius available. Default: None
         """
+        if r_max is None:
+            ridx = self.rr.size
+        else:
+            ridx = np.searchsorted(self.rr, r_max)
         energy_spline = InterpolatedUnivariateSpline(self.rr, self.ee[::-1])
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
         u = np.random.uniform(size=num_particles)
-        P_r = np.insert(self.mdm, 0, 0.0)
+        P_r = np.insert(self.mdm[:ridx], 0, 0.0)
         P_r /= P_r[-1]
-        r = np.insert(self.rr, 0, 0.0)
+        r = np.insert(self.rr[:ridx], 0, 0.0)
         radius = np.interp(u, P_r, r, left=0.0, right=1.0)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))

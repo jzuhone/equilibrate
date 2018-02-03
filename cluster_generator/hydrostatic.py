@@ -196,7 +196,7 @@ class HydrostaticEquilibrium(ClusterModel):
                    "hydrostatic equilibrium is %g" % np.abs(chk).max())
         return chk
 
-    def generate_gas_particles(self, num_particles):
+    def generate_gas_particles(self, num_particles, r_max=None):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 
@@ -204,16 +204,24 @@ class HydrostaticEquilibrium(ClusterModel):
         ----------
         num_particles : integer
             The number of particles to generate.
+        r_max : float, optional
+            The maximum radius in kpc within which to generate 
+            particle positions. If not supplied, it will generate
+            positions out to the maximum radius available. Default: None
         """
+        if r_max is None:
+            ridx = self.fields["radius"].size
+        else:
+            ridx = np.searchsorted(self.fields["radius"].d, r_max)
         mu = self.parameters["mu"]
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
         mgas = self.fields["gas_mass"].d
-        r = np.insert(self.fields["radius"].d, 0, 0.0)
+        r = np.insert(self.fields["radius"].d[:ridx], 0, 0.0)
         u = np.random.uniform(size=num_particles)
-        P_r = np.insert(mgas, 0, 0.0)
+        P_r = np.insert(mgas[:ridx], 0, 0.0)
         P_r /= P_r[-1]
         get_radius = InterpolatedUnivariateSpline(P_r, r)
         radius = get_radius(u)
