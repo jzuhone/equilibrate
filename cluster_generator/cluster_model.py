@@ -229,7 +229,7 @@ class ClusterParticles(object):
         else:
             chop_types = [p_type]
         for pt in chop_types:
-            cidx = np.sqrt((self[pt, "particle_position"]**2).sum(axis=1)) <= r_max
+            cidx = np.sqrt((self[pt, "particle_position"]**2).sum(axis=1)).d <= r_max
             for field in self.fields:
                 if field[0] == pt:
                     self.fields[field] = self.fields[field][cidx]
