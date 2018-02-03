@@ -223,6 +223,17 @@ class ClusterParticles(object):
         f.close()
         return cls(particle_types, fields)
 
+    def chop_particles(self, r_max, p_type="all"):
+        if p_type == "all":
+            chop_types = self.particle_types
+        else:
+            chop_types = [p_type]
+        for pt in chop_types:
+            cidx = np.sqrt((self[pt, "particle_position"]**2).sum(axis=1)) <= r_max
+            for field in self.fields:
+                if field[0] == pt:
+                    self.fields[field] = self.fields[field][cidx]
+
     def write_particles_to_h5(self, output_filename, in_cgs=False, overwrite=False):
         """
         Write the particles to an HDF5 file.
