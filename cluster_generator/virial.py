@@ -39,7 +39,7 @@ class VirialEquilibrium(ClusterModel):
         keys = ["radius", "dark_matter_density", "dark_matter_mass",
                 "gravitational_potential", "gravitational_field"]
         fields = OrderedDict([(field, hse_model[field]) for field in keys])
-        return cls(hse_model.num_points, fields)
+        return cls(hse_model.num_elements, fields)
 
     def _generate_df(self):
         pden = self["dark_matter_density"][::-1]
@@ -100,8 +100,8 @@ class VirialEquilibrium(ClusterModel):
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
-        radius = generate_particle_radii(self.fields["radius"].d,
-                                         self.fields["dark_matter_mass"].d,
+        radius = generate_particle_radii(self["radius"].d,
+                                         self["dark_matter_mass"].d,
                                          num_particles, r_max=r_max)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
