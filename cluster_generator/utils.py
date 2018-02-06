@@ -40,9 +40,6 @@ def generate_particle_radii(r, m, num_particles, r_max=None):
     P_r = np.insert(m[:ridx], 0, 0.0)
     P_r /= P_r[-1]
     r = np.insert(r[:ridx], 0, 0.0)
-    nonzero = P_r > 0.0
-    P_r = P_r[nonzero]
-    r = r[nonzero]
     r_spline = InterpolatedUnivariateSpline(P_r, r, k=3, ext=1)
     #radius = np.interp(u, P_r, r, left=0.0, right=1.0)
     radius = r_spline(u)

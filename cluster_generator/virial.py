@@ -100,8 +100,9 @@ class VirialEquilibrium(ClusterModel):
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
-        radius = generate_particle_radii(self["radius"].d,
-                                         self["dark_matter_mass"].d,
+        nonzero = self["dark_matter_density"] > 0.0
+        radius = generate_particle_radii(self["radius"].d[nonzero],
+                                         self["dark_matter_mass"].d[nonzero],
                                          num_particles, r_max=r_max)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
