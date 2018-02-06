@@ -70,6 +70,10 @@ class VirialEquilibrium(ClusterModel):
     def ee(self):
         return -self["gravitational_potential"].d[::-1]
 
+    @property
+    def ff(self):
+        return self["distribution_function"].d[::-1]
+
     def check_model(self):
         n = self.num_elements
         rho = np.zeros(n)
@@ -121,10 +125,7 @@ class VirialEquilibrium(ClusterModel):
         fv2esc = vesc*self.f(psi)
         vesc = np.sqrt(vesc)
 
-        elog = np.logspace(np.log10(self.ee[0]), np.log10(self.ee[-1]), self.ee.size)
-        flog = self.f(elog)
 
-        #velocity = generate_velocities(psi, vesc, fv2esc, elog, flog)
         velocity = generate_velocities(psi, vesc, fv2esc, self.f)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
