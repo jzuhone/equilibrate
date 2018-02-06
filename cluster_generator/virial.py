@@ -4,7 +4,8 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     G, quad, \
     integrate_toinf, \
-    integrate_mass
+    integrate_mass, \
+    generate_particle_radii
 from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
 from cluster_generator.cython_utils import generate_velocities
@@ -17,7 +18,7 @@ class VirialEquilibrium(ClusterModel):
     @classmethod
     def from_scratch(cls, rmin, rmax, profile, num_points=1000):
 
-        rr = np.logspace(np.log10(rmin), np.log10(rmax), 
+        rr = np.logspace(np.log10(rmin), np.log10(rmax),
                          num_points, endpoint=True)
 
         pden = profile(rr)
@@ -94,20 +95,14 @@ class VirialEquilibrium(ClusterModel):
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
         """
-        if r_max is None:
-            ridx = self.rr.size
-        else:
-            ridx = np.searchsorted(self.rr, r_max)
-        energy_spline = InterpolatedUnivariateSpline(self.rr, self.ee[::-1])
+        energy_spline = InterpolatedUnivariateSpline(self["radius"].d, self.ee[::-1])
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
-        u = np.random.uniform(size=num_particles)
-        P_r = np.insert(self.mdm[:ridx], 0, 0.0)
-        P_r /= P_r[-1]
-        r = np.insert(self.rr[:ridx], 0, 0.0)
-        radius = np.interp(u, P_r, r, left=0.0, right=1.0)
+        radius = generate_particle_radii(self.fields["radius"].d,
+                                         self.fields["dark_matter_mass"].d,
+                                         num_particles, r_max=r_max)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)

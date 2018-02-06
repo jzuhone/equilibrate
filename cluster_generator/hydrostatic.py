@@ -5,7 +5,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     integrate, \
     integrate_mass, \
-    mp, G
+    mp, G, generate_particle_radii
 from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
 
@@ -209,22 +209,14 @@ class HydrostaticEquilibrium(ClusterModel):
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
         """
-        if r_max is None:
-            ridx = self.fields["radius"].size
-        else:
-            ridx = np.searchsorted(self.fields["radius"].d, r_max)
         mu = self.parameters["mu"]
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
-        mgas = self.fields["gas_mass"].d
-        r = np.insert(self.fields["radius"].d[:ridx], 0, 0.0)
-        u = np.random.uniform(size=num_particles)
-        P_r = np.insert(mgas[:ridx], 0, 0.0)
-        P_r /= P_r[-1]
-        get_radius = InterpolatedUnivariateSpline(P_r, r)
-        radius = get_radius(u)
+        radius = generate_particle_radii(self.fields["radius"].d,
+                                         self.fields["gas_mass"].d,
+                                         num_particles, r_max=r_max)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
