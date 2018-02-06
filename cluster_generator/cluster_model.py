@@ -209,8 +209,8 @@ class ClusterParticles(object):
             gas = f["PartType0"]
             for field in gadget_fields['gas']:
                 if field in gas:
-                    fd = gadget_field_map[field]
                     if field != "ParticleIDs":
+                        fd = gadget_field_map[field]
                         units = gadget_field_units[field]
                         fields["gas", fd] = YTArray(gas[field], units).in_base("galactic")
         if "PartType1" in f:
@@ -218,8 +218,8 @@ class ClusterParticles(object):
             dm = f["PartType1"]
             for field in gadget_fields['dm']:
                 if field in dm:
-                    fd = gadget_field_map[field]
                     if field != "ParticleIDs":
+                        fd = gadget_field_map[field]
                         units = gadget_field_units[field]
                         fields["dm", fd] = YTArray(dm[field], units).in_base("galactic")
         f.close()
