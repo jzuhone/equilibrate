@@ -26,58 +26,57 @@ class VirialEquilibrium(ClusterModel):
         mylog.info("Integrating gravitational potential profile.")
         gpot_profile = lambda r: profile(r)*r
         gpot = G.v*(mdm/rr + 4.*np.pi*integrate_toinf(gpot_profile, rr))
-
-        return cls(rr, gpot, pden, mdm)
+        fields = OrderedDict([("radius", YTArray(rr, "kpc")),
+                              ("dark_matter_density", YTArray(pden, "Msun/kpc**3")),
+                              ("dark_matter_mass", YTArray(mdm, "Msun")),
+                              ("gravitational_potential", YTArray(-gpot, "kpc**2/Myr**2"))])
+        fields["gravitational_field"] = -G*fields["dark_matter_mass"]/fields["radius"]**2
+        return cls(num_points, fields)
 
     @classmethod
     def from_hse_model(cls, hse_model):
-        gpot = -hse_model["gravitational_potential"].in_units("kpc**2/Myr**2")
-        return cls(hse_model["radius"].v, gpot.v, 
-                   hse_model["dark_matter_density"].v,
-                   hse_model["dark_matter_mass"].v)
+        keys = ["radius", "dark_matter_density", "dark_matter_mass",
+                "gravitational_potential", "gravitational_field"]
+        fields = OrderedDict([(field, hse_model[field]) for field in keys])
+        return cls(hse_model.num_points, fields)
 
-    def __init__(self, rr, gpot, pden, mdm):
-
-        fields = OrderedDict()
-
-        ee = gpot[::-1]
-        density_spline = InterpolatedUnivariateSpline(ee, pden[::-1])
-
-        num_points = gpot.shape[0]
-
-        g = np.zeros(num_points)
+    def _generate_df(self):
+        pden = self["dark_matter_density"][::-1]
+        density_spline = InterpolatedUnivariateSpline(self.ee, pden)
+        g = np.zeros(self.num_elements)
         dgdp = lambda t, e: 2*density_spline(e-t*t, 1)
-        pbar = get_pbar("Computing particle DF", num_points)
-        for i in range(num_points):
-            g[i] = quad(dgdp, 0., np.sqrt(ee[i]), epsabs=1.49e-05,
-                        epsrel=1.49e-05, args=(ee[i]))[0]
+        pbar = get_pbar("Computing particle DF", self.num_elements)
+        for i in range(self.num_elements):
+            g[i] = quad(dgdp, 0., np.sqrt(self.ee[i]), epsabs=1.49e-05,
+                        epsrel=1.49e-05, args=(self.ee[i]))[0]
             pbar.update(i)
         pbar.finish()
-        g_spline = InterpolatedUnivariateSpline(ee, g)
-        f = lambda e: g_spline(e, 1)/(np.sqrt(8.)*np.pi**2)
+        g_spline = InterpolatedUnivariateSpline(self.ee, g)
+        self.f = lambda e: g_spline(e, 1)/(np.sqrt(8.)*np.pi**2)
+        self.fields["distribution_function"] = YTArray(self.f(self.ee)[::-1], 
+                                                       "Msun*Myr**3/kpc**6")
 
-        self.ee = ee
-        self.f = f
-        self.rr = rr
-        self.pden = pden
-        self.mdm = mdm
+    def __init__(self, num_elements, fields, parameters=None):
+        super(VirialEquilibrium, self).__init__(num_elements, fields,
+                                                parameters=parameters)
+        if "distribution_function" not in self.fields:
+            self._generate_df()
+        else:
+            f = self["distribution_function"].d[::-1]
+            self.f = InterpolatedUnivariateSpline(self.ee, f)
 
-        fields["radius"] = YTArray(self.rr, "kpc")
-        fields["dark_matter_density"] = YTArray(pden, "Msun/kpc**3")
-        fields["dark_matter_mass"] = YTArray(mdm, "Msun")
-        fields["gravitational_potential"] = YTArray(-ee[::-1], "kpc**2/Myr**2")
-        fields["gravitational_field"] = -G*fields["dark_matter_mass"]/fields["radius"]**2
-        fields["distribution_function"] = YTArray(f(ee)[::-1], "Msun*Myr**3/kpc**6")
-
-        super(VirialEquilibrium, self).__init__(num_points, fields)
+    @property
+    def ee(self):
+        return -self["gravitational_potential"].d[::-1]
 
     def check_model(self):
-        n = len(self.ee)
+        n = self.num_elements
         rho = np.zeros(n)
+        pden = self["dark_matter_density"].d
         rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
-        for i, e in enumerate(self.ee[::-1]):
-            rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e))[0]
-        chk = np.abs(rho-self.pden)/self.pden
+        for i, e in enumerate(self.ee):
+            rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e,))[0]
+        chk = np.abs(rho-pden)/pden
         mylog.info("The maximum relative deviation of this profile from "
                    "virial equilibrium is %g" % np.abs(chk).max())
         return rho, chk
@@ -138,7 +137,7 @@ class VirialEquilibrium(ClusterModel):
                                                      velocity*np.sin(theta)*np.sin(phi),
                                                      velocity*np.cos(theta)], "kpc/Myr").T
 
-        fields["dm", "particle_mass"] = YTArray([self.mdm.max()/num_particles]*num_particles, "Msun")
+        fields["dm", "particle_mass"] = YTArray([self["dark_matter_mass"].max()/num_particles]*num_particles)
         fields["dm", "particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
         fields["dm", "particle_energy"] = fields["dm", "particle_potential"]+0.5*YTArray(velocity, "kpc/Myr")**2
 
