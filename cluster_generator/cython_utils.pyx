@@ -55,6 +55,6 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
         p = int(fmod(float(i), float(num_particles/10)))
         if p == 0:
             p = int((100.*i)/float(num_particles)+0.5)
-            print("Generated %d percent of particle velocities." % p)
-    print("Generated 100 percent of particle velocities.")
+            print("Generated %d%% of particle velocities.\r" % p, end="")
+    print("Generated 100% of particle velocities.")
     return velocity
