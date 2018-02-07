@@ -214,9 +214,9 @@ class HydrostaticEquilibrium(ClusterModel):
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
-        radius = generate_particle_radii(self["radius"].d,
-                                         self["gas_mass"].d,
-                                         num_particles, r_max=r_max)
+        radius, mtot = generate_particle_radii(self["radius"].d,
+                                               self["gas_mass"].d,
+                                               num_particles, r_max=r_max)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
@@ -232,12 +232,12 @@ class HydrostaticEquilibrium(ClusterModel):
         e_arr = 1.5*self.fields["pressure"]/self.fields["density"]
         get_energy = InterpolatedUnivariateSpline(self.fields["radius"], e_arr)
         e_int = get_energy(radius)
-            
+
         fields["gas", "particle_thermal_energy"] = YTArray(e_int, "kpc**2/Myr**2")
         fields["gas", "particle_temperature"] = fields["gas", "particle_thermal_energy"]*mu*mp/1.5
         fields["gas", "particle_temperature"].convert_to_units("keV")
 
-        fields["gas", "particle_mass"] = YTArray([self["gas_mass"].max()/num_particles]*num_particles)
+        fields["gas", "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
 
         get_density = InterpolatedUnivariateSpline(self.fields["radius"], self.fields["density"])
 

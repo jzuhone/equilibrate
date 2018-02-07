@@ -105,9 +105,9 @@ class VirialEquilibrium(ClusterModel):
         mylog.info("Compute particle positions.")
 
         nonzero = self["dark_matter_density"] > 0.0
-        radius = generate_particle_radii(self["radius"].d[nonzero],
-                                         self["dark_matter_mass"].d[nonzero],
-                                         num_particles, r_max=r_max)
+        radius, mtot = generate_particle_radii(self["radius"].d[nonzero],
+                                               self["dark_matter_mass"].d[nonzero],
+                                               num_particles, r_max=r_max)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
@@ -135,7 +135,7 @@ class VirialEquilibrium(ClusterModel):
                                                      velocity*np.sin(theta)*np.sin(phi),
                                                      velocity*np.cos(theta)], "kpc/Myr").T
 
-        fields["dm", "particle_mass"] = YTArray([self["dark_matter_mass"].max()/num_particles]*num_particles)
+        fields["dm", "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
         fields["dm", "particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
         fields["dm", "particle_energy"] = fields["dm", "particle_potential"]+0.5*YTArray(velocity, "kpc/Myr")**2
 

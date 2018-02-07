@@ -36,6 +36,7 @@ def generate_particle_radii(r, m, num_particles, r_max=None):
         ridx = r.size
     else:
         ridx = np.searchsorted(r, r_max)
+    mtot = m[ridx]
     u = np.random.uniform(size=num_particles)
     P_r = np.insert(m[:ridx], 0, 0.0)
     P_r /= P_r[-1]
@@ -43,4 +44,4 @@ def generate_particle_radii(r, m, num_particles, r_max=None):
     r_spline = InterpolatedUnivariateSpline(P_r, r, k=3, ext=1)
     #radius = np.interp(u, P_r, r, left=0.0, right=1.0)
     radius = r_spline(u)
-    return radius
+    return radius, mtot
