@@ -171,7 +171,7 @@ class ClusterParticles(object):
         self.fields = fields
 
     @classmethod
-    def from_h5_file(cls, filename):
+    def from_h5_file(cls, filename, ptypes=None):
         r"""
         Generate cluster particles from an HDF5 file.
 
@@ -187,17 +187,18 @@ class ClusterParticles(object):
         """
         names = {}
         f = h5py.File(filename)
-        particle_types = list(f.keys())
-        for ptype in f:
+        if ptypes is None:
+            ptypes = list(f.keys())
+        for ptype in ptypes:
             names[ptype] = list(f[ptype].keys())
         f.close()
 
         fields = OrderedDict()
-        for ptype in particle_types:
+        for ptype in ptypes:
             for field in names[ptype]:
                 fields[ptype, field] = YTArray.from_hdf5(filename, dataset_name=field,
                                                          group_name=ptype).in_base("galactic")
-        return cls(particle_types, fields)
+        return cls(ptypes, fields)
 
     @classmethod
     def from_gadget_ics(cls, filename, ptypes=None):
