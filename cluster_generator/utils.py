@@ -36,7 +36,7 @@ def generate_particle_radii(r, m, num_particles, r_max=None):
         ridx = r.size
     else:
         ridx = np.searchsorted(r, r_max)
-    mtot = m[ridx]
+    mtot = m[ridx-1]
     u = np.random.uniform(size=num_particles)
     P_r = np.insert(m[:ridx], 0, 0.0)
     P_r /= P_r[-1]
