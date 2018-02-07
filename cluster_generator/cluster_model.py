@@ -200,11 +200,13 @@ class ClusterParticles(object):
         return cls(particle_types, fields)
 
     @classmethod
-    def from_gadget_ics(cls, filename):
+    def from_gadget_ics(cls, filename, ptypes=None):
         fields = OrderedDict()
         f = h5py.File(filename, "r")
         particle_types = []
-        if "PartType0" in f:
+        if ptypes is None:
+            ptypes = [k for k in f if k.startswith("PartType")]
+        if "PartType0" in ptypes:
             particle_types.append("gas")
             gas = f["PartType0"]
             for field in gadget_fields['gas']:
@@ -213,7 +215,7 @@ class ClusterParticles(object):
                         fd = gadget_field_map[field]
                         units = gadget_field_units[field]
                         fields["gas", fd] = YTArray(gas[field], units).in_base("galactic")
-        if "PartType1" in f:
+        if "PartType1" in ptypes:
             particle_types.append("dm")
             dm = f["PartType1"]
             for field in gadget_fields['dm']:
