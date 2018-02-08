@@ -271,7 +271,7 @@ class ClusterParticles(object):
         fields = self.fields.copy()
         for field in other.fields:
             if field in fields:
-                fields[field] = uconcatenate(self[field], other[field])
+                fields[field] = uconcatenate([self[field], other[field]])
             else:
                 fields[field] = other[field]
         particle_types = self.particle_types + other.particle_types
