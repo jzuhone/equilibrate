@@ -8,6 +8,7 @@ from cluster_generator.utils import \
     generate_particle_radii
 from cluster_generator.cluster_model import ClusterModel, \
     ClusterParticles
+from cluster_generator.hydrostatic import HydrostaticEquilibrium
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
 
@@ -18,21 +19,11 @@ class VirialEquilibrium(ClusterModel):
     @classmethod
     def from_scratch(cls, rmin, rmax, profile, num_points=1000):
 
-        rr = np.logspace(np.log10(rmin), np.log10(rmax),
-                         num_points, endpoint=True)
+        profiles = {"total_density": profile}
 
-        pden = profile(rr)
-        mylog.info("Integrating dark matter mass profile.")
-        mdm = integrate_mass(profile, rr)
-        mylog.info("Integrating gravitational potential profile.")
-        gpot_profile = lambda r: profile(r)*r
-        gpot = G.v*(mdm/rr + 4.*np.pi*integrate_toinf(gpot_profile, rr))
-        fields = OrderedDict([("radius", YTArray(rr, "kpc")),
-                              ("dark_matter_density", YTArray(pden, "Msun/kpc**3")),
-                              ("dark_matter_mass", YTArray(mdm, "Msun")),
-                              ("gravitational_potential", YTArray(-gpot, "kpc**2/Myr**2"))])
-        fields["gravitational_field"] = -G*fields["dark_matter_mass"]/fields["radius"]**2
-        return cls(num_points, fields)
+        hse = HydrostaticEquilibrium.from_scratch("dm_only", rmin, rmax, profiles,
+                                                  num_points=num_points)
+        return cls.from_hse_model(hse)
 
     @classmethod
     def from_hse_model(cls, hse_model):
