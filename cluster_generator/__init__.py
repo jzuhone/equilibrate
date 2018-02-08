@@ -1,5 +1,6 @@
 from cluster_generator.cluster_model import \
-    ClusterModel, \
+    ClusterModel
+from cluster_generator.cluster_particles import \
     ClusterParticles
 from cluster_generator.hydrostatic import \
     HydrostaticEquilibrium

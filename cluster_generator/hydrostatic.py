@@ -6,7 +6,8 @@ from cluster_generator.utils import \
     integrate, \
     integrate_mass, \
     mp, G, generate_particle_radii
-from cluster_generator.cluster_model import ClusterModel, \
+from cluster_generator.cluster_model import ClusterModel
+from cluster_generator.cluster_particles import \
     ClusterParticles
 
 gamma = 5./3.
@@ -167,13 +168,24 @@ class HydrostaticEquilibrium(ClusterModel):
             mylog.info("Integrating gas mass profile.")
             fields["gas_mass"] = YTArray(integrate_mass(profiles["density"], rr), "Msun")
 
+        if "stellar_density" in profiles:
+            fields["stellar_density"] = YTArray(profiles["stellar_density"](rr), 
+                                                "Msun/kpc**3")
+            mylog.info("Integrating stellar mass profile.")
+            fields["stellar_mass"] = YTArray(integrate_mass(profiles["stellar_density"], rr),
+                                             "Msun")
+
         mdm = fields["total_mass"].copy()
         ddm = fields["total_density"].copy()
         if mode != "dm_only":
             mdm -= fields["gas_mass"]
             ddm -= fields["density"]
-            mdm[ddm.v < 0.0][:] = mdm.max()
-            ddm[ddm.v < 0.0][:] = 0.0
+        if "stellar_mass" in fields:
+            mdm -= fields["stellar_mass"]
+            ddm -= fields["stellar_density"]
+        mdm[ddm.v < 0.0][:] = mdm.max()
+        ddm[ddm.v < 0.0][:] = 0.0
+
         fields["dark_matter_density"] = ddm
         fields["dark_matter_mass"] = mdm
 

@@ -3,7 +3,8 @@ from yt import YTArray, mylog, get_pbar
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     quad, generate_particle_radii
-from cluster_generator.cluster_model import ClusterModel, \
+from cluster_generator.cluster_model import ClusterModel
+from cluster_generator.cluster_particles import \
     ClusterParticles
 from cluster_generator.hydrostatic import HydrostaticEquilibrium
 from cluster_generator.cython_utils import generate_velocities
@@ -74,9 +75,9 @@ class VirialEquilibrium(ClusterModel):
                    "virial equilibrium is %g" % np.abs(chk).max())
         return rho, chk
 
-    def generate_dm_particles(self, num_particles, r_max=None):
+    def generate_particles(self, num_particles, r_max=None, ptype="dm"):
         """
-        Generate a set of dark matter particles in virial equilibrium.
+        Generate a set of dark matter or star particles in virial equilibrium.
 
         Parameters
         ----------
@@ -86,15 +87,20 @@ class VirialEquilibrium(ClusterModel):
             The maximum radius in kpc within which to generate 
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
+        ptype : string, optional
+            The type of particle to generate, "dm" or "star". Default: "dm"
         """
+        key = {"dm": "dark_matter", "star": "stellar"}[ptype]
+        density = "%s_density" % key
+        mass = "%s_mass" % key
         energy_spline = InterpolatedUnivariateSpline(self["radius"].d, self.ee[::-1])
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
-        nonzero = self["dark_matter_density"] > 0.0
+        nonzero = self[density] > 0.0
         radius, mtot = generate_particle_radii(self["radius"].d[nonzero],
-                                               self["dark_matter_mass"].d[nonzero],
+                                               self[mass].d[nonzero],
                                                num_particles, r_max=r_max)
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
@@ -102,9 +108,9 @@ class VirialEquilibrium(ClusterModel):
 
         fields = OrderedDict()
 
-        fields["dm", "particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
-                                                     radius*np.sin(theta)*np.sin(phi),
-                                                     radius*np.cos(theta)], "kpc").T
+        fields[ptype, "particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
+                                                      radius*np.sin(theta)*np.sin(phi),
+                                                      radius*np.cos(theta)], "kpc").T
 
         mylog.info("Compute particle velocities.")
 
@@ -119,12 +125,12 @@ class VirialEquilibrium(ClusterModel):
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
-        fields["dm", "particle_velocity"] = YTArray([velocity*np.sin(theta)*np.cos(phi),
-                                                     velocity*np.sin(theta)*np.sin(phi),
-                                                     velocity*np.cos(theta)], "kpc/Myr").T
+        fields[ptype, "particle_velocity"] = YTArray([velocity*np.sin(theta)*np.cos(phi),
+                                                      velocity*np.sin(theta)*np.sin(phi),
+                                                      velocity*np.cos(theta)], "kpc/Myr").T
 
-        fields["dm", "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
-        fields["dm", "particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
-        fields["dm", "particle_energy"] = fields["dm", "particle_potential"]+0.5*YTArray(velocity, "kpc/Myr")**2
+        fields[ptype, "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
+        fields[ptype, "particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
+        fields[ptype, "particle_energy"] = fields[ptype, "particle_potential"]+0.5*YTArray(velocity, "kpc/Myr")**2
 
-        return ClusterParticles("dm", fields)
+        return ClusterParticles(ptype, fields)
