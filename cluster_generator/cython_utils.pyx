@@ -14,6 +14,8 @@ Cythonized utilities for equilibrium models
 import numpy as np
 cimport numpy as np
 cimport cython
+from scipy.interpolate import _fitpack
+from yt.funcs import get_pbar
 
 cdef extern from "math.h":
     double sqrt(double x) nogil
@@ -33,28 +35,32 @@ ctypedef np.float64_t DTYPE_t
 def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
                         np.ndarray[DTYPE_t, ndim=1] vesc,
                         np.ndarray[DTYPE_t, ndim=1] fv2esc,
-                        f):
-    cdef DTYPE_t v2, e
+                        np.ndarray[DTYPE_t, ndim=1] t,
+                        np.ndarray[DTYPE_t, ndim=1] c,
+                        int k):
+    cdef DTYPE_t v2, f
     cdef np.uint8_t not_done
-    cdef unsigned int i, p
-    cdef int num_particles
+    cdef unsigned int i
+    cdef int num_particles, der, ext, ier
     cdef long int seedval
-    cdef np.ndarray[np.float64_t, ndim=1] velocity
+    cdef np.ndarray[np.float64_t, ndim=1] velocity, e
+    e = np.zeros(1)
     seedval = -100
     srand48(seedval)
+    der = 0
+    ext = 0
     num_particles = psi.shape[0]
     velocity = np.zeros(num_particles, dtype='float64')
+    pbar = get_pbar("Generating particle velocities", num_particles)
     for i in range(num_particles):
         not_done = 1
         while not_done:
             v2 = drand48()*vesc[i]
             v2 *= v2
-            e = psi[i]-0.5*v2
-            not_done = f(e)*v2 < drand48()*fv2esc[i]
+            e[0] = psi[i]-0.5*v2
+            f = _fitpack._spl_(e, der, t, c, k, ext)[0]
+            not_done = f*v2 < drand48()*fv2esc[i]
         velocity[i] = sqrt(v2)
-        p = int(fmod(float(i), float(num_particles/10)))
-        if p == 0:
-            p = int((100.*i)/float(num_particles)+0.5)
-            print("Generated %d%% of particle velocities.\r" % p, end="")
-    print("Generated 100% of particle velocities.")
+        pbar.update()
+    pbar.finish()
     return velocity

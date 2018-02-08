@@ -1,6 +1,7 @@
 import numpy as np
 from yt import YTArray, mylog, get_pbar
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import InterpolatedUnivariateSpline, \
+    fitpack
 from cluster_generator.utils import \
     G, quad, \
     integrate_toinf, \
@@ -56,6 +57,7 @@ class VirialEquilibrium(ClusterModel):
         self.f = lambda e: g_spline(e, 1)/(np.sqrt(8.)*np.pi**2)
         self.fields["distribution_function"] = YTArray(self.f(self.ee)[::-1], 
                                                        "Msun*Myr**3/kpc**6")
+        self.eval_args = g_spline._eval_args
 
     def __init__(self, num_elements, fields, parameters=None):
         super(VirialEquilibrium, self).__init__(num_elements, fields,
@@ -125,8 +127,8 @@ class VirialEquilibrium(ClusterModel):
         fv2esc = vesc*self.f(psi)
         vesc = np.sqrt(vesc)
 
-
-        velocity = generate_velocities(psi, vesc, fv2esc, self.f)
+        velocity = generate_velocities(psi, vesc, fv2esc, self.eval_args[0],
+                                       self.eval_args[1], self.eval_args[2])
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
