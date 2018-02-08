@@ -207,24 +207,16 @@ class ClusterParticles(object):
         particle_types = []
         if ptypes is None:
             ptypes = [k for k in f if k.startswith("PartType")]
-        if "PartType0" in ptypes:
-            particle_types.append("gas")
-            gas = f["PartType0"]
-            for field in gadget_fields['gas']:
-                if field in gas:
+        for ptype in ptypes:
+            my_ptype = ptype_map[ptype]
+            particle_types.append(my_ptype)
+            g = f[ptype]
+            for field in gadget_fields[my_ptype]:
+                if field in g:
                     if field != "ParticleIDs":
                         fd = gadget_field_map[field]
                         units = gadget_field_units[field]
-                        fields["gas", fd] = YTArray(gas[field], units).in_base("galactic")
-        if "PartType1" in ptypes:
-            particle_types.append("dm")
-            dm = f["PartType1"]
-            for field in gadget_fields['dm']:
-                if field in dm:
-                    if field != "ParticleIDs":
-                        fd = gadget_field_map[field]
-                        units = gadget_field_units[field]
-                        fields["dm", fd] = YTArray(dm[field], units).in_base("galactic")
+                        fields[my_ptype, fd] = YTArray(g[field], units).in_base("galactic")
         f.close()
         return cls(particle_types, fields)
 
