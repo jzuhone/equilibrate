@@ -38,17 +38,16 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
                         np.ndarray[DTYPE_t, ndim=1] t,
                         np.ndarray[DTYPE_t, ndim=1] c,
                         int k):
-    cdef DTYPE_t v2, f, fac
+    cdef DTYPE_t v2, f
     cdef np.uint8_t not_done
     cdef unsigned int i
-    cdef int num_particles, der, ext, ier
+    cdef int num_particles, der, ext
     cdef long int seedval
     cdef np.ndarray[np.float64_t, ndim=1] velocity, e
-    fac = 1.0/(sqrt(8.)*np.pi**2)
     e = np.zeros(1)
     seedval = -100
     srand48(seedval)
-    der = 1
+    der = 0
     ext = 0
     num_particles = psi.shape[0]
     velocity = np.zeros(num_particles, dtype='float64')
@@ -59,7 +58,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
             v2 = drand48()*vesc[i]
             v2 *= v2
             e[0] = psi[i]-0.5*v2
-            f = fac*_fitpack._spl_(e, der, t, c, k, ext)[0]
+            f = _fitpack._spl_(e, der, t, c, k, ext)[0]
             not_done = f*v2 < drand48()*fv2esc[i]
         velocity[i] = sqrt(v2)
         pbar.update()
