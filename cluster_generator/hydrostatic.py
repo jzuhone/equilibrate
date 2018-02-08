@@ -126,7 +126,10 @@ class HydrostaticEquilibrium(ClusterModel):
         else:
 
             if mode == "dens_tden" or mode == "dm_only":
-                mylog.info("Computing the profiles from density and total density.")
+                if mode == "dens_tden":
+                    mylog.info("Computing the profiles from density and total density.")
+                else:
+                    mylog.info("Computing the profiles for dark matter only.")
                 fields["total_density"] = YTArray(profiles["total_density"](rr), "Msun/kpc**3")
                 mylog.info("Integrating total mass profile.")
                 fields["total_mass"] = YTArray(integrate_mass(profiles["total_density"], rr), "Msun")
