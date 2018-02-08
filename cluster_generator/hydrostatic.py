@@ -196,7 +196,7 @@ class HydrostaticEquilibrium(ClusterModel):
                    "hydrostatic equilibrium is %g" % np.abs(chk).max())
         return chk
 
-    def generate_gas_particles(self, num_particles, r_max=None):
+    def generate_particles(self, num_particles, r_max=None):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 
