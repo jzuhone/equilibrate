@@ -94,13 +94,15 @@ class ClusterParticles(object):
         for ptype in self.particle_types:
             self.num_particles[ptype] = self.fields[ptype, "particle_mass"].size
 
-    def swap_dm_for_stars(self, nstars):
+    def pick_stars_from_dm(self, nstars):
         idxs = np.random.random_integers(0, self.num_particles["dm"], size=nstars)
+        mask = np.zeros(self.num_particles["dm"], dtype=bool)
+        mask[idxs] = True
         if "star" not in self.particle_types:
             self.particle_types.append("star")
         for field in self.field_names["dm"]:
-            self.fields["star", field] = self.fields["dm", field][idxs]
-            #self.fields["dm", field] = self.fields["dm", field][idxs]
+            self.fields["star", field] = self.fields["dm", field][mask]
+            self.fields["dm", field] = self.fields["dm", field][idxs]
         self._update_num_particles()
 
     def make_radial_cut(self, r_max, p_type="all"):
