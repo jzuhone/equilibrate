@@ -249,9 +249,6 @@ class HydrostaticEquilibrium(ClusterModel):
         e_int = get_energy(radius)
 
         fields["gas", "particle_thermal_energy"] = YTArray(e_int, "kpc**2/Myr**2")
-        fields["gas", "particle_temperature"] = fields["gas", "particle_thermal_energy"]*mu*mp/1.5
-        fields["gas", "particle_temperature"].convert_to_units("keV")
-
         fields["gas", "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
 
         get_density = InterpolatedUnivariateSpline(self.fields["radius"], self.fields["density"])
