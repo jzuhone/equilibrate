@@ -103,7 +103,7 @@ class ClusterParticles(object):
             #self.fields["dm", field] = self.fields["dm", field][idxs]
         self._update_num_particles()
 
-    def chop_particles(self, r_max, p_type="all"):
+    def make_radial_cut(self, r_max, p_type="all"):
         if p_type == "all":
             chop_types = self.particle_types
         else:
