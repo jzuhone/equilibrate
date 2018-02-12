@@ -1,6 +1,7 @@
 from yt import mylog, YTArray, uconcatenate, load_particles
 from collections import OrderedDict, defaultdict
-from yt.funcs import ensure_list
+from yt.funcs import ensure_list, ensure_numpy_array
+from scipy.interpolate import InterpolatedUnivariateSpline
 import h5py
 import numpy as np
 import os
@@ -243,6 +244,9 @@ class ClusterParticles(object):
     def __getitem__(self, key):
         return self.fields[key]
 
+    def __setitem__(self, key, value):
+        self.fields[key] = value
+
     def keys(self):
         return self.fields.keys()
 
@@ -256,3 +260,33 @@ class ClusterParticles(object):
                 data[ptype,"particle_velocity_%s" % ax] = vel[:,i]
         return load_particles(data, length_unit="kpc", bbox=[[0.0, box_size]]*3,
                               mass_unit="Msun", time_unit="Myr")
+
+
+def combine_two_clusters(particles1, particles2, hse1, hse2,
+                         center1, center2, velocity1, velocity2, box_size):
+    center1 = ensure_numpy_array(center1)
+    center2 = ensure_numpy_array(center2)
+    particles1.add_offsets(center1, [0.0]*3)
+    particles2.add_offsets(center2, [0.0]*3)
+    particles = particles1+particles2
+    r1 = ((particles["gas", "particle_position"].d-center1)**2).sum(axis=1)
+    np.sqrt(r1, r1)
+    r2 = ((particles["gas", "particle_position"].d-center2)**2).sum(axis=1)
+    np.sqrt(r2, r2)
+    get_density1 = InterpolatedUnivariateSpline(hse1["radius"], hse1["density"])
+    dens1 = get_density1(r1)
+    get_density2 = InterpolatedUnivariateSpline(hse2["radius"], hse2["density"])
+    dens2 = get_density2(r2)
+    dens = dens1+dens2
+    e_arr1 = 1.5*hse1["pressure"]/hse1["density"]
+    get_energy1 = InterpolatedUnivariateSpline(hse1["radius"], e_arr1)
+    eint1 = get_energy1(r1)
+    e_arr2 = 1.5*hse2["pressure"]/hse2["density"]
+    get_energy2 = InterpolatedUnivariateSpline(hse2["radius"], e_arr2)
+    eint2 = get_energy2(r2)
+    particles["gas", "particle_density"] = YTArray(dens, "Msun/kpc**3")
+    particles["gas", "particle_thermal_energy"] = YTArray((eint1*dens1+eint2*dens2)/dens,
+                                                          "kpc**2/Myr**2")
+    particles["gas", "particle_velocity"] = YTArray((velocity1*dens1+velocity2*dens2)/dens,
+                                                    "kpc/Myr")
+    return particles
