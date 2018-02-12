@@ -27,6 +27,7 @@ gadget_field_units = {"Coordinates": "kpc",
 ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType1", "dm"),
                          ("PartType4", "star")])
+
 rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
 class ClusterParticles(object):
@@ -95,7 +96,7 @@ class ClusterParticles(object):
 
     def swap_dm_for_stars(self, nstars):
         idxs = np.random.random_integers(0, self.num_particles["dm"], size=nstars)
-        if "stars" not in self.particle_types:
+        if "star" not in self.particle_types:
             self.particle_types.append("star")
         for field in self.field_names["dm"]:
             self.fields["star", field] = self.fields["dm", field][idxs]
@@ -147,7 +148,7 @@ class ClusterParticles(object):
                 fields[field] = uconcatenate([self[field], other[field]])
             else:
                 fields[field] = other[field]
-        particle_types = self.particle_types + other.particle_types
+        particle_types = list(set(self.particle_types + other.particle_types))
         return ClusterParticles(particle_types, fields)
 
     def add_offsets(self, r_ctr, v_ctr):
@@ -179,6 +180,7 @@ class ClusterParticles(object):
             raise IOError("Cannot create %s. It exists and overwrite=False." % ic_filename)
         num_particles = {}
         npart = 0
+        mass_table = np.zeros(6)
         f = h5py.File(ic_filename, "w")
         for ptype in self.particle_types:
             gptype = rptype_map[ptype]
@@ -189,6 +191,8 @@ class ClusterParticles(object):
             ids = np.arange(num_particles[ptype])+1+npart
             g.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             npart += num_particles[ptype]
+            if "ptype" in ["star", "dm"]:
+                mass_table[int(rptype_map[ptype][-1])] = g["Masses"][0]
         f.flush()
         hg = f.create_group("Header")
         hg.attrs["Time"] = 0.0
@@ -197,15 +201,15 @@ class ClusterParticles(object):
         hg.attrs["Omega0"] = 0.0
         hg.attrs["OmegaLambda"] = 0.0
         hg.attrs["HubbleParam"] = 1.0
-        hg.attrs["NumPart_ThisFile"] = np.array([num_particles["gas"],
-                                                 num_particles["dm"],
+        hg.attrs["NumPart_ThisFile"] = np.array([num_particles.get("gas", 0),
+                                                 num_particles.get("dm", 0),
                                                  0, 0,
-                                                 num_particles["star"],
+                                                 num_particles.get("star", 0),
                                                  0], dtype='uint32')
         hg.attrs["NumPart_Total"] = hg.attrs["NumPart_ThisFile"]
         hg.attrs["NumPart_Total_HighWord"] = np.zeros(6, dtype='uint32')
         hg.attrs["NumFilesPerSnapshot"] = 1
-        hg.attrs["MassTable"] = np.zeros(6)
+        hg.attrs["MassTable"] = mass_table
         hg.attrs["Flag_Sfr"] = 0
         hg.attrs["Flag_Cooling"] = 0
         hg.attrs["Flag_StellarAge"] = 0
