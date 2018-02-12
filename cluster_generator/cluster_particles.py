@@ -191,7 +191,7 @@ class ClusterParticles(object):
             ids = np.arange(num_particles[ptype])+1+npart
             g.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             npart += num_particles[ptype]
-            if "ptype" in ["star", "dm"]:
+            if ptype in ["star", "dm"]:
                 mass_table[int(rptype_map[ptype][-1])] = g["Masses"][0]
         f.flush()
         hg = f.create_group("Header")
