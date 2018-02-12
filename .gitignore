@@ -3,3 +3,4 @@ cluster_generator.egg-info
 *.so
 *.o
 *.c
+*~
