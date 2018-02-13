@@ -8,7 +8,8 @@ import os
 
 gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs"],
                  "gas": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                         "InternalEnergy", "MagneticField","Density"],
+                         "InternalEnergy", "MagneticField","Density",
+                         "MagneticVectorPotential"],
                  "star": ["Coordinates", "Velocities", "Masses", "ParticleIDs"]}
 
 gadget_field_map = {"Coordinates": "particle_position",
@@ -16,14 +17,16 @@ gadget_field_map = {"Coordinates": "particle_position",
                     "Masses": "particle_mass",
                     "Density": "particle_density",
                     "InternalEnergy": "particle_thermal_energy",
-                    "MagneticField": "particle_magnetic_field"}
+                    "MagneticField": "particle_magnetic_field",
+                    "MagneticVectorPotential": "particle_magnetic_vector_potential"}
 
 gadget_field_units = {"Coordinates": "kpc",
                       "Velocities": "km/s",
                       "Masses": "1e10*Msun",
                       "Density": "1e10*Msun/kpc**3",
                       "InternalEnergy": "km**2/s**2",
-                      "MagneticField": "gauss"}
+                      "MagneticField": "gauss",
+                      "MagneticVectorPotential": "gauss*kpc"}
 
 ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType1", "dm"),
