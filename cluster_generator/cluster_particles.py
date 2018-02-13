@@ -95,15 +95,24 @@ class ClusterParticles(object):
         for ptype in self.particle_types:
             self.num_particles[ptype] = self.fields[ptype, "particle_mass"].size
 
-    def pick_stars_from_dm(self, nstars):
+    def pick_stars_from_dm(self, nstars, pick_bcg=True):
         idxs = np.random.random_integers(0, self.num_particles["dm"], size=nstars)
+        if pick_bcg:
+            if "particle_energy" not in self.fields:
+                raise RuntimeError("Cannot determine particle energy!")
+            idx = np.argmin(self.fields["dm","particle_energy"])
+            idxs = np.append(idxs, idx)
         mask = np.zeros(self.num_particles["dm"], dtype=bool)
         mask[idxs] = True
+        for field in self.field_names["dm"]:
+            if "star" not in self.particle_types:
+                self.fields["star", field] = self.fields["dm", field][mask]
+            else:
+                self.fields["star", field] = uconcatenate(self.fields["star", field],
+                                                          self.fields["dm", field][mask])
+            self.fields["dm", field] = self.fields["dm", field][idxs]
         if "star" not in self.particle_types:
             self.particle_types.append("star")
-        for field in self.field_names["dm"]:
-            self.fields["star", field] = self.fields["dm", field][mask]
-            self.fields["dm", field] = self.fields["dm", field][idxs]
         self._update_num_particles()
 
     def make_radial_cut(self, r_max, p_type="all"):
