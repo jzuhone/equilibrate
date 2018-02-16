@@ -4,7 +4,7 @@ from yt import YTArray, YTQuantity, mylog
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     integrate, \
-    integrate_mass, \
+    integrate_mass, kboltz, \
     mp, G, generate_particle_radii
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import \
@@ -37,7 +37,7 @@ class HydrostaticEquilibrium(ClusterModel):
 
     @classmethod
     def from_scratch(cls, mode, rmin, rmax, profiles, num_points=1000,
-                     P_amb=0.0, mu=None):
+                     T_amb=1.0e5, mu=None):
         r"""
         Generate a set of profiles of physical quantities based on the assumption
         of hydrostatic equilibrium. Currently assumes an ideal gas with a gamma-law
@@ -71,9 +71,11 @@ class HydrostaticEquilibrium(ClusterModel):
                 "temperature": "keV"
         num_points : integer
             The number of points at which to evaluate the profile.
-        P_amb : float, optional
-            The ambient pressure in units of erg/cm**3, used as a boundary
-            condition on the pressure integral. Default: 0.0.
+        T_amb : float, optional
+            The ambient temperature in units of K, used with *rho_amb* to 
+            create a boundary condition on the pressure integral. Used only
+            if the "dens_tden" or "dens_grav" modes are chosen. 
+            Default: 1.0e5
         mu : float, optional
             The mean molecular weight. If not specified, it will be calculated
             assuming a fully ionized gas with primordial abundances.
@@ -88,9 +90,8 @@ class HydrostaticEquilibrium(ClusterModel):
             if hasattr(p, "unitless"):
                 profiles[k] = p.unitless()
 
-        if not isinstance(P_amb, YTQuantity):
-            P_amb = YTQuantity(P_amb, "erg/cm**3")
-        P_amb.convert_to_units("Msun/(Myr**2*kpc)")
+        if not isinstance(T_amb, YTQuantity):
+            T_amb = YTQuantity(T_amb, "K")
 
         for p in modes[mode]:
             if p not in profiles:
@@ -146,6 +147,9 @@ class HydrostaticEquilibrium(ClusterModel):
                 dPdr_int = lambda r: profiles["density"](r)*g_r(r)
                 mylog.info("Integrating pressure profile.")
                 fields["pressure"] = -YTArray(integrate(dPdr_int, rr), "Msun/kpc/Myr**2")
+                P_amb = fields["density"][-1]*kboltz*T_amb/(mu*mp)
+                P_amb.convert_to_base("galactic")
+                fields['pressure'] += P_amb
                 fields["temperature"] = fields["pressure"]*mp/fields["density"]/muinv
                 fields["temperature"].convert_to_units("keV")
 
@@ -188,8 +192,6 @@ class HydrostaticEquilibrium(ClusterModel):
 
         fields["dark_matter_density"] = ddm
         fields["dark_matter_mass"] = mdm
-
-        fields['pressure'] += P_amb
 
         for field in extra_fields:
             fields[field] = profiles[field](rr)
