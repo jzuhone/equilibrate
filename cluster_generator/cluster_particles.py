@@ -98,7 +98,7 @@ class ClusterParticles(object):
         for ptype in self.particle_types:
             self.num_particles[ptype] = self.fields[ptype, "particle_mass"].size
 
-    def pick_stars_from_dm(self, nstars, pick_bcg=True):
+    def pick_stars_from_dm(self, nstars, star_mass=None, pick_bcg=True, bcg_mass=None):
         idxs = np.random.random_integers(0, self.num_particles["dm"], size=nstars)
         if pick_bcg:
             if "particle_energy" not in self.fields:
@@ -108,11 +108,17 @@ class ClusterParticles(object):
         mask = np.zeros(self.num_particles["dm"], dtype=bool)
         mask[idxs] = True
         for field in self.field_names["dm"]:
+            if field == "particle_mass" and star_mass is not None:
+                star_field = YTArray(star_mass*np.ones(mask.sum()), "Msun")
+            else:
+                star_field = self.fields["dm", field][mask]
+            if field == "particle_mass" and pick_bcg and bcg_mass is not None:
+                star_field[-1] = bcg_mass
             if "star" not in self.particle_types:
-                self.fields["star", field] = self.fields["dm", field][mask]
+                self.fields["star", field] = star_field
             else:
                 self.fields["star", field] = uconcatenate(self.fields["star", field],
-                                                          self.fields["dm", field][mask])
+                                                          star_field)
             self.fields["dm", field] = self.fields["dm", field][idxs]
         if "star" not in self.particle_types:
             self.particle_types.append("star")
