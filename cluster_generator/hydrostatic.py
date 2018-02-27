@@ -33,7 +33,7 @@ class HydrostaticEquilibrium(ClusterModel):
     default_fields = ["density","temperature","pressure","total_density",
                       "gravitational_potential","gravitational_field",
                       "total_mass","gas_mass","dark_matter_mass",
-                      "dark_matter_density"]
+                      "dark_matter_density","stellar_density","stellar_mass"]
 
     @classmethod
     def from_scratch(cls, mode, rmin, rmax, profiles, num_points=1000,
