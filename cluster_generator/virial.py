@@ -134,6 +134,6 @@ class VirialEquilibrium(ClusterModel):
 
         fields[key, "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
         fields[key, "particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
-        fields[key, "particle_energy"] = fields[ptype, "particle_potential"]+0.5*YTArray(velocity, "kpc/Myr")**2
+        fields[key, "particle_energy"] = fields[key, "particle_potential"]+0.5*YTArray(velocity, "kpc/Myr")**2
 
         return ClusterParticles(key, fields)
