@@ -281,9 +281,11 @@ class ClusterParticles(object):
 
 
 def combine_two_clusters(particles1, particles2, hse1, hse2,
-                         center1, center2, velocity1, velocity2, box_size):
+                         center1, center2, velocity1, velocity2):
     center1 = ensure_numpy_array(center1)
     center2 = ensure_numpy_array(center2)
+    velocity1 = ensure_numpy_array(velocity1)
+    velocity2 = ensure_numpy_array(velocity2)
     particles1.add_offsets(center1, [0.0]*3)
     particles2.add_offsets(center2, [0.0]*3)
     particles = particles1+particles2
