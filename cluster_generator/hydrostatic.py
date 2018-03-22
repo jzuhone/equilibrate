@@ -17,6 +17,8 @@ modes = {"dens_temp": ("density","temperature"),
          "dens_grav": ("density","gravitational_field"),
          "dm_only": ("total_density",)}
 
+muinv_default = 0.76/0.5 + 0.24/(4./3.)
+
 class RequiredProfilesError(Exception):
     def __init__(self, mode):
         self.mode = mode
@@ -81,7 +83,7 @@ class HydrostaticEquilibrium(ClusterModel):
             assuming a fully ionized gas with primordial abundances.
         """
         if mu is None:
-            muinv = 0.76/0.5 + 0.24/(4./3.)
+            muinv = muinv_default
             mu = 1.0/muinv
         else:
             muinv = 1.0/mu
@@ -226,7 +228,7 @@ class HydrostaticEquilibrium(ClusterModel):
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
         """
-        mu = self.parameters["mu"]
+        mu = self.parameters.get("mu", 1.0/muinv_default)
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
