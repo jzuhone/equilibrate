@@ -178,12 +178,14 @@ class ClusterParticles(object):
         particle_types = list(set(self.particle_types + other.particle_types))
         return ClusterParticles(particle_types, fields)
 
-    def add_offsets(self, r_ctr, v_ctr):
+    def add_offsets(self, r_ctr, v_ctr, ptypes=None):
+        if ptypes is None:
+            ptypes = self.particle_types
         if not isinstance(r_ctr, YTArray):
             r_ctr = YTArray(r_ctr, "kpc")
         if not isinstance(v_ctr, YTArray):
             v_ctr = YTArray(v_ctr, "kpc/Myr")
-        for ptype in self.particle_types:
+        for ptype in ptypes:
             self.fields[ptype, "particle_position"] += r_ctr
             self.fields[ptype, "particle_velocity"] += v_ctr
 
