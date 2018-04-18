@@ -294,8 +294,10 @@ def combine_two_clusters(particles1, particles2, hse1, hse2,
     center2 = ensure_numpy_array(center2)
     velocity1 = ensure_numpy_array(velocity1)
     velocity2 = ensure_numpy_array(velocity2)
-    particles1.add_offsets(center1, [0.0]*3)
-    particles2.add_offsets(center2, [0.0]*3)
+    particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
+    particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
+    particles1.add_offsets(center1, velocity1, ptypes=["dm","star"])
+    particles2.add_offsets(center2, velocity2, ptypes=["dm","star"])
     particles = particles1+particles2
     r1 = ((particles["gas", "particle_position"].d-center1)**2).sum(axis=1)
     np.sqrt(r1, r1)
@@ -315,6 +317,7 @@ def combine_two_clusters(particles1, particles2, hse1, hse2,
     particles["gas", "particle_density"] = YTArray(dens, "Msun/kpc**3")
     particles["gas", "particle_thermal_energy"] = YTArray((eint1*dens1+eint2*dens2)/dens,
                                                           "kpc**2/Myr**2")
-    particles["gas", "particle_velocity"] = YTArray((velocity1*dens1+velocity2*dens2)/dens,
+    particles["gas", "particle_velocity"] = YTArray(((velocity1[:,np.newaxis]*dens1 + 
+                                                      velocity2[:,np.newaxis]*dens2)/dens).T,
                                                     "kpc/Myr")
     return particles
