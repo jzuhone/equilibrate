@@ -3,6 +3,7 @@ from six import add_metaclass
 from yt import savetxt, mylog, YTArray
 import h5py
 import os
+import numpy as np
 
 equilibrium_model_registry = {}
 
@@ -23,7 +24,7 @@ class ClusterModel(object):
         self.parameters = parameters
 
     @classmethod
-    def from_h5_file(cls, filename):
+    def from_h5_file(cls, filename, r_min=None, r_max=None):
         r"""
         Generate an equilibrium model from an HDF5 file. 
 
@@ -53,6 +54,14 @@ class ClusterModel(object):
         for field in fnames:
             fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
                                               group_name="fields").in_base("galactic")
+        if r_min is None:
+            r_min = 0.0
+        if r_max is None:
+            r_max = fields["radius"][-1].d*2
+        mask = np.logical_and(fields["radius"].d >= r_min, fields["radius"].d <= r_max)
+        for field in fnames:
+            fields[field] = fields[field][mask]
+        num_elements = mask.sum()
 
         return equilibrium_model_registry[model_type](num_elements, fields, 
                                                       parameters=parameters)
