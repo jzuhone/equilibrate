@@ -90,6 +90,12 @@ class ClusterParticles(object):
                         fd = gadget_field_map[field]
                         units = gadget_field_units[field]
                         fields[my_ptype, fd] = YTArray(g[field], units).in_base("galactic")
+            if "Masses" not in g:
+                n_ptype = g["ParticleIDs"].size
+                units = gadget_field_units["Masses"]
+                n_type = int(ptype[-1])
+                fields[my_ptype, "particle_mass"] = YTArray([f["Header"].attrs["MassTable"][n_type]]*n_ptype,
+                                                            units)
         f.close()
         return cls(particle_types, fields)
 
