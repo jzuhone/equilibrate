@@ -130,13 +130,18 @@ class ClusterParticles(object):
             self.particle_types.append("star")
         self._update_num_particles()
 
-    def make_radial_cut(self, r_max, p_type="all"):
+    def make_radial_cut(self, r_max, p_type="all", center=None,
+                        cut_inside=False):
+        rm2 = r_max*r_max
+        if center is None:
+            center = np.array([0.0]*3)
         if p_type == "all":
             chop_types = self.particle_types
         else:
             chop_types = [p_type]
         for pt in chop_types:
-            cidx = np.sqrt((self[pt, "particle_position"]**2).sum(axis=1)).d <= r_max
+            cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
+            cidx = (not cut_inside) & cidx
             for field in self.field_names[pt]:
                 self.fields[pt, field] = self.fields[pt, field][cidx]
         self._update_num_particles()
