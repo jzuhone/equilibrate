@@ -42,7 +42,7 @@ class ClusterParticles(object):
         self.field_names = defaultdict(list)
         for field in self.fields:
             self.field_names[field[0]].append(field[1])
-
+        
     @classmethod
     def from_h5_file(cls, filename, ptypes=None):
         r"""
@@ -267,21 +267,29 @@ class ClusterParticles(object):
                               mass_unit="Msun", time_unit="Myr")
 
 
-def combine_two_clusters(particles1, particles2, hse1, hse2,
-                         center1, center2, velocity1, velocity2):
+def combine_two_clusters(particles1, particles2, radius1, radius2,
+                         hse1, hse2, center1, center2, velocity1, 
+                         velocity2):
     center1 = ensure_numpy_array(center1)
     center2 = ensure_numpy_array(center2)
     velocity1 = ensure_numpy_array(velocity1)
     velocity2 = ensure_numpy_array(velocity2)
     particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
     particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
-    particles1.add_offsets(center1, velocity1, ptypes=["dm","star"])
-    particles2.add_offsets(center2, velocity2, ptypes=["dm","star"])
+    particles1.add_offsets(center1, velocity1, ptypes=["dm", "star"])
+    particles2.add_offsets(center2, velocity2, ptypes=["dm", "star"])
+    particles1.make_radial_cut(radius2, p_type="gas", center=center2,
+                               cut_inside=True)
+    particles2.make_radial_cut(radius1, p_type="gas", center=center1,
+                               cut_inside=True)
     particles = particles1+particles2
     r1 = ((particles["gas", "particle_position"].d-center1)**2).sum(axis=1)
     np.sqrt(r1, r1)
     r2 = ((particles["gas", "particle_position"].d-center2)**2).sum(axis=1)
     np.sqrt(r2, r2)
+    idxs = np.logical_and(r1 >= radius1, r2 >= radius2)
+    r1 = r1[idxs]
+    r2 = r2[idxs]
     get_density1 = InterpolatedUnivariateSpline(hse1["radius"], hse1["density"])
     dens1 = get_density1(r1)
     get_density2 = InterpolatedUnivariateSpline(hse2["radius"], hse2["density"])
@@ -293,10 +301,8 @@ def combine_two_clusters(particles1, particles2, hse1, hse2,
     e_arr2 = 1.5*hse2["pressure"]/hse2["density"]
     get_energy2 = InterpolatedUnivariateSpline(hse2["radius"], e_arr2)
     eint2 = get_energy2(r2)
-    particles["gas", "particle_density"] = YTArray(dens, "Msun/kpc**3")
-    particles["gas", "particle_thermal_energy"] = YTArray((eint1*dens1+eint2*dens2)/dens,
-                                                          "kpc**2/Myr**2")
-    particles["gas", "particle_velocity"] = YTArray(((velocity1[:,np.newaxis]*dens1 + 
-                                                      velocity2[:,np.newaxis]*dens2)/dens).T,
-                                                    "kpc/Myr")
+    particles["gas", "particle_density"][idxs] = dens
+    particles["gas", "particle_thermal_energy"][idxs] = (eint1*dens1+eint2*dens2)/dens
+    particles["gas", "particle_velocity"][idxs] = ((velocity1[:,np.newaxis]*dens1 +
+                                                    velocity2[:,np.newaxis]*dens2)/dens).T
     return particles
