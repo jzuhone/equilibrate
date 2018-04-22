@@ -1,7 +1,8 @@
 from cluster_generator.cluster_model import \
     ClusterModel
 from cluster_generator.cluster_particles import \
-    ClusterParticles, combine_two_clusters
+    ClusterParticles, combine_two_clusters, \
+    resample_two_clusters
 from cluster_generator.hydrostatic import \
     HydrostaticEquilibrium
 from cluster_generator.virial import \
