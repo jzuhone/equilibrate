@@ -62,10 +62,10 @@ class ClusterParticles(object):
         f = h5py.File(filename)
         if ptypes is None:
             ptypes = list(f.keys())
+        ptypes = ensure_list(ptypes)
         for ptype in ptypes:
             names[ptype] = list(f[ptype].keys())
         f.close()
-
         fields = OrderedDict()
         for ptype in ptypes:
             for field in names[ptype]:
@@ -75,11 +75,31 @@ class ClusterParticles(object):
 
     @classmethod
     def from_gadget_ics(cls, filename, ptypes=None):
+        """
+        Read in particle data from a Gadget snapshot
+
+        Parameters
+        ----------
+        filename : string
+            The name of the file to read from.
+        ptypes : string or list of strings, optional
+            The particle types to read from the file, either
+            a single string or a list of strings. If None,
+            all particle types will be read from the file.
+
+        Examples
+        --------
+        >>> from cluster_generator import ClusterParticles
+        >>> ptypes = ["gas", "dm"]
+        >>> particles = ClusterParticles.from_h5_file("snapshot_060.h5", ptypes=ptypes)
+        """
         fields = OrderedDict()
         f = h5py.File(filename, "r")
         particle_types = []
         if ptypes is None:
             ptypes = [k for k in f if k.startswith("PartType")]
+        ptypes = ensure_list(ptypes)
+        ptypes = [rptype_map[k] for k in ptypes]
         for ptype in ptypes:
             my_ptype = ptype_map[ptype]
             particle_types.append(my_ptype)
@@ -104,18 +124,18 @@ class ClusterParticles(object):
         for ptype in self.particle_types:
             self.num_particles[ptype] = self.fields[ptype, "particle_mass"].size
 
-    def make_radial_cut(self, r_max, p_type="all", center=None,
+    def make_radial_cut(self, r_max, ptypes=None, center=None,
                         cut_inside=False):
         rm2 = r_max*r_max
         if center is None:
             center = np.array([0.0]*3)
-        if p_type == "all":
-            chop_types = self.particle_types
-        else:
-            chop_types = [p_type]
-        for pt in chop_types:
+        if ptypes is None:
+            ptypes = self.particle_types
+        ptypes = ensure_list(ptypes)
+        for pt in ptypes:
             cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
-            cidx = (not cut_inside) & cidx
+            if cut_inside:
+                cidx = ~cidx
             for field in self.field_names[pt]:
                 self.fields[pt, field] = self.fields[pt, field][cidx]
         self._update_num_particles()
@@ -160,6 +180,7 @@ class ClusterParticles(object):
     def add_offsets(self, r_ctr, v_ctr, ptypes=None):
         if ptypes is None:
             ptypes = self.particle_types
+        ptypes = ensure_list(ptypes)
         if not isinstance(r_ctr, YTArray):
             r_ctr = YTArray(r_ctr, "kpc")
         if not isinstance(v_ctr, YTArray):
@@ -184,6 +205,23 @@ class ClusterParticles(object):
 
     def write_to_gadget_ics(self, ic_filename, box_size,
                             dtype='float32', overwrite=False):
+        """
+        Write the particles to a file in the HDF5 Gadget format
+        which can be used as initial conditions for a simulation.
+
+        Parameters
+        ----------
+        ic_filename : string
+            The name of the file to write to.
+        box_size : float
+            The width of the cubical box that the initial condition
+            will be within in units of kpc. 
+        dtype : string, optional
+            The datatype of the fields to write, either 'float32' or
+            'float64'. Default: 'float32'
+        overwrite : boolean, optional
+            Whether or not to overwrite an existing file. Default: False
+        """
         if os.path.exists(ic_filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % ic_filename)
         num_particles = {}
@@ -230,6 +268,14 @@ class ClusterParticles(object):
 
     def set_field(self, ptype, name, value, units=None):
         """
+        Add or update a particle field using a YTArray.
+        The array will be checked to make sure that it 
+        has the appropriate size.
+
+        Parameters
+        ----------
+        ptype : string
+            
         Set a field with name *name* to value *value*, which is a YTArray.
         The array will be checked to make sure that it has the appropriate size.
         """
@@ -255,9 +301,12 @@ class ClusterParticles(object):
     def keys(self):
         return self.fields.keys()
 
-    def to_yt_dataset(self, box_size):
+    def to_yt_dataset(self, box_size, ptypes=None):
         data = self.fields.copy()
-        for ptype in self.particle_types:
+        if ptypes is None:
+            ptypes = self.particle_types
+        ptypes = ensure_list(ptypes)
+        for ptype in ptypes:
             pos = data.pop((ptype, "particle_position"))
             vel = data.pop((ptype, "particle_velocity"))
             for i, ax in enumerate("xyz"):
