@@ -15,10 +15,10 @@ gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs"],
 gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
                     "Masses": "particle_mass",
-                    "Density": "particle_density",
-                    "InternalEnergy": "particle_thermal_energy",
-                    "MagneticField": "particle_magnetic_field",
-                    "MagneticVectorPotential": "particle_magnetic_vector_potential"}
+                    "Density": "density",
+                    "InternalEnergy": "thermal_energy",
+                    "MagneticField": "magnetic_field",
+                    "MagneticVectorPotential": "magnetic_vector_potential"}
 
 gadget_field_units = {"Coordinates": "kpc",
                       "Velocities": "km/s",
@@ -191,20 +191,28 @@ class ClusterParticles(object):
 
     def _clip_to_box(self, ptype, box_size):
         pos = self.fields[ptype, "particle_position"]
-        return ~np.logical_or((pos < 0.0).any(axis=1), (pos > box_size).any(axis=1))
+        return ~np.logical_or((pos < 0.0).any(axis=1),
+                              (pos > box_size).any(axis=1))
 
-    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype):
+    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype, 
+                             dens_in_mass=False):
         for field in gadget_fields[ptype]:
             if field == "ParticleIDs":
                 continue
             my_field = gadget_field_map[field]
             if (ptype, my_field) in self.fields:
-                units = gadget_field_units[field]
-                data = self.fields[ptype, my_field][idxs].in_units(units).d.astype(dtype)
+                if my_field == "mass" and dens_in_mass:
+                    units = gadget_field_units["Density"]
+                    fd = self.fields[ptype, "density"]
+                else:
+                    units = gadget_field_units[field]
+                    fd = self.fields[ptype, my_field]
+                data = fd[idxs].to(units).d.astype(dtype)
                 h5_group.create_dataset(field, data=data)
 
     def write_to_gadget_ics(self, ic_filename, box_size,
-                            dtype='float32', overwrite=False):
+                            dtype='float32', overwrite=False,
+                            dens_in_mass=False):
         """
         Write the particles to a file in the HDF5 Gadget format
         which can be used as initial conditions for a simulation.
@@ -233,7 +241,8 @@ class ClusterParticles(object):
             idxs = self._clip_to_box(ptype, box_size)
             num_particles[ptype] = idxs.sum()
             g = f.create_group(gptype)
-            self._write_gadget_fields(ptype, g, idxs, dtype)
+            self._write_gadget_fields(ptype, g, idxs, dtype, 
+                                      dens_in_mass=dens_in_mass)
             ids = np.arange(num_particles[ptype])+1+npart
             g.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             npart += num_particles[ptype]
@@ -275,7 +284,7 @@ class ClusterParticles(object):
         Parameters
         ----------
         ptype : string
-            
+
         Set a field with name *name* to value *value*, which is a YTArray.
         The array will be checked to make sure that it has the appropriate size.
         """
@@ -316,29 +325,30 @@ class ClusterParticles(object):
                               mass_unit="Msun", time_unit="Myr")
 
 
-def combine_two_clusters(particles1, particles2, radius1, radius2,
-                         hse1, hse2, center1, center2, velocity1, 
-                         velocity2):
+def resample_two_clusters(particles, hse1, hse2, center1, center2,
+                          velocity1, velocity2, radii):
+    particles = _sample_two_clusters(particles, hse1, hse2,
+                                     center1, center2,
+                                     velocity1, velocity2,
+                                     radii=radii, resample=True)
+    return particles
+
+
+def _sample_two_clusters(particles, hse1, hse2, center1, center2,
+                         velocity1, velocity2, radii=None,
+                         resample=False): 
     center1 = ensure_numpy_array(center1)
     center2 = ensure_numpy_array(center2)
     velocity1 = ensure_numpy_array(velocity1)
     velocity2 = ensure_numpy_array(velocity2)
-    particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
-    particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
-    particles1.add_offsets(center1, velocity1, ptypes=["dm", "star"])
-    particles2.add_offsets(center2, velocity2, ptypes=["dm", "star"])
-    particles1.make_radial_cut(radius2, p_type="gas", center=center2,
-                               cut_inside=True)
-    particles2.make_radial_cut(radius1, p_type="gas", center=center1,
-                               cut_inside=True)
-    particles = particles1+particles2
     r1 = ((particles["gas", "particle_position"].d-center1)**2).sum(axis=1)
     np.sqrt(r1, r1)
     r2 = ((particles["gas", "particle_position"].d-center2)**2).sum(axis=1)
     np.sqrt(r2, r2)
-    idxs = np.logical_and(r1 >= radius1, r2 >= radius2)
-    r1 = r1[idxs]
-    r2 = r2[idxs]
+    if radii is None:
+        idxs = slice(None, None, None)
+    else:
+        idxs = np.logical_and(r1 <= radii[0], r2 <= radii[1])
     get_density1 = InterpolatedUnivariateSpline(hse1["radius"], hse1["density"])
     dens1 = get_density1(r1)
     get_density2 = InterpolatedUnivariateSpline(hse2["radius"], hse2["density"])
@@ -350,8 +360,27 @@ def combine_two_clusters(particles1, particles2, radius1, radius2,
     e_arr2 = 1.5*hse2["pressure"]/hse2["density"]
     get_energy2 = InterpolatedUnivariateSpline(hse2["radius"], e_arr2)
     eint2 = get_energy2(r2)
-    particles["gas", "particle_density"][idxs] = dens
-    particles["gas", "particle_thermal_energy"][idxs] = (eint1*dens1+eint2*dens2)/dens
+    if resample:
+        vol = particles["gas", "density"]/particles["gas", "particle_mass"]
+        particles["gas", "particle_mass"][idxs] = dens[idxs]*vol
+    particles["gas", "density"][idxs] = dens[idxs]
+    particles["gas", "thermal_energy"][idxs] = ((eint1*dens1+eint2*dens2)/dens)[idxs]
     particles["gas", "particle_velocity"][idxs] = ((velocity1[:,np.newaxis]*dens1 +
-                                                    velocity2[:,np.newaxis]*dens2)/dens).T
+                                                    velocity2[:,np.newaxis]*dens2)/dens).T[idxs]
+    return particles
+
+
+def combine_two_clusters(particles1, particles2, hse1, hse2,
+                         center1, center2, velocity1, velocity2):
+    center1 = ensure_numpy_array(center1)
+    center2 = ensure_numpy_array(center2)
+    velocity1 = ensure_numpy_array(velocity1)
+    velocity2 = ensure_numpy_array(velocity2)
+    particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
+    particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
+    particles1.add_offsets(center1, velocity1, ptypes=["dm", "star"])
+    particles2.add_offsets(center2, velocity2, ptypes=["dm", "star"])
+    particles = particles1+particles2
+    particles = _sample_two_clusters(particles, hse1, hse2, center1,
+                                     center2, velocity1, velocity2)
     return particles
