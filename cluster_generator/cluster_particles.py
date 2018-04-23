@@ -74,7 +74,7 @@ class ClusterParticles(object):
         return cls(ptypes, fields)
 
     @classmethod
-    def from_gadget_ics(cls, filename, ptypes=None):
+    def from_gadget_file(cls, filename, ptypes=None):
         """
         Read in particle data from a Gadget snapshot
 
@@ -91,7 +91,7 @@ class ClusterParticles(object):
         --------
         >>> from cluster_generator import ClusterParticles
         >>> ptypes = ["gas", "dm"]
-        >>> particles = ClusterParticles.from_h5_file("snapshot_060.h5", ptypes=ptypes)
+        >>> particles = ClusterParticles.from_gadget_file("snapshot_060.h5", ptypes=ptypes)
         """
         fields = OrderedDict()
         f = h5py.File(filename, "r")
