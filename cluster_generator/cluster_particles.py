@@ -98,8 +98,9 @@ class ClusterParticles(object):
         particle_types = []
         if ptypes is None:
             ptypes = [k for k in f if k.startswith("PartType")]
-        ptypes = ensure_list(ptypes)
-        ptypes = [rptype_map[k] for k in ptypes]
+        else:
+            ptypes = ensure_list(ptypes)
+            ptypes = [rptype_map[k] for k in ptypes]
         for ptype in ptypes:
             my_ptype = ptype_map[ptype]
             particle_types.append(my_ptype)
@@ -348,7 +349,7 @@ def _sample_two_clusters(particles, hse1, hse2, center1, center2,
     if radii is None:
         idxs = slice(None, None, None)
     else:
-        idxs = np.logical_and(r1 <= radii[0], r2 <= radii[1])
+        idxs = np.logical_or(r1 <= radii[0], r2 <= radii[1])
     get_density1 = InterpolatedUnivariateSpline(hse1["radius"], hse1["density"])
     dens1 = get_density1(r1)
     get_density2 = InterpolatedUnivariateSpline(hse2["radius"], hse2["density"])
@@ -361,8 +362,8 @@ def _sample_two_clusters(particles, hse1, hse2, center1, center2,
     get_energy2 = InterpolatedUnivariateSpline(hse2["radius"], e_arr2)
     eint2 = get_energy2(r2)
     if resample:
-        vol = particles["gas", "density"]/particles["gas", "particle_mass"]
-        particles["gas", "particle_mass"][idxs] = dens[idxs]*vol
+        vol = particles["gas", "particle_mass"]/particles["gas", "density"]
+        particles["gas", "particle_mass"][idxs] = dens[idxs]*vol[idxs]
     particles["gas", "density"][idxs] = dens[idxs]
     particles["gas", "thermal_energy"][idxs] = ((eint1*dens1+eint2*dens2)/dens)[idxs]
     particles["gas", "particle_velocity"][idxs] = ((velocity1[:,np.newaxis]*dens1 +
