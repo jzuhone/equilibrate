@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.integrate import quad
-from scipy.interpolate import InterpolatedUnivariateSpline
-from yt import units
+from yt import units, YTArray
 
 mp = units.mp.in_units("Msun")
 G = units.G.in_units("kpc**3/Msun/Myr**2")
@@ -43,3 +42,8 @@ def generate_particle_radii(r, m, num_particles, r_max=None):
     r = np.insert(r[:ridx], 0, 0.0)
     radius = np.interp(u, P_r, r, left=0.0, right=1.0)
     return radius, mtot
+
+def ensure_ytarray(arr, units):
+    if not isinstance(arr, YTArray):
+        arr = YTArray(arr, units)
+    return arr.to(units)

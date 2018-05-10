@@ -1,7 +1,8 @@
 from yt import mylog, YTArray, uconcatenate, load_particles
 from collections import OrderedDict, defaultdict
-from yt.funcs import ensure_list, ensure_numpy_array
+from yt.funcs import ensure_list
 from scipy.interpolate import InterpolatedUnivariateSpline
+from cluster_generator.utils import ensure_ytarray
 import h5py
 import numpy as np
 import os
@@ -199,10 +200,8 @@ class ClusterParticles(object):
         if ptypes is None:
             ptypes = self.particle_types
         ptypes = ensure_list(ptypes)
-        if not isinstance(r_ctr, YTArray):
-            r_ctr = YTArray(r_ctr, "kpc")
-        if not isinstance(v_ctr, YTArray):
-            v_ctr = YTArray(v_ctr, "kpc/Myr")
+        r_ctr = ensure_ytarray(r_ctr, "kpc")
+        v_ctr = ensure_ytarray(v_ctr, "kpc/Myr")
         for ptype in ptypes:
             self.fields[ptype, "particle_position"] += r_ctr
             self.fields[ptype, "particle_velocity"] += v_ctr
