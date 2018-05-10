@@ -43,7 +43,7 @@ class ClusterParticles(object):
         self.field_names = defaultdict(list)
         for field in self.fields:
             self.field_names[field[0]].append(field[1])
-        
+
     @classmethod
     def from_h5_file(cls, filename, ptypes=None):
         r"""
@@ -347,13 +347,13 @@ def resample_two_clusters(particles, hse1, hse2, center1, center2,
 def _sample_two_clusters(particles, hse1, hse2, center1, center2,
                          velocity1, velocity2, radii=None,
                          resample=False): 
-    center1 = ensure_numpy_array(center1)
-    center2 = ensure_numpy_array(center2)
-    velocity1 = ensure_numpy_array(velocity1)
-    velocity2 = ensure_numpy_array(velocity2)
-    r1 = ((particles["gas", "particle_position"].d-center1)**2).sum(axis=1)
+    center1 = ensure_ytarray(center1)
+    center2 = ensure_ytarray(center2)
+    velocity1 = ensure_ytarray(velocity1)
+    velocity2 = ensure_ytarray(velocity2)
+    r1 = ((particles["gas", "particle_position"]-center1)**2).sum(axis=1).d
     np.sqrt(r1, r1)
-    r2 = ((particles["gas", "particle_position"].d-center2)**2).sum(axis=1)
+    r2 = ((particles["gas", "particle_position"]-center2)**2).sum(axis=1).d
     np.sqrt(r2, r2)
     if radii is None:
         idxs = slice(None, None, None)
@@ -375,17 +375,17 @@ def _sample_two_clusters(particles, hse1, hse2, center1, center2,
         particles["gas", "particle_mass"][idxs] = dens[idxs]*vol[idxs]
     particles["gas", "density"][idxs] = dens[idxs]
     particles["gas", "thermal_energy"][idxs] = ((eint1*dens1+eint2*dens2)/dens)[idxs]
-    particles["gas", "particle_velocity"][idxs] = ((velocity1[:,np.newaxis]*dens1 +
-                                                    velocity2[:,np.newaxis]*dens2)/dens).T[idxs]
+    particles["gas", "particle_velocity"][idxs] = ((velocity1.d[:,np.newaxis]*dens1 +
+                                                    velocity2.d[:,np.newaxis]*dens2)/dens).T[idxs]
     return particles
 
 
 def combine_two_clusters(particles1, particles2, hse1, hse2,
                          center1, center2, velocity1, velocity2):
-    center1 = ensure_numpy_array(center1)
-    center2 = ensure_numpy_array(center2)
-    velocity1 = ensure_numpy_array(velocity1)
-    velocity2 = ensure_numpy_array(velocity2)
+    center1 = ensure_ytarray(center1)
+    center2 = ensure_ytarray(center2)
+    velocity1 = ensure_ytarray(velocity1)
+    velocity2 = ensure_ytarray(velocity2)
     particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
     particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
     particles1.add_offsets(center1, velocity1, ptypes=["dm", "star"])
