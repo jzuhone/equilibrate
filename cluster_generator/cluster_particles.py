@@ -222,9 +222,8 @@ class ClusterParticles(object):
                 data = fd[idxs].to(units).d.astype(dtype)
                 h5_group.create_dataset(field, data=data)
 
-    def write_to_gadget_ics(self, ic_filename, box_size,
-                            dtype='float32', overwrite=False,
-                            dens_in_mass=False):
+    def write_to_gadget_file(self, ic_filename, box_size,
+                             dtype='float32', overwrite=False):
         """
         Write the particles to a file in the HDF5 Gadget format
         which can be used as initial conditions for a simulation.
