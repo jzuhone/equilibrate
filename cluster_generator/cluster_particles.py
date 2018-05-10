@@ -179,6 +179,23 @@ class ClusterParticles(object):
         return ClusterParticles(particle_types, fields)
 
     def add_offsets(self, r_ctr, v_ctr, ptypes=None):
+        """
+        Add offsets in position and velocity to the cluster particles,
+        which can be added to one or more particle types.
+
+        Parameters
+        ----------
+        r_ctr : array-like
+            A 3-element list, NumPy array, or YTArray of the coordinates
+            of the new center of the particle distribution.
+        v_ctr : array-like
+            A 3-element list, NumPy array, or YTArray of the coordinates
+            of the new bulk velocity of the particle distribution.
+        ptypes : string or list of strings, optional
+            A single string or list of strings indicating the particle
+            type(s) to be offset. Default: None, meaning all of the 
+            particle types will be offset.
+        """
         if ptypes is None:
             ptypes = self.particle_types
         ptypes = ensure_list(ptypes)
