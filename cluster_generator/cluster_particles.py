@@ -212,19 +212,14 @@ class ClusterParticles(object):
         return ~np.logical_or((pos < 0.0).any(axis=1),
                               (pos > box_size).any(axis=1))
 
-    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype, 
-                             dens_in_mass=False):
+    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype):
         for field in gadget_fields[ptype]:
             if field == "ParticleIDs":
                 continue
             my_field = gadget_field_map[field]
             if (ptype, my_field) in self.fields:
-                if my_field == "mass" and dens_in_mass:
-                    units = gadget_field_units["Density"]
-                    fd = self.fields[ptype, "density"]
-                else:
-                    units = gadget_field_units[field]
-                    fd = self.fields[ptype, my_field]
+                units = gadget_field_units[field]
+                fd = self.fields[ptype, my_field]
                 data = fd[idxs].to(units).d.astype(dtype)
                 h5_group.create_dataset(field, data=data)
 
@@ -259,8 +254,7 @@ class ClusterParticles(object):
             idxs = self._clip_to_box(ptype, box_size)
             num_particles[ptype] = idxs.sum()
             g = f.create_group(gptype)
-            self._write_gadget_fields(ptype, g, idxs, dtype, 
-                                      dens_in_mass=dens_in_mass)
+            self._write_gadget_fields(ptype, g, idxs, dtype)
             ids = np.arange(num_particles[ptype])+1+npart
             g.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             npart += num_particles[ptype]
