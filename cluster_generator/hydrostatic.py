@@ -88,10 +88,6 @@ class HydrostaticEquilibrium(ClusterModel):
         else:
             muinv = 1.0/mu
 
-        for k, p in profiles.items():
-            if hasattr(p, "unitless"):
-                profiles[k] = p.unitless()
-
         if not isinstance(T_amb, YTQuantity):
             T_amb = YTQuantity(T_amb, "K")
 
