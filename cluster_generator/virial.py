@@ -10,6 +10,7 @@ from cluster_generator.hydrostatic import HydrostaticEquilibrium
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
 
+
 class VirialEquilibrium(ClusterModel):
 
     _type_name = "virial"
@@ -27,10 +28,13 @@ class VirialEquilibrium(ClusterModel):
         return cls.from_hse_model(hse, ptype=ptype)
 
     @classmethod
-    def from_hse_model(cls, hse_model, ptype='dark_matter'):
+    def from_hse_model(cls, hse_model, ptype='dark_matter', omit_gas=False):
         keys = ["radius", "%s_density" % ptype, "%s_mass" % ptype,
                 "gravitational_potential", "gravitational_field"]
         fields = OrderedDict([(field, hse_model[field]) for field in keys])
+        if omit_gas:
+            fields["%s_density" % ptype] = hse_model["total_density"]
+            fields["%s_mass" % ptype] = hse_model["total_mass"]
         parameters = {"ptype": ptype}
         return cls(hse_model.num_elements, fields, parameters=parameters)
 
