@@ -41,7 +41,6 @@ class ClusterModel(object):
         f = h5py.File(filename)
 
         model_type = f["model_type"].value
-        num_elements = f["num_elements"].value
         fnames = list(f['fields'].keys())
 
         parameters = {}
