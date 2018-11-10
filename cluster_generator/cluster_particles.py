@@ -35,6 +35,7 @@ ptype_map = OrderedDict([("PartType0", "gas"),
 
 rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
+
 class ClusterParticles(object):
     def __init__(self, particle_types, fields):
         self.particle_types = ensure_list(particle_types)
@@ -343,6 +344,19 @@ def resample_two_clusters(particles, hse1, hse2, center1, center2,
                                      radii=radii, resample=True)
     return particles
 
+
+def resample_one_cluster(particles, hse, center):
+    center = ensure_ytarray(center)
+    r = ((particles["gas", "particle_position"]-center)**2).sum(axis=1).d
+    np.sqrt(r, r)
+    get_density = InterpolatedUnivariateSpline(hse["radius"], hse["density"])
+    dens = get_density(r)
+    e_arr = 1.5 * hse["pressure"] / hse["density"]
+    get_energy = InterpolatedUnivariateSpline(hse["radius"], e_arr)
+    particles["gas", "thermal_energy"] = get_energy(r)
+    vol = particles["gas", "particle_mass"] / particles["gas", "density"]
+    particles["gas", "particle_mass"] = dens*vol
+    return particles
 
 def _sample_two_clusters(particles, hse1, hse2, center1, center2,
                          velocity1, velocity2, radii=None,
