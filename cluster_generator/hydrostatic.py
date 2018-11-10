@@ -211,7 +211,7 @@ class HydrostaticEquilibrium(ClusterModel):
                    "hydrostatic equilibrium is %g" % np.abs(chk).max())
         return chk
 
-    def generate_particles(self, num_particles, r_max=None):
+    def generate_particles(self, num_particles, r_max=None, sub_sample=1):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 
@@ -223,15 +223,26 @@ class HydrostaticEquilibrium(ClusterModel):
             The maximum radius in kpc within which to generate 
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
+        sub_sample : integer, optional
+            This option allows one to generate a sub-sample of unique 
+            particle radii, densities, and energies which will then be 
+            repeated to fill the required number of particles. Default: 1 
         """
         mu = self.parameters.get("mu", 1.0/muinv_default)
 
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 
-        radius, mtot = generate_particle_radii(self["radius"].d,
-                                               self["gas_mass"].d,
-                                               num_particles, r_max=r_max)
+        num_particles_sub = num_particles // sub_sample
+
+        radius_sub, mtot = generate_particle_radii(self["radius"].d,
+                                                   self["gas_mass"].d,
+                                                   num_particles_sub, r_max=r_max)
+
+        if sub_sample > 1:
+            radius = np.tile(radius_sub, sub_sample)[:num_particles]
+        else:
+            radius = radius_sub
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
@@ -246,14 +257,24 @@ class HydrostaticEquilibrium(ClusterModel):
 
         e_arr = 1.5*self.fields["pressure"]/self.fields["density"]
         get_energy = InterpolatedUnivariateSpline(self.fields["radius"], e_arr)
-        e_int = get_energy(radius)
 
-        fields["gas", "thermal_energy"] = YTArray(e_int, "kpc**2/Myr**2")
+        if sub_sample > 1:
+            energy = np.tile(get_energy(radius_sub), sub_sample)[:num_particles]
+        else:
+            energy = get_energy(radius)
+
+        fields["gas", "thermal_energy"] = YTArray(energy, "kpc**2/Myr**2")
         fields["gas", "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
 
-        get_density = InterpolatedUnivariateSpline(self.fields["radius"], self.fields["density"])
+        get_density = InterpolatedUnivariateSpline(self.fields["radius"], 
+                                                   self.fields["density"])
 
-        fields["gas", "density"] = YTArray(get_density(radius), "Msun/kpc**3")
+        if sub_sample > 1:
+            density = np.tile(get_density(radius_sub), sub_sample)[:num_particles]
+        else:
+            density = get_density(radius)
+
+        fields["gas", "density"] = YTArray(density, "Msun/kpc**3")
 
         mylog.info("Set particle velocities to zero.")
 

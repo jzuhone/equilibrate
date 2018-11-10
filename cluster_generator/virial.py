@@ -83,7 +83,8 @@ class VirialEquilibrium(ClusterModel):
                    "virial equilibrium is %g" % np.abs(chk).max())
         return rho, chk
 
-    def generate_particles(self, num_particles, r_max=None):
+    def generate_particles(self, num_particles, r_max=None, sub_sample=1,
+                           compute_potential=False):
         """
         Generate a set of dark matter or star particles in virial equilibrium.
 
@@ -95,7 +96,15 @@ class VirialEquilibrium(ClusterModel):
             The maximum radius in kpc within which to generate 
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
+        sub_sample : integer, optional
+            This option allows one to generate a sub-sample of unique 
+            particle radii and velocities which will then be repeated
+            to fill the required number of particles. Default: 1 
+        compute_potential : boolean, optional
+            If True, the gravitational potential for each particle will
+            be computed. Default: False
         """
+        num_particles_sub = num_particles // sub_sample
         ptype = self.parameters["ptype"]
         key = {"dark_matter": "dm",  "stellar": "star"}[ptype]
         density = "%s_density" % ptype
@@ -106,9 +115,14 @@ class VirialEquilibrium(ClusterModel):
         mylog.info("Compute particle positions.")
 
         nonzero = self[density] > 0.0
-        radius, mtot = generate_particle_radii(self["radius"].d[nonzero],
-                                               self[mass].d[nonzero],
-                                               num_particles, r_max=r_max)
+        radius_sub, mtot = generate_particle_radii(self["radius"].d[nonzero],
+                                                   self[mass].d[nonzero],
+                                                   num_particles_sub, r_max=r_max)
+
+        if sub_sample > 1:
+            radius = np.tile(radius_sub, sub_sample)[:num_particles]
+        else:
+            radius = radius_sub
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
@@ -121,13 +135,18 @@ class VirialEquilibrium(ClusterModel):
 
         mylog.info("Compute particle velocities.")
 
-        psi = energy_spline(radius)
+        psi = energy_spline(radius_sub)
         vesc = 2.*psi
         fv2esc = vesc*self.f(psi)
         vesc = np.sqrt(vesc)
 
-        velocity = generate_velocities(psi, vesc, fv2esc, self.f._eval_args[0],
-                                       self.f._eval_args[1], self.f._eval_args[2])
+        velocity_sub = generate_velocities(psi, vesc, fv2esc, self.f._eval_args[0],
+                                           self.f._eval_args[1], self.f._eval_args[2])
+
+        if sub_sample > 1:
+            velocity = np.tile(velocity_sub, sub_sample)[:num_particles]
+        else:
+            velocity = velocity_sub
 
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
@@ -137,7 +156,11 @@ class VirialEquilibrium(ClusterModel):
                                                     velocity*np.cos(theta)], "kpc/Myr").T
 
         fields[key, "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
-        fields[key, "particle_potential"] = -YTArray(psi, "kpc**2/Myr**2")
-        fields[key, "particle_energy"] = fields[key, "particle_potential"]+0.5*YTArray(velocity, "kpc/Myr")**2
-
+        if compute_potential:
+            if sub_sample > 1:
+                phi = -np.tile(psi, sub_sample)
+            else:
+                phi = -psi
+            fields[key, "particle_potential"] = -YTArray(phi, "kpc**2/Myr**2")
+        
         return ClusterParticles(key, fields)
