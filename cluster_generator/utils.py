@@ -2,9 +2,10 @@ import numpy as np
 from scipy.integrate import quad
 from yt import units, YTArray
 
-mp = units.mp.in_units("Msun")
-G = units.G.in_units("kpc**3/Msun/Myr**2")
-kboltz = units.kboltz
+import yt.utilities.physical_constants as pc
+mp = (pc.mp).in_units("Msun")
+G = (pc.G).in_units("kpc**3/Msun/Myr**2")
+kboltz = pc.kboltz
 
 def integrate_mass(profile, rr):
     mass_int = lambda r: profile(r)*r*r
