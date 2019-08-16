@@ -19,6 +19,7 @@ modes = {"dens_temp": ("density","temperature"),
 
 muinv_default = 0.76/0.5 + 0.24/(4./3.)
 
+
 class RequiredProfilesError(Exception):
     def __init__(self, mode):
         self.mode = mode
@@ -27,6 +28,7 @@ class RequiredProfilesError(Exception):
         ret = "Not all of the required profiles for mode \"%s\" have been set!\n" % self.mode
         ret += "The following profiles are needed: %s" % modes[self.mode]
         return ret
+
 
 class HydrostaticEquilibrium(ClusterModel):
 
@@ -192,7 +194,7 @@ class HydrostaticEquilibrium(ClusterModel):
         if ddm.sum() > 0.0 and mdm.sum() > 0.0:
             fields["dark_matter_density"] = ddm
             fields["dark_matter_mass"] = mdm
-    
+
         for field in extra_fields:
             fields[field] = profiles[field](rr)
 

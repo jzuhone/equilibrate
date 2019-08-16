@@ -127,8 +127,22 @@ class ClusterParticles(object):
         for ptype in self.particle_types:
             self.num_particles[ptype] = self.fields[ptype, "particle_mass"].size
 
-    def make_radial_cut(self, r_max, ptypes=None, center=None,
-                        cut_inside=False):
+    def make_radial_cut(self, r_max, center=None, ptypes=None):
+        """
+        Make a radial cut on particles. All particles outside
+        a certain radius will be removed.
+
+        Parameters
+        ----------
+        r_max : float
+            The maximum radius of the particles in kpc.
+        center : array-like, optional
+            The center coordinate of the system of particles to define
+            the radius from, in units of kpc. Default: [0.0, 0.0, 0.0]
+        ptypes : list of strings, optional
+            The particle types to perform the radial cut on. If
+            not set, all will be exported.
+        """
         rm2 = r_max*r_max
         if center is None:
             center = np.array([0.0]*3)
@@ -137,8 +151,6 @@ class ClusterParticles(object):
         ptypes = ensure_list(ptypes)
         for pt in ptypes:
             cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
-            if cut_inside:
-                cidx = ~cidx
             for field in self.field_names[pt]:
                 self.fields[pt, field] = self.fields[pt, field][cidx]
         self._update_num_particles()
@@ -322,6 +334,17 @@ class ClusterParticles(object):
         return self.fields.keys()
 
     def to_yt_dataset(self, box_size, ptypes=None):
+        """
+        Create an in-memory yt dataset for the particles. 
+
+        Parameters
+        ----------
+        box_size : float
+            The width of the domain on a side, in kpc.
+        ptypes : list of strings, optional
+            The particle types to export to the dataset. If
+            not set, all will be exported.
+        """
         data = self.fields.copy()
         if ptypes is None:
             ptypes = self.particle_types
@@ -346,7 +369,7 @@ def resample_two_clusters(particles, hse1, hse2, center1, center2,
 
 
 def resample_one_cluster(particles, hse, center):
-    center = ensure_ytarray(center)
+    center = ensure_ytarray(center, "kpc")
     r = ((particles["gas", "particle_position"]-center)**2).sum(axis=1).d
     np.sqrt(r, r)
     get_density = InterpolatedUnivariateSpline(hse["radius"], hse["density"])
@@ -357,6 +380,7 @@ def resample_one_cluster(particles, hse, center):
     vol = particles["gas", "particle_mass"] / particles["gas", "density"]
     particles["gas", "particle_mass"] = dens*vol
     return particles
+
 
 def _sample_two_clusters(particles, hse1, hse2, center1, center2,
                          velocity1, velocity2, radii=None,

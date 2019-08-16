@@ -162,5 +162,5 @@ class VirialEquilibrium(ClusterModel):
             else:
                 phi = -psi
             fields[key, "particle_potential"] = -YTArray(phi, "kpc**2/Myr**2")
-        
+
         return ClusterParticles(key, fields)

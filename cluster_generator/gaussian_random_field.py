@@ -27,6 +27,7 @@ def rot_3d(axis, gx, gy, gz, ang):
 
     return gx, gy, gz
 
+
 class GaussianRandomField(object):
     _units = "dimensionless"
     _name = "vector"
@@ -311,9 +312,11 @@ class RandomMagneticField(GaussianRandomField):
             r2=r2, g1=B1, g2=B2, divergence_clean=True,
             vector_potential=self._vector_potential, prng=prng)
 
+
 class RandomMagneticVectorPotential(RandomMagneticField):
     _name = "magnetic_vector_potential"
     _vector_potential = True
+
 
 class RandomVelocityField(GaussianRandomField):
     _units = "kpc/Myr"
