@@ -15,7 +15,7 @@ gamma = 5./3.
 modes = {"dens_temp": ("density","temperature"),
          "dens_tden": ("density","total_density"),
          "dens_grav": ("density","gravitational_field"),
-         "dm_only": ("total_density",)}
+         "no_gas": ("total_density",)}
 
 muinv_default = 0.76/0.5 + 0.24/(4./3.)
 
@@ -56,8 +56,9 @@ class HydrostaticEquilibrium(ClusterModel):
                 total density profile.
                 "dens_grav": Generate the profiles given a gas density and
                 gravitational acceleration profile.
-                "dm_only": Generate profiles of gravitational potential
-                and acceleration assuming an initial DM density profile.
+                "no_gas": Generate profiles of gravitational potential
+                and acceleration assuming an initial density profile of DM
+                and/or stars.
         rmin : float
             The minimum radius for the profiles, assumed to be in kpc.
         rmax : float
@@ -102,7 +103,7 @@ class HydrostaticEquilibrium(ClusterModel):
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
         fields["radius"] = YTArray(rr, "kpc")
 
-        if mode == "dm_only":
+        if mode == "no_gas":
             fields["density"] = YTArray(np.zeros(num_points), "Msun/kpc**3")
             fields["pressure"] = YTArray(np.zeros(num_points), "Msun/kpc/Myr**2")
             fields["temperature"] = YTArray(np.zeros(num_points), "keV")
@@ -125,7 +126,7 @@ class HydrostaticEquilibrium(ClusterModel):
 
         else:
 
-            if mode == "dens_tden" or mode == "dm_only":
+            if mode == "dens_tden" or mode == "no_gas":
                 if mode == "dens_tden":
                     mylog.info("Computing the profiles from density and total density.")
                 else:
@@ -139,7 +140,7 @@ class HydrostaticEquilibrium(ClusterModel):
                 mylog.info("Computing the profiles from density and gravitational acceleration.")
                 fields["gravitational_field"] = YTArray(profiles["gravitational_field"](rr), "kpc/Myr**2")
 
-            if mode != "dm_only":
+            if mode != "no_gas":
                 g = fields["gravitational_field"].in_units("kpc/Myr**2").v
                 g_r = InterpolatedUnivariateSpline(rr, g)
                 dPdr_int = lambda r: profiles["density"](r)*g_r(r)
@@ -166,7 +167,7 @@ class HydrostaticEquilibrium(ClusterModel):
         gpot = YTArray(4.*np.pi*integrate(gpot_profile, rr), "Msun/kpc")
         fields["gravitational_potential"] = -G*(fields["total_mass"]/fields["radius"] + gpot)
         fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
-        if mode != "dm_only":
+        if mode != "no_gas":
             mylog.info("Integrating gas mass profile.")
             fields["gas_mass"] = YTArray(integrate_mass(profiles["density"], rr), "Msun")
 
@@ -179,7 +180,7 @@ class HydrostaticEquilibrium(ClusterModel):
 
         mdm = fields["total_mass"].copy()
         ddm = fields["total_density"].copy()
-        if mode != "dm_only":
+        if mode != "no_gas":
             mdm -= fields["gas_mass"]
             ddm -= fields["density"]
         if "stellar_mass" in fields:
@@ -188,9 +189,10 @@ class HydrostaticEquilibrium(ClusterModel):
         mdm[ddm.v < 0.0][:] = mdm.max()
         ddm[ddm.v < 0.0][:] = 0.0
 
-        fields["dark_matter_density"] = ddm
-        fields["dark_matter_mass"] = mdm
-
+        if ddm.sum() > 0.0 and mdm.sum() > 0.0:
+            fields["dark_matter_density"] = ddm
+            fields["dark_matter_mass"] = mdm
+    
         for field in extra_fields:
             fields[field] = profiles[field](rr)
 
