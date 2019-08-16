@@ -118,7 +118,7 @@ class ClusterParticles(object):
                 units = gadget_field_units["Masses"]
                 n_type = int(ptype[-1])
                 fields[my_ptype, "particle_mass"] = YTArray([f["Header"].attrs["MassTable"][n_type]]*n_ptype,
-                                                            units)
+                                                            units).in_base("galactic")
         f.close()
         return cls(particle_types, fields)
 
@@ -361,10 +361,10 @@ def resample_one_cluster(particles, hse, center):
 def _sample_two_clusters(particles, hse1, hse2, center1, center2,
                          velocity1, velocity2, radii=None,
                          resample=False): 
-    center1 = ensure_ytarray(center1)
-    center2 = ensure_ytarray(center2)
-    velocity1 = ensure_ytarray(velocity1)
-    velocity2 = ensure_ytarray(velocity2)
+    center1 = ensure_ytarray(center1, "kpc")
+    center2 = ensure_ytarray(center2, "kpc")
+    velocity1 = ensure_ytarray(velocity1, "kpc/Myr")
+    velocity2 = ensure_ytarray(velocity2, "kpc/Myr")
     r1 = ((particles["gas", "particle_position"]-center1)**2).sum(axis=1).d
     np.sqrt(r1, r1)
     r2 = ((particles["gas", "particle_position"]-center2)**2).sum(axis=1).d
@@ -396,14 +396,17 @@ def _sample_two_clusters(particles, hse1, hse2, center1, center2,
 
 def combine_two_clusters(particles1, particles2, hse1, hse2,
                          center1, center2, velocity1, velocity2):
-    center1 = ensure_ytarray(center1)
-    center2 = ensure_ytarray(center2)
-    velocity1 = ensure_ytarray(velocity1)
-    velocity2 = ensure_ytarray(velocity2)
+    center1 = ensure_ytarray(center1, "kpc")
+    center2 = ensure_ytarray(center2, "kpc")
+    velocity1 = ensure_ytarray(velocity1, "kpc/Myr")
+    velocity2 = ensure_ytarray(velocity2, "kpc/Myr")
     particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
     particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
-    particles1.add_offsets(center1, velocity1, ptypes=["dm", "star"])
-    particles2.add_offsets(center2, velocity2, ptypes=["dm", "star"])
+    ptypes = ["dm"]
+    if "star" in particles1.particle_types:
+        ptypes.append("star")
+    particles1.add_offsets(center1, velocity1, ptypes=ptypes)
+    particles2.add_offsets(center2, velocity2, ptypes=ptypes)
     particles = particles1+particles2
     particles = _sample_two_clusters(particles, hse1, hse2, center1,
                                      center2, velocity1, velocity2)
