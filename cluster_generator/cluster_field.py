@@ -416,7 +416,7 @@ class RandomMagneticVectorPotential(RandomMagneticField):
     _vector_potential = True
 
 
-class BubbleMagneticVectorPotential(BubbleMagneticField):
+class TangentialMagneticVectorPotential(TangentialMagneticField):
     _name = "magnetic_vector_potential"
     _vector_potential = True
 
