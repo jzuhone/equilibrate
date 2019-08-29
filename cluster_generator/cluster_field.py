@@ -42,7 +42,7 @@ class ClusterField(object):
         self.ddims = ddims
         self.vector_potential = vector_potential
         self.divergence_clean = divergence_clean
-        self.comps = ["{}{}".format(self._name, ax) for ax in "xyz"]
+        self.comps = ["{}_{}".format(self._name, ax) for ax in "xyz"]
         self.dx, self.dy, self.dz = (self.right_edge-self.left_edge)/self.ddims
 
     def _compute_coords(self):
@@ -383,12 +383,12 @@ class TangentialMagneticField(ClusterField):
         self.y = y[0,:,0]
         self.z = z[0,0,:]
 
-        del x, y, z
-
         sin_theta = np.sqrt((x-ctr[0])**2+(y-ctr[1])**2)/r
         cos_theta = (z-ctr[2])/r
         sin_phi = (y-ctr[1])/(r*sin_theta)
         cos_phi = (x-ctr[0])/(r*sin_theta)
+
+        del x, y, z
 
         g_theta = sin_theta*(1.0-sin_phi**2)
         g_phi = -8.0*sin_theta*cos_theta*sin_phi*cos_phi
@@ -402,6 +402,8 @@ class TangentialMagneticField(ClusterField):
             self.gx[r > radius] = 0.0
             self.gy[r > radius] = 0.0
             self.gz[r > radius] = 0.0
+
+        del r
 
         kx, ky, kz = self._compute_waves()
 
