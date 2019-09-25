@@ -174,7 +174,7 @@ class ClusterField(object):
         else:
             return self._units
 
-    def write_to_h5(self, filename, in_cgs=False, overwrite=False):
+    def write_to_h5(self, filename, in_cgs=False, overwrite=False, new_units=None):
         import h5py
         if os.path.exists(filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % filename)
@@ -182,6 +182,14 @@ class ClusterField(object):
         for field in all_comps:
             if in_cgs:
                 self[field].in_cgs().write_hdf5(filename, dataset_name=field)
+            elif new_units is not None:
+                if field in "xyz":
+                    units = new_units[0]
+                elif self.vector_potential:
+                    units = "%s*%s" % new_units
+                else:
+                    units = new_units[1]
+                self[field].to(units).write_hdf5(filename, dataset_name=field)
             else:
                 self[field].write_hdf5(filename, dataset_name=field)
         f = h5py.File(filename, "r+")
