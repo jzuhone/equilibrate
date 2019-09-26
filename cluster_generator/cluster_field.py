@@ -226,7 +226,7 @@ class GaussianRandomField(ClusterField):
         if r1 is not None:
             num_halos += 1
         if r2 is not None:
-            num_halos += 2
+            num_halos += 1
 
         if num_halos >= 1:
             if ctr1 is None:
@@ -304,7 +304,7 @@ class GaussianRandomField(ClusterField):
             g_rms = parse_value(g_rms, self._units)
             mylog.info("Scaling the fields by the constant value %s." % g_rms)
         else:
-            if num_halos == 1:
+            if num_halos >= 1:
                 mylog.info("Scaling the fields by cluster 1.")
                 rr1 = np.sqrt((x-ctr1[0])**2 + (y-ctr1[1])**2 + (z-ctr1[2])**2)
                 idxs1 = np.searchsorted(r1, rr1) - 1
@@ -325,6 +325,10 @@ class GaussianRandomField(ClusterField):
         self.x = x[:,0,0]
         self.y = y[0,:,0]
         self.z = z[0,0,:]
+
+        self.gx = gx
+        self.gy = gy
+        self.gz = gz
 
         del x, y, z, g_rms
 
