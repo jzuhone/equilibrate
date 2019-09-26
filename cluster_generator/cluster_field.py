@@ -292,12 +292,12 @@ class GaussianRandomField(ClusterField):
 
         del sigma, v
 
-        g_avg = np.std(np.sqrt(gx*gx+gy*gy+gz*gz))
+        g_avg = np.sqrt(np.mean(gx*gx+gy*gy+gz*gz))
 
         gx /= g_avg
         gy /= g_avg
         gz /= g_avg
-
+        
         x, y, z = self._compute_coords()
 
         if num_halos == 0:
