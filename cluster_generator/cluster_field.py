@@ -199,15 +199,16 @@ class ClusterField(object):
         f.flush()
         f.close()
 
-    def map_field_to_particles(self, cluster_particles, ptype="gas", units=None):
+    def map_field_to_particles(self, cluster_particles, ptype="gas", new_units=None):
         from scipy.interpolate import RegularGridInterpolator
+        v = np.zeros((cluster_particles.num_particles[ptype], 3))
         for i, ax in enumerate("xyz"):
             func = RegularGridInterpolator((self["x"], self["y"], self["z"]),
-                                           self[self._name+"_"+ax], bounds_error=False)
-            v = YTArray(func(cluster_particles[ptype, "particle_position"].d),
-                        self.units)
-            cluster_particles.set_field(ptype, "particle_%s_%s" % (self._name, ax), v,
-                                        units=units)
+                                           self[self._name+"_"+ax], 
+                                           bounds_error=False, fill_value=0.0)
+            v[:,i] = func(cluster_particles[ptype, "particle_position"].d)
+        cluster_particles.set_field(ptype, self._name, YTArray(v, self.units), 
+                                    units=new_units)
 
 
 class GaussianRandomField(ClusterField):

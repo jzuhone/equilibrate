@@ -26,8 +26,8 @@ gadget_field_units = {"Coordinates": "kpc",
                       "Masses": "1e10*Msun",
                       "Density": "1e10*Msun/kpc**3",
                       "InternalEnergy": "km**2/s**2",
-                      "MagneticField": "gauss",
-                      "MagneticVectorPotential": "gauss*kpc"}
+                      "MagneticField": "1e5*sqrt(Msun)*km/s/(kpc**1.5)",
+                      "MagneticVectorPotential": "1e5*sqrt(Msun/kpc)*km/s"}
 
 ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType1", "dm"),
@@ -314,7 +314,7 @@ class ClusterParticles(object):
         if not isinstance(value, YTArray):
             raise TypeError("value needs to be a YTArray")
         num_particles = self.num_particles[ptype]
-        if value.size == num_particles:
+        if value.shape[0] == num_particles:
             if (ptype, name) in self.fields:
                 mylog.warning("Overwriting field (%s, %s)." % (ptype, name))
             self.fields[ptype, name] = value
@@ -376,9 +376,11 @@ def resample_one_cluster(particles, hse, center):
     dens = get_density(r)
     e_arr = 1.5 * hse["pressure"] / hse["density"]
     get_energy = InterpolatedUnivariateSpline(hse["radius"], e_arr)
-    particles["gas", "thermal_energy"] = get_energy(r)
+    particles["gas", "thermal_energy"] = YTArray(get_energy(r), "kpc**2/Myr**2")
     vol = particles["gas", "particle_mass"] / particles["gas", "density"]
-    particles["gas", "particle_mass"] = dens*vol
+    particles["gas", "particle_mass"] = YTArray(dens*vol.d, "Msun")
+    particles["gas", "particle_velocity"][:,:] = 0.0
+    print(particles["gas", "particle_mass"].units, particles["gas", "density"].units)
     return particles
 
 
