@@ -2,7 +2,6 @@ import numpy as np
 from yt.units.yt_array import YTArray
 from yt import mylog
 import os
-from six import string_types
 
 
 def parse_value(value, default_units):
@@ -346,12 +345,21 @@ class RandomMagneticField(GaussianRandomField):
     _vector_potential = False
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 alpha=-11./3., B_rms=1.0, ctr1=None, ctr2=None,
-                 profile1=None, profile2=None, prng=np.random):
-        if profile1 is None:
-            r1 = None
-            B1 = None
-        elif isinstance(profile1, string_types):
+                 B_rms, alpha=-11./3., prng=np.random):
+        super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
+            l_min, l_max, alpha=alpha, divergence_clean=True, g_rms=B_rms,
+            vector_potential=self._vector_potential, prng=prng)
+
+
+class RadialRandomMagneticField(GaussianRandomField):
+    _units = "gauss"
+    _name = "magnetic_field"
+    _vector_potential = False
+
+    def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
+                 ctr1, profile1, ctr2=None, profile2=None, 
+                 alpha=-11./3., prng=np.random):
+        if isinstance(profile1, str):
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
                                    group_name="fields").to('kpc').d
             B1 = YTArray.from_hdf5(profile1, dataset_name="magnetic_field_strength",
@@ -361,17 +369,18 @@ class RandomMagneticField(GaussianRandomField):
         if profile2 is None:
             r2 = None
             B2 = None
-        elif isinstance(profile2, string_types):
+        elif isinstance(profile2, str):
             r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
                                    group_name="fields").to('kpc').d
             B2 = YTArray.from_hdf5(profile2, dataset_name="magnetic_field_strength",
                                    group_name="fields")
         else:
             r2, B2 = profile2
-        super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
-            l_min, l_max, alpha=alpha, g_rms=B_rms, ctr1=ctr1, ctr2=ctr2, r1=r1,
-            r2=r2, g1=B1, g2=B2, divergence_clean=True,
-            vector_potential=self._vector_potential, prng=prng)
+        super(RadialRandomMagneticField, self).__init__(
+              left_edge, right_edge, ddims, l_min, l_max, alpha=alpha, 
+              ctr1=ctr1, ctr2=ctr2, r1=r1, r2=r2, g1=B1, g2=B2, 
+              divergence_clean=True, vector_potential=self._vector_potential, 
+              prng=prng)
 
 
 class TangentialMagneticField(ClusterField):
@@ -379,10 +388,10 @@ class TangentialMagneticField(ClusterField):
     _name = "magnetic_field"
     _vector_potential = False
 
-    def __init__(self, left_edge, right_edge, ddims, B_mag, ctr=None, radius=None):
-        super(TangentialMagneticField, self).__init__(left_edge, right_edge, ddims,
-                                                      vector_potential=self._vector_potential,
-                                                      divergence_clean=True)
+    def __init__(self, left_edge, right_edge, ddims, B_mag, m=2.0, ctr=None, radius=None):
+        super(TangentialMagneticField, self).__init__(
+            left_edge, right_edge, ddims, vector_potential=self._vector_potential,
+            divergence_clean=True)
         if ctr is None:
             ctr = 0.5*(self.left_edge+self.right_edge)
         else:
@@ -398,13 +407,16 @@ class TangentialMagneticField(ClusterField):
 
         sin_theta = np.sqrt((x-ctr[0])**2+(y-ctr[1])**2)/r
         cos_theta = (z-ctr[2])/r
+        sin_2theta = 2.0*sin_theta*cos_theta
         sin_phi = (y-ctr[1])/(r*sin_theta)
         cos_phi = (x-ctr[0])/(r*sin_theta)
+        phi = np.angle(cos_phi+1j*sin_phi)
+        phi[phi < 0.0] += 2.0*np.pi
 
         del x, y, z
 
-        g_theta = sin_theta*(1.0-sin_phi**2)
-        g_phi = -8.0*sin_theta*cos_theta*sin_phi*cos_phi
+        g_theta = sin_theta*np.cos(m*phi)
+        g_phi = -sin_2theta*np.sin(m*phi)/m
 
         self.gx = B_mag*(g_theta*cos_theta*cos_phi-g_phi*sin_phi)
         self.gy = B_mag*(g_theta*cos_theta*sin_phi+g_phi*cos_phi)
@@ -431,6 +443,11 @@ class RandomMagneticVectorPotential(RandomMagneticField):
     _vector_potential = True
 
 
+class RadialRandomMagneticVectorPotential(RandomMagneticField):
+    _name = "magnetic_vector_potential"
+    _vector_potential = True
+
+
 class TangentialMagneticVectorPotential(TangentialMagneticField):
     _name = "magnetic_vector_potential"
     _vector_potential = True
@@ -441,13 +458,25 @@ class RandomVelocityField(GaussianRandomField):
     _name = "velocity"
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 V_rms=1.0, alpha=-11./3., ctr1=None, ctr2=None,
-                 profile1=None, profile2=None, divergence_clean=False,
+                 V_rms, alpha=-11./3., divergence_clean=False,
+                 prng=np.random):
+        super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims, 
+            l_min, l_max, g_rms=V_rms, alpha=alpha, prng=prng,
+            divergence_clean=divergence_clean)
+
+
+class RadialRandomVelocityField(GaussianRandomField):
+    _units = "kpc/Myr"
+    _name = "velocity"
+
+    def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
+                 ctr1, profile1, ctr2=None, profile2=None,
+                 alpha=-11./3., divergence_clean=False,
                  prng=np.random):
         if profile1 is None:
             r1 = None
             V1 = None
-        elif isinstance(profile1, string_types):
+        elif isinstance(profile1, str):
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
                                    group_name="fields").d
             V1 = YTArray.from_hdf5(profile1, dataset_name="velocity_dispersion",
@@ -457,13 +486,13 @@ class RandomVelocityField(GaussianRandomField):
         if profile2 is None:
             r2 = None
             V2 = None
-        elif isinstance(profile2, string_types):
+        elif isinstance(profile2, str):
             r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
                                    group_name="fields").d
             V2 = YTArray.from_hdf5(profile2, dataset_name="velocity_dispersion",
                                    group_name="fields")
         else:
             r2, V2 = profile2
-        super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims, 
-            l_min, l_max, g_rms=V_rms, alpha=alpha, ctr1=ctr1, ctr2=ctr2, r1=r1,
+        super(RadialRandomVelocityField, self).__init__(left_edge, right_edge, 
+            ddims, l_min, l_max, alpha=alpha, ctr1=ctr1, ctr2=ctr2, r1=r1,
             r2=r2, g1=V1, g2=V2, divergence_clean=divergence_clean, prng=prng)

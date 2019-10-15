@@ -10,7 +10,9 @@ from cluster_generator.virial import \
 from cluster_generator.cluster_field import \
     GaussianRandomField, \
     RandomMagneticField, \
-    RandomMagneticVectorPotential, \
+    RadialRandomMagneticField, \
     TangentialMagneticField, \
+    RandomMagneticVectorPotential, \
+    RadialRandomMagneticVectorPotential, \
     TangentialMagneticVectorPotential, \
     RandomVelocityField

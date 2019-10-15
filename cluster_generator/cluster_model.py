@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from six import add_metaclass
 from yt import savetxt, mylog, YTArray
 import h5py
 import os
@@ -13,8 +12,8 @@ class RegisteredClusterModel(type):
         if hasattr(cls, "_type_name"):
             equilibrium_model_registry[cls._type_name] = cls
 
-@add_metaclass(RegisteredClusterModel)
-class ClusterModel(object):
+
+class ClusterModel(metaclass=RegisteredClusterModel):
 
     def __init__(self, num_elements, fields, parameters=None):
         if parameters is None:
