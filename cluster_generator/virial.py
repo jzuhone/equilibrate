@@ -23,7 +23,7 @@ class VirialEquilibrium(ClusterModel):
         if stellar_profile is not None:
             profiles["stellar_density"] = stellar_profile
 
-        hse = HydrostaticEquilibrium.from_scratch("dm_only", rmin, rmax, profiles,
+        hse = HydrostaticEquilibrium.from_scratch("no_gas", rmin, rmax, profiles,
                                                   num_points=num_points)
         return cls.from_hse_model(hse, ptype=ptype)
 
