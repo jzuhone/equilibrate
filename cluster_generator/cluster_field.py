@@ -330,10 +330,18 @@ class GaussianRandomField(ClusterField):
         self.gy = gy
         self.gz = gz
 
+        rescale = (self.gx**2+self.gy**2+self.gz**2).sum()
+
         del x, y, z, g_rms
 
         if self.divergence_clean:
             self._divergence_clean(kx, ky, kz)
+
+        rescale /= (self.gx**2+self.gy**2+self.gz**2).sum()
+
+        self.gx *= rescale
+        self.gy *= rescale
+        self.gz *= rescale
 
         if self.vector_potential:
             self._compute_vector_potential(kx, ky, kz)
@@ -443,7 +451,7 @@ class RandomMagneticVectorPotential(RandomMagneticField):
     _vector_potential = True
 
 
-class RadialRandomMagneticVectorPotential(RandomMagneticField):
+class RadialRandomMagneticVectorPotential(RadialRandomMagneticField):
     _name = "magnetic_vector_potential"
     _vector_potential = True
 
