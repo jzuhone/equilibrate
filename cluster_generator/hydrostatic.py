@@ -194,6 +194,8 @@ class HydrostaticEquilibrium(ClusterModel):
         if ddm.sum() > 0.0 and mdm.sum() > 0.0:
             fields["dark_matter_density"] = ddm
             fields["dark_matter_mass"] = mdm
+        else:
+            raise RuntimeError("The total dark matter mass is either zero or negative!!")
 
         for field in extra_fields:
             fields[field] = profiles[field](rr)
