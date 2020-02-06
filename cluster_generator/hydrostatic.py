@@ -197,6 +197,8 @@ class HydrostaticEquilibrium(ClusterModel):
         else:
             raise RuntimeError("The total dark matter mass is either zero or negative!!")
 
+        fields["gas_fraction"] = fields["gas_mass"]/fields["total_mass"]
+
         for field in extra_fields:
             fields[field] = profiles[field](rr)
 
