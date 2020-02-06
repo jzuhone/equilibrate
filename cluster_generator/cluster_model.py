@@ -50,8 +50,9 @@ class ClusterModel(metaclass=RegisteredClusterModel):
 
         fields = OrderedDict()
         for field in fnames:
-            fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
-                                              group_name="fields").in_base("galactic")
+            a = YTArray.from_hdf5(filename, dataset_name=field,
+                                  group_name="fields")
+            fields[field] = YTArray(a.d, str(a.units)).in_base("galactic")
         if r_min is None:
             r_min = 0.0
         if r_max is None:

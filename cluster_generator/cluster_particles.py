@@ -61,7 +61,7 @@ class ClusterParticles(object):
         >>> dm_particles = ClusterParticles.from_h5_file("dm_particles.h5")
         """
         names = {}
-        f = h5py.File(filename)
+        f = h5py.File(filename, "r")
         if ptypes is None:
             ptypes = list(f.keys())
         ptypes = ensure_list(ptypes)
@@ -71,8 +71,9 @@ class ClusterParticles(object):
         fields = OrderedDict()
         for ptype in ptypes:
             for field in names[ptype]:
-                fields[ptype, field] = YTArray.from_hdf5(filename, dataset_name=field,
-                                                         group_name=ptype).in_base("galactic")
+                a = YTArray.from_hdf5(filename, dataset_name=field,
+                                      group_name=ptype)
+                fields[ptype, field] = YTArray(a.d, str(a.units)).in_base("galactic")
         return cls(ptypes, fields)
 
     @classmethod
@@ -380,7 +381,6 @@ def resample_one_cluster(particles, hse, center):
     vol = particles["gas", "particle_mass"] / particles["gas", "density"]
     particles["gas", "particle_mass"] = YTArray(dens*vol.d, "Msun")
     particles["gas", "particle_velocity"][:,:] = 0.0
-    print(particles["gas", "particle_mass"].units, particles["gas", "density"].units)
     return particles
 
 
