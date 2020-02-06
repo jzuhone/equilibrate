@@ -37,21 +37,22 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         >>> from cluster_generator import ClusterModel
         >>> hse_model = ClusterModel.from_h5_file("hse_model.h5")
         """
-        f = h5py.File(filename)
+        f = h5py.File(filename, "r")
 
-        model_type = f["model_type"].value
+        model_type = f["model_type"][()]
         fnames = list(f['fields'].keys())
 
         parameters = {}
         if "parameters" in f:
             for k in f["parameters"].keys():
-                parameters[k] = f["parameters"][k].value
+                parameters[k] = f["parameters"][k][()]
         f.close()
 
         fields = OrderedDict()
         for field in fnames:
-            fields[field] = YTArray.from_hdf5(filename, dataset_name=field,
-                                              group_name="fields").in_base("galactic")
+            a = YTArray.from_hdf5(filename, dataset_name=field,
+                                  group_name="fields")
+            fields[field] = YTArray(a.d, str(a.units)).in_base("galactic")
         if r_min is None:
             r_min = 0.0
         if r_max is None:

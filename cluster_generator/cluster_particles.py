@@ -7,31 +7,35 @@ import h5py
 import numpy as np
 import os
 
-gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs"],
+gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
+                        "Potential"],
                  "gas": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                         "InternalEnergy", "MagneticField","Density",
-                         "MagneticVectorPotential"],
-                 "star": ["Coordinates", "Velocities", "Masses", "ParticleIDs"]}
+                         "InternalEnergy", "MagneticField","Density","Potential"],
+                 "star": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
+                          "Potential"],
+                 "black_hole": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
+                                "Potential"]}
 
 gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
                     "Masses": "particle_mass",
                     "Density": "density",
+                    "Potential": "potential_energy",
                     "InternalEnergy": "thermal_energy",
-                    "MagneticField": "magnetic_field",
-                    "MagneticVectorPotential": "magnetic_vector_potential"}
+                    "MagneticField": "magnetic_field"}
 
 gadget_field_units = {"Coordinates": "kpc",
                       "Velocities": "km/s",
                       "Masses": "1e10*Msun",
                       "Density": "1e10*Msun/kpc**3",
                       "InternalEnergy": "km**2/s**2",
-                      "MagneticField": "1e5*sqrt(Msun)*km/s/(kpc**1.5)",
-                      "MagneticVectorPotential": "1e5*sqrt(Msun/kpc)*km/s"}
+                      "Potential": "km**2/s**2",
+                      "MagneticField": "1e5*sqrt(Msun)*km/s/(kpc**1.5)"}
 
 ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType1", "dm"),
-                         ("PartType4", "star")])
+                         ("PartType4", "star"),
+                         ("PartType5", "black_hole")])
 
 rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
@@ -61,7 +65,7 @@ class ClusterParticles(object):
         >>> dm_particles = ClusterParticles.from_h5_file("dm_particles.h5")
         """
         names = {}
-        f = h5py.File(filename)
+        f = h5py.File(filename, "r")
         if ptypes is None:
             ptypes = list(f.keys())
         ptypes = ensure_list(ptypes)
@@ -71,8 +75,9 @@ class ClusterParticles(object):
         fields = OrderedDict()
         for ptype in ptypes:
             for field in names[ptype]:
-                fields[ptype, field] = YTArray.from_hdf5(filename, dataset_name=field,
-                                                         group_name=ptype).in_base("galactic")
+                a = YTArray.from_hdf5(filename, dataset_name=field,
+                                      group_name=ptype)
+                fields[ptype, field] = YTArray(a.d, str(a.units)).in_base("galactic")
         return cls(ptypes, fields)
 
     @classmethod
@@ -153,6 +158,19 @@ class ClusterParticles(object):
             cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
             for field in self.field_names[pt]:
                 self.fields[pt, field] = self.fields[pt, field][cidx]
+        self._update_num_particles()
+
+    def add_black_hole(self, bh_mass, pos=[0.0,0.0,0.0], vel=[0.0,0.0,0.0],
+                       use_pot_min=False):
+        self.fields["black_hole", "particle_mass"] = YTArray([bh_mass], "Msun")
+        if use_pot_min:
+            idx = np.argmin(self.fields["dm", "potential_energy"])
+            for fd in ["particle_position", "particle_velocity"]: 
+                self.fields["black_hole", fd] = YTArray(self.fields["dm", fd][i])
+        else:
+            self.fields["black_hole", "particle_position"] = YTArray(pos, "kpc")
+            self.fields["black_hole", "particle_velocity"] = YTArray(vel, "kpc/Myr")
+        self.particle_types.append("black_hole")
         self._update_num_particles()
 
     def write_particles_to_h5(self, output_filename, in_cgs=False, overwrite=False):
@@ -283,7 +301,8 @@ class ClusterParticles(object):
                                                  num_particles.get("dm", 0),
                                                  0, 0,
                                                  num_particles.get("star", 0),
-                                                 0], dtype='uint32')
+                                                 num_particles.get("black_hole", 0)], 
+                                                dtype='uint32')
         hg.attrs["NumPart_Total"] = hg.attrs["NumPart_ThisFile"]
         hg.attrs["NumPart_Total_HighWord"] = np.zeros(6, dtype='uint32')
         hg.attrs["NumFilesPerSnapshot"] = 1
@@ -380,7 +399,6 @@ def resample_one_cluster(particles, hse, center):
     vol = particles["gas", "particle_mass"] / particles["gas", "density"]
     particles["gas", "particle_mass"] = YTArray(dens*vol.d, "Msun")
     particles["gas", "particle_velocity"][:,:] = 0.0
-    print(particles["gas", "particle_mass"].units, particles["gas", "density"].units)
     return particles
 
 
