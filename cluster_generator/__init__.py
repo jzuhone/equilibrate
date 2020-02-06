@@ -16,3 +16,11 @@ from cluster_generator.cluster_field import \
     RadialRandomMagneticVectorPotential, \
     TangentialMagneticVectorPotential, \
     RandomVelocityField
+from cluster_generator.radial_profiles import \
+    snfw_density_profile, snfw_mass_profile, \
+    nfw_density_profile, nfw_mass_profile, \
+    hernquist_density_profile, hernquist_mass_profile, \
+    convert_nfw_to_hernquist, vikhlinin_density_profile, \
+    vikhlinin_temperature_profile, baseline_entropy_profile, \
+    einasto_density_profile, RadialProfile, \
+    rescale_profile_by_mass, find_radius_mass
