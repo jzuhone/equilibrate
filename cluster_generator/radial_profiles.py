@@ -72,7 +72,7 @@ def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta,
         The middle logarithmic slope parameter.
     epsilon : float
         The outer logarithmic slope parameter.
-    gamma : string
+    gamma : float
         This parameter controls the width of the outer
         transition. If None, it will be gamma = 3 by default.
     """
@@ -219,14 +219,12 @@ def einasto_density_profile(rho_0, h, alpha):
 
     Parameters
     ----------
-    r : string
-        The symbol for the radius variable.
-    rho_0 : string
-        The symbol for the core density.
-    h : string
-        The symbol for the scale radius.
-    alpha : string
-        The symbol for the power-law index.
+    rho_0 : float
+        The core density in Msun/kpc**3.
+    h : float
+        The scale radius in kpc.
+    alpha : float
+        The power-law index.
     """
     def _einasto(r):
         x = r/h
@@ -243,18 +241,17 @@ def am06_density_profile(rho_0, a, a_c, c, alpha, beta):
     Parameters
     ----------
     rho_0 : float
-        The symbol for the scale density of the profile.
+        The scale density of the profile in Msun/kpc**3.
     a : float
-        The symbol for the scale radius.
+        The scale radius in kpc.
     a_c : float
-        The symbol for the scale radius of the cool core.
+        The scale radius of the cool core in kpc.
     c : float
-        The symbol for the scale of the temperature drop of the cool
-        core.
+        The scale of the temperature drop of the cool core.
     alpha : float
-        The symbol for the first slope parameter.
+        The first slope parameter.
     beta : float
-        The symbol for the second slope parameter.
+        The second slope parameter.
     """
     p = lambda r: rho_0*(1.+r/a_c)*(1.+r/a_c/c)**alpha*(1.+r/a)**beta
     return RadialProfile(p)
@@ -270,21 +267,21 @@ def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min,
     Parameters
     ----------
     T_0 : float
-        The symbol for the scale temperature of the profile.
+        The scale temperature of the profile in keV.
     a : float
-        The symbol for the inner logarithmic slope.
+        The inner logarithmic slope.
     b : float
-        The symbol for the width of the transition region.
+        The width of the transition region.
     c : float
-        The symbol for the outer logarithmic slope.
+        The outer logarithmic slope.
     r_t : float
-        The symbol for the scale radius.
+        The scale radius kpc.
     T_min : float
-        The symbol for the minimum temperature.
+        The minimum temperature in keV.
     r_cool : float
-        The symbol for the cooling radius.
+        The cooling radius in kpc.
     a_cool : float
-        The symbol for the logarithmic slope in the cooling region.
+        The logarithmic slope in the cooling region.
     """
     def _temp(r):
         x = (r/r_cool)**a_cool
@@ -321,15 +318,13 @@ def baseline_entropy_profile(K_0, K_200, r_200, alpha):
 
     Parameters
     ----------
-    r : string
-        The symbol for the radius variable.
-    K_0 : string
-        The symbol for the central entropy floor.
-    K_200 : string
-        The symbol for the entropy at the radius *r_200*.
-    r_200 : string
+    K_0 : float
+        The central entropy floor in keV*cm**2.
+    K_200 : float
+        The entropy at the radius r_200 in keV*cm**2.
+    r_200 : float
         The virial radius in kpc.
-    alpha : string
+    alpha : float
         The logarithmic slope of the profile.
     """
     p = lambda r: K_0 + K_200*(r/r_200)**alpha
@@ -350,18 +345,16 @@ def rescale_profile_by_mass(profile, mass, radius):
 
     Examples
     --------
-    >>> import yt.units as u
-    >>> import numpy as np
-    >>> gas_density = AM06_density_profile()
+    >>> rho_0 = 1.0
     >>> a = 600.0
     >>> a_c = 60.0
     >>> c = 0.17
     >>> alpha = -2.0
     >>> beta = -3.0
-    >>> M0 = 1.0e14
-    >>> gas_density.set_param_values(a=a, a_c=a_c, c=c, 
-    ...                              alpha=alpha, beta=beta)
-    >>> rescale_profile_by_mass(gas_density, "rho_0", M0, np.inf*u.kpc)
+    >>> gas_density = am06_density_profile(rho_0, a, a_c, c, alpha, beta)
+    >>> M200 = 1.0e14
+    >>> r200 = 900.0
+    >>> rescale_profile_by_mass(gas_density, M0, r200)
     """
     from scipy.integrate import quad
     mass_int = lambda r: profile(r)*r*r
