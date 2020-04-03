@@ -28,6 +28,17 @@ class RadialProfile:
 
     @classmethod
     def from_array(cls, r, f_r):
+        """
+        Generate a callable radial profile using an array of radii
+        and an array of values. 
+
+        Parameters
+        ----------
+        r : NumPy array
+            Array of radii in kpc.
+        f_r : NumPy array
+            Array of profile values in the appropriate units.
+        """
         from scipy.interpolate import InterpolatedUnivariateSpline
         f = InterpolatedUnivariateSpline(r, f_r)
         return cls(f)
@@ -101,6 +112,19 @@ def hernquist_density_profile(M_0, a):
 
 
 def cored_hernquist_density_profile(M_0, a, b):
+    """
+    A Hernquist density profile (Hernquist, L. 1990,
+    ApJ, 356, 359) with a core radius.
+
+    Parameters
+    ----------
+    M_0 : float
+        The total mass in Msun.
+    a : float
+        The scale radius in kpc.
+    b : float
+        The core radius in kpc.
+    """
     p = lambda r: M_0*b/(2.*np.pi*a**3)/((1.+b*r/a)*(1.+r/a)**3)
     return RadialProfile(p)
 
@@ -236,7 +260,7 @@ def am06_density_profile(rho_0, a, a_c, c, alpha, beta):
     """
     The density profile for galaxy clusters suggested by
     Ascasibar, Y., & Markevitch, M. 2006, ApJ, 650, 102.
-    Works best in concert with the ``AM06_temperature_profile``.
+    Works best in concert with the ``am06_temperature_profile``.
 
     Parameters
     ----------
@@ -294,7 +318,7 @@ def am06_temperature_profile(T_0, a, a_c, c):
     """
     The temperature profile for galaxy clusters suggested by
     Ascasibar, Y., & Markevitch, M. 2006, ApJ, 650, 102.
-    Works best in concert with the ``AM06_density_profile``.
+    Works best in concert with the ``am06_density_profile``.
 
     Parameters
     ----------
@@ -354,7 +378,7 @@ def rescale_profile_by_mass(profile, mass, radius):
     >>> gas_density = am06_density_profile(rho_0, a, a_c, c, alpha, beta)
     >>> M200 = 1.0e14
     >>> r200 = 900.0
-    >>> rescale_profile_by_mass(gas_density, M0, r200)
+    >>> gas_density = rescale_profile_by_mass(gas_density, M0, r200)
     """
     from scipy.integrate import quad
     mass_int = lambda r: profile(r)*r*r
