@@ -193,7 +193,7 @@ class HydrostaticEquilibrium(ClusterModel):
             raise RuntimeError("The total dark matter mass is either zero or negative!!")
 
         fields["gas_fraction"] = fields["gas_mass"]/fields["total_mass"]
-        fields["electron_number_density"] = fields["density"].to("cm**-3", "number_density"
+        fields["electron_number_density"] = fields["density"].to("cm**-3", "number_density",
                                                                  mu=mue)
         fields["entropy"] = fields["temperature"]/fields["electron_number_density"]**mtt
         
