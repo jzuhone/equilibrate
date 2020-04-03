@@ -12,12 +12,15 @@ from cluster_generator.cluster_particles import \
 
 gamma = 5./3.
 
-modes = {"dens_temp": ("density","temperature"),
-         "dens_tden": ("density","total_density"),
-         "dens_grav": ("density","gravitational_field"),
+modes = {"dens_temp": ("density", "temperature"),
+         "dens_tden": ("density", "total_density"),
+         "dens_grav": ("density", "gravitational_field"),
          "no_gas": ("total_density",)}
 
-muinv_default = 0.76/0.5 + 0.24/(4./3.)
+X_H = 0.76
+mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
+mue = 1.0/(X_H+0.5*(1.0-X_H))
+mtt = -2.0/3.0
 
 
 class RequiredProfilesError(Exception):
@@ -41,7 +44,7 @@ class HydrostaticEquilibrium(ClusterModel):
 
     @classmethod
     def from_scratch(cls, mode, rmin, rmax, profiles, num_points=1000,
-                     T_amb=1.0e5, mu=None):
+                     T_amb=1.0e5):
         r"""
         Generate a set of profiles of physical quantities based on the assumption
         of hydrostatic equilibrium. Currently assumes an ideal gas with a gamma-law
@@ -81,15 +84,7 @@ class HydrostaticEquilibrium(ClusterModel):
             create a boundary condition on the pressure integral. Used only
             if the "dens_tden" or "dens_grav" modes are chosen. 
             Default: 1.0e5
-        mu : float, optional
-            The mean molecular weight. If not specified, it will be calculated
-            assuming a fully ionized gas with primordial abundances.
         """
-        if mu is None:
-            muinv = muinv_default
-            mu = 1.0/muinv
-        else:
-            muinv = 1.0/mu
 
         if not isinstance(T_amb, YTQuantity):
             T_amb = YTQuantity(T_amb, "K")
@@ -118,7 +113,7 @@ class HydrostaticEquilibrium(ClusterModel):
 
             fields["temperature"] = YTArray(profiles["temperature"](rr), "keV")
             fields["pressure"] = fields["density"]*fields["temperature"]
-            fields["pressure"] *= muinv/mp
+            fields["pressure"] /= mu*mp
             fields["pressure"].convert_to_units("Msun/(Myr**2*kpc)")
 
             pressure_spline = InterpolatedUnivariateSpline(rr, fields["pressure"].v)
@@ -151,7 +146,7 @@ class HydrostaticEquilibrium(ClusterModel):
                 P_amb = fields["density"][-1]*kboltz*T_amb/(mu*mp)
                 P_amb.convert_to_base("galactic")
                 fields['pressure'] += P_amb
-                fields["temperature"] = fields["pressure"]*mp/fields["density"]/muinv
+                fields["temperature"] = fields["pressure"]*mu*mp/fields["density"]
                 fields["temperature"].convert_to_units("keV")
 
         if "total_mass" not in fields:
@@ -198,7 +193,10 @@ class HydrostaticEquilibrium(ClusterModel):
             raise RuntimeError("The total dark matter mass is either zero or negative!!")
 
         fields["gas_fraction"] = fields["gas_mass"]/fields["total_mass"]
-
+        fields["electron_number_density"] = fields["density"].to("cm**-3", "number_density"
+                                                                 mu=mue)
+        fields["entropy"] = fields["temperature"]/fields["electron_number_density"]**mtt
+        
         for field in extra_fields:
             fields[field] = profiles[field](rr)
 
@@ -236,8 +234,6 @@ class HydrostaticEquilibrium(ClusterModel):
             particle radii, densities, and energies which will then be 
             repeated to fill the required number of particles. Default: 1 
         """
-        mu = self.parameters.get("mu", 1.0/muinv_default)
-
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
 

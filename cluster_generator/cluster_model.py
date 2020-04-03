@@ -6,6 +6,7 @@ import numpy as np
 
 equilibrium_model_registry = {}
 
+
 class RegisteredClusterModel(type):
     def __init__(cls, name, b, d):
         type.__init__(cls, name, b, d)

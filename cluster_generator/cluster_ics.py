@@ -1,6 +1,7 @@
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import ClusterParticles
 
+
 class ClusterICs:
     def __init__(self, num_halos, hse_files, particle_files, 
                  center, velocity):
@@ -39,7 +40,7 @@ class ClusterICs:
 
         return cls(num_halos, hse_files, particle_files, 
                    center, velocity)
-        
+
     def setup_gadget_ics(self, outfile, box_size, dtype='float32', overwrite=False):
         hses = [ClusterModel.from_h5_file(hsef) for hsef in self.hse_files]
         parts = [ClusterParticles.from_h5_file(pf) for pf in self.particle_files]
