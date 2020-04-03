@@ -195,8 +195,8 @@ class HydrostaticEquilibrium(ClusterModel):
         fields["gas_fraction"] = fields["gas_mass"]/fields["total_mass"]
         fields["electron_number_density"] = fields["density"].to("cm**-3", "number_density",
                                                                  mu=mue)
-        fields["entropy"] = fields["temperature"]/fields["electron_number_density"]**mtt
-        
+        fields["entropy"] = fields["temperature"]*fields["electron_number_density"]**mtt
+
         for field in extra_fields:
             fields[field] = profiles[field](rr)
 
