@@ -43,6 +43,17 @@ class RadialProfile:
         f = InterpolatedUnivariateSpline(r, f_r)
         return cls(f)
 
+    def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None):
+        import matplotlib.pyplot as plt
+        if fig is None:
+            fig = plt.figure(figsize=(10,10))
+        if ax is None:
+            ax = fig.add_subplot(111)
+        rr = np.logspace(np.log10(rmin), np.log10(rmax),
+                         num_points, endpoint=True)
+        ax.loglog(rr, self(rr))
+        return fig
+
 
 def beta_model_profile(rho_c, r_c, beta):
     """
