@@ -246,6 +246,54 @@ def snfw_mass_profile(M, a):
     return RadialProfile(_snfw)
 
 
+def cored_snfw_density_profile(M, a, r_c):
+    """
+    A cored "super-NFW" density profile (Lilley, E. J.,
+    Wyn Evans, N., & Sanders, J.L. 2018, MNRAS).
+
+    Parameters
+    ----------
+    M : float
+        The total mass in Msun.
+    a : float
+        The scale radius in kpc.
+    r_c : float
+        The core radius in kpc.
+    """
+    b = a/r_c
+    def _snfw(r):
+        x = r/a
+        return 3.*M*b/(16.*np.pi*a**3)/((1.+b*x)*(1.+x)**2.5)
+    return RadialProfile(_snfw)
+
+
+def cored_snfw_mass_profile(M, a, r_c):
+    """
+    A cored "super-NFW" mass profile (Lilley, E. J.,
+    Wyn Evans, N., & Sanders, J.L. 2018, MNRAS).
+
+    Parameters
+    ----------
+    M : float
+        The total mass in Msun.
+    a : float
+        The scale radius in kpc.
+    r_c : float
+        The core radius in kpc.
+    """
+    b = a/r_c
+    def _snfw(r):
+        x = r/a
+        y = np.complex128(np.sqrt(x+1.))
+        d = np.sqrt(np.complex128(b/(1.0-b)))
+        e = b*(b-1.)**2
+        ret = (1.0-1.0/y)*(b-2.)/(b-1.)**2
+        ret += (1.0/y**3-1.0)/(3.*(b-1.))
+        ret += d*(np.arctan(y*d)-np.arctan(d))/e
+        return 1.5*M*b*ret.astype("float64")
+    return RadialProfile(_snfw)
+
+
 def einasto_density_profile(rho_0, h, alpha):
     """
     A density profile where the logarithmic slope is a 
