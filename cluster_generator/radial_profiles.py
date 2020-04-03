@@ -407,10 +407,10 @@ def compute_nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
     delta : float, optional
         The overdensity parameter for which the concentration
         is defined. Default: 200.0
-    cosmo : yt Cosmology or AstroPy Cosmology object
+    cosmo : yt Cosmology object
         The cosmology to be used when computing the critical
-        density. If not supplied, a default one from yt or
-        AstroPy will be used.
+        density. If not supplied, a default one from yt will 
+        be used.
     """
     from yt.utilities.cosmology import Cosmology
     if cosmo is None:
@@ -420,7 +420,49 @@ def compute_nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
     return rho_s
 
 
-def find_radius_mass(m_r, z=0.0, delta=200.0, cosmo=None):
+def find_overdensity_radius(m, delta, z=0.0, cosmo=None):
+    """
+    Given a mass value and an overdensity, find the radius
+    that corresponds to that enclosed mass.
+
+    Parameters
+    ----------
+    m : float
+        The enclosed mass. 
+    delta : float
+        The overdensity to compute the radius for.
+    z : float, optional
+        The redshift of the halo formation. Default: 0.0
+    cosmo : yt Cosmology object
+        The cosmology to be used when computing the critical
+        density. If not supplied, a default one from yt will 
+        be used.
+    """
+    from yt.utilities.cosmology import Cosmology
+    if cosmo is None:
+        cosmo = Cosmology()
+    rho_crit = cosmo.critical_density(z).to_value("Msun/kpc**3")
+    return (3.0*m/(4.0*np.pi*delta*rho_crit))**(1./3.)
+
+
+def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
+    """
+    Given a mass profile and an overdensity, find the radius 
+    and mass (e.g. M200, r200)
+
+    Parameters
+    ----------
+    m_r : RadialProfile
+        The mass profile.
+    delta : float
+        The overdensity to compute the mass and radius for.
+    z : float, optional
+        The redshift of the halo formation. Default: 0.0
+    cosmo : yt Cosmology object
+        The cosmology to be used when computing the critical
+        density. If not supplied, a default one from yt will 
+        be used.
+    """
     from yt.utilities.cosmology import Cosmology
     from scipy.optimize import bisect
     if cosmo is None:
@@ -429,6 +471,19 @@ def find_radius_mass(m_r, z=0.0, delta=200.0, cosmo=None):
     f = lambda r: 3.0*m_r(r)/(4.*np.pi*r**3) - delta*rho_crit
     r_delta = bisect(f, 0.01, 10000.0)
     return r_delta, m_r(r_delta)
+
+
+def snfw_conc(conc_nfw):
+    """
+    Given an NFW concentration parameter, calculate the 
+    corresponding sNFW concentration parameter.
+
+    Parameters
+    ----------
+    conc_nfw : float
+        NFW concentration for r200.
+    """
+    return 0.76*conc_nfw+1.36
 
 
 def convert_nfw_to_hernquist(M_200, r_200, conc):
