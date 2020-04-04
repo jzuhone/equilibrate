@@ -29,4 +29,7 @@ from cluster_generator.radial_profiles import \
     rescale_profile_by_mass, find_radius_mass, \
     snfw_conc, find_overdensity_radius, \
     cored_snfw_density_profile, cored_hernquist_density_profile, \
-    cored_snfw_mass_profile
+    cored_snfw_mass_profile, einasto_mass_profile, \
+    am06_density_profile, am06_temperature_profile
+from cluster_generator.relations import \
+    mbcg, msat, rbcg

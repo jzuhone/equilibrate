@@ -294,28 +294,59 @@ def cored_snfw_mass_profile(M, a, r_c):
     return RadialProfile(_snfw)
 
 
-def einasto_density_profile(rho_0, h, alpha):
+_dn = lambda n: 3.0*n - 1./3. + 8.0/(1215.*n) + 184.0/(229635.*n*n)
+
+
+def einasto_density_profile(M, r_s, n):
     """
     A density profile where the logarithmic slope is a 
-    power-law. The form here is that given in Equation 5 of
+    power-law. The form here is that given in Section 2 of
     Retana-Montenegro et al. 2012, A&A, 540, A70.
 
     Parameters
     ----------
-    rho_0 : float
-        The core density in Msun/kpc**3.
-    h : float
+    M : float
+        The total mass of the profile in M.
+    r_s : float
         The scale radius in kpc.
-    alpha : float
-        The power-law index.
+    n : float
+        The inverse power-law index.
     """
+    from scipy.special import gamma
+    alpha = 1.0/n
+    h = r_s/_dn(n)**n
+    rho_0 = M/(4.0*np.pi*h**3*n*gamma(3.0*n))
     def _einasto(r):
-        x = r/h
-        return rho_0*np.exp(-x**alpha)
+        s = r/h
+        return rho_0*np.exp(-s**alpha)
     return RadialProfile(_einasto)
 
 
-def am06_density_profile(rho_0, a, a_c, c, alpha, beta):
+def einasto_mass_profile(M, r_s, n):
+    """
+    A mass profile where the logarithmic slope is a 
+    power-law. The form here is that given in Section 2 of
+    Retana-Montenegro et al. 2012, A&A, 540, A70.
+
+    Parameters
+    ----------
+    M : float
+        The total mass of the profile in M.
+    r_s : float
+        The scale radius in kpc.
+    n : float
+        The inverse power-law index.
+    """
+    from scipy.special import gammaincc
+    alpha = 1.0/n
+    h = r_s/_dn(n)**n
+    def _einasto(r):
+        s = r/h
+        return M*(1.0-gammaincc(3.0*n, s**alpha))
+    return RadialProfile(_einasto)
+
+
+def am06_density_profile(rho_0, a, a_c, c, n):
     """
     The density profile for galaxy clusters suggested by
     Ascasibar, Y., & Markevitch, M. 2006, ApJ, 650, 102.
@@ -331,11 +362,10 @@ def am06_density_profile(rho_0, a, a_c, c, alpha, beta):
         The scale radius of the cool core in kpc.
     c : float
         The scale of the temperature drop of the cool core.
-    alpha : float
-        The first slope parameter.
-    beta : float
-        The second slope parameter.
+    n : float
     """
+    alpha = -1.-n*(c-1.)/(c-a/a_c)
+    beta = 1.-n*(1.-a/a_c)/(c-a/a_c)
     p = lambda r: rho_0*(1.+r/a_c)*(1.+r/a_c/c)**alpha*(1.+r/a)**beta
     return RadialProfile(p)
 
