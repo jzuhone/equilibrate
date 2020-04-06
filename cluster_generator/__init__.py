@@ -32,4 +32,4 @@ from cluster_generator.radial_profiles import \
     cored_snfw_mass_profile, einasto_mass_profile, \
     am06_density_profile, am06_temperature_profile
 from cluster_generator.relations import \
-    mbcg, msat, rbcg
+    m_bcg, m_sat, r_bcg, f_gas
