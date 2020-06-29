@@ -173,18 +173,21 @@ class ClusterField(object):
         else:
             return self._units
 
-    def write_to_h5(self, filename, in_cgs=False, overwrite=False, new_units=None):
+    def write_to_h5(self, filename, in_cgs=False, overwrite=False, length_unit=None,
+                    field_unit=None):
         import h5py
+        if length_unit is None:
+            length_unit = "kpc"
         if os.path.exists(filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % filename)
         all_comps = ["x", "y", "z"] + self.comps
         for field in all_comps:
             if in_cgs:
                 self[field].in_cgs().write_hdf5(filename, dataset_name=field)
-            elif new_units is not None:
-                if field in "xyz":
-                    units = new_units[0]
-                elif self.vector_potential:
+            elif length_unit is not None and field in "xyz":
+                units = length_unit
+            elif field_unit is not None:
+                if self.vector_potential:
                     units = "%s*%s" % new_units
                 else:
                     units = new_units[1]
@@ -198,7 +201,8 @@ class ClusterField(object):
         f.flush()
         f.close()
 
-    def map_field_to_particles(self, cluster_particles, ptype="gas", new_units=None):
+    def map_field_to_particles(self, cluster_particles, ptype="gas", length_unit=None,
+                               field_unit=None):
         from scipy.interpolate import RegularGridInterpolator
         v = np.zeros((cluster_particles.num_particles[ptype], 3))
         for i, ax in enumerate("xyz"):
@@ -207,14 +211,17 @@ class ClusterField(object):
                                            bounds_error=False, fill_value=0.0)
             v[:,i] = func(cluster_particles[ptype, "particle_position"].d)
         cluster_particles.set_field(ptype, self._name, YTArray(v, self.units), 
-                                    units=new_units)
+                                    length_unit=length_unit, field_unit=field_unit)
 
 
 class GaussianRandomField(ClusterField):
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  alpha=-11./3., g_rms=1.0, ctr1=None, ctr2=None, r1=None,
                  r2=None, g1=None, g2=None, vector_potential=False,
-                 divergence_clean=False, prng=np.random):
+                 divergence_clean=False, prng=None):
+
+        if prng is None:
+            prng = np.random
 
         super(GaussianRandomField, self).__init__(left_edge, right_edge, ddims, 
                                                   vector_potential=vector_potential,
@@ -353,7 +360,7 @@ class RandomMagneticField(GaussianRandomField):
     _vector_potential = False
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 B_rms, alpha=-11./3., prng=np.random):
+                 B_rms, alpha=-11./3., prng=None):
         super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
             l_min, l_max, alpha=alpha, divergence_clean=True, g_rms=B_rms,
             vector_potential=self._vector_potential, prng=prng)
@@ -366,24 +373,28 @@ class RadialRandomMagneticField(GaussianRandomField):
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  ctr1, profile1, ctr2=None, profile2=None, 
-                 alpha=-11./3., prng=np.random):
-        if isinstance(profile1, str):
+                 alpha=-11./3., prng=None):
+        if isinstance(profile1, ClusterModel):
+            r1 = profile1["radius"].to_value("kpc")
+            B1 = profile1["magnetic_field_strength"]
+        elif isinstance(profile1, str):
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
                                    group_name="fields").to('kpc').d
             B1 = YTArray.from_hdf5(profile1, dataset_name="magnetic_field_strength",
                                    group_name="fields")
         else:
             r1, B1 = profile1
-        if profile2 is None:
-            r2 = None
-            B2 = None
-        elif isinstance(profile2, str):
-            r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
-                                   group_name="fields").to('kpc').d
-            B2 = YTArray.from_hdf5(profile2, dataset_name="magnetic_field_strength",
-                                   group_name="fields")
-        else:
-            r2, B2 = profile2
+        if profile2 is not None:
+            if isinstance(profile2, ClusterModel):
+                r2 = profile2["radius"].to_value("kpc")
+                B2 = profile2["magnetic_field_strength"]
+            elif isinstance(profile2, str):
+                r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
+                                       group_name="fields").to('kpc').d
+                B2 = YTArray.from_hdf5(profile2, dataset_name="magnetic_field_strength",
+                                       group_name="fields")
+            else:
+                r2, B2 = profile2
         super(RadialRandomMagneticField, self).__init__(
               left_edge, right_edge, ddims, l_min, l_max, alpha=alpha, 
               ctr1=ctr1, ctr2=ctr2, r1=r1, r2=r2, g1=B1, g2=B2, 
@@ -467,7 +478,7 @@ class RandomVelocityField(GaussianRandomField):
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  V_rms, alpha=-11./3., divergence_clean=False,
-                 prng=np.random):
+                 prng=None):
         super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims, 
             l_min, l_max, g_rms=V_rms, alpha=alpha, prng=prng,
             divergence_clean=divergence_clean)
@@ -480,10 +491,10 @@ class RadialRandomVelocityField(GaussianRandomField):
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  ctr1, profile1, ctr2=None, profile2=None,
                  alpha=-11./3., divergence_clean=False,
-                 prng=np.random):
-        if profile1 is None:
-            r1 = None
-            V1 = None
+                 prng=None):
+        if isinstance(profile1, ClusterModel):
+            r1 = profile1["radius"].to_value("kpc")
+            V1 = profile1["velocity_dispersion"]
         elif isinstance(profile1, str):
             r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
                                    group_name="fields").d
@@ -491,16 +502,17 @@ class RadialRandomVelocityField(GaussianRandomField):
                                    group_name="fields")
         else:
             r1, V1 = profile1
-        if profile2 is None:
-            r2 = None
-            V2 = None
-        elif isinstance(profile2, str):
-            r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
-                                   group_name="fields").d
-            V2 = YTArray.from_hdf5(profile2, dataset_name="velocity_dispersion",
-                                   group_name="fields")
-        else:
-            r2, V2 = profile2
+        if profile2 is not None:
+            if isinstance(profile2, ClusterModel):
+                r2 = profile2["radius"].to_value("kpc")
+                V2 = profile2["velocity_dispersion"}
+            elif isinstance(profile2, str):
+                r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
+                                       group_name="fields").d
+                V2 = YTArray.from_hdf5(profile2, dataset_name="velocity_dispersion",
+                                       group_name="fields")
+            else:
+                r2, V2 = profile2
         super(RadialRandomVelocityField, self).__init__(left_edge, right_edge, 
             ddims, l_min, l_max, alpha=alpha, ctr1=ctr1, ctr2=ctr2, r1=r1,
             r2=r2, g1=V1, g2=V2, divergence_clean=divergence_clean, prng=prng)

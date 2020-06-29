@@ -217,6 +217,61 @@ class HydrostaticEquilibrium(ClusterModel):
                    "hydrostatic equilibrium is %g" % np.abs(chk).max())
         return chk
 
+    def set_magnetic_field_from_beta(self, beta, gaussian=True):
+        """
+        Set a magnetic field radial profile from
+        a plasma beta parameter, assuming beta = p_th/p_B.
+        The field can be set in Gaussian or Lorentz-Heaviside
+        (dimensionless) units.
+
+        Parameters
+        ----------
+        beta : float
+            The ratio of the thermal pressure to the
+            magnetic pressure.
+        gaussian : boolean, optional
+            Set the field in Gaussian units such that
+            p_B = B^2/(8*pi), otherwise p_B = B^2/2.
+            Default: True
+        """
+        B = np.sqrt(2.0*p1["pressure"]/beta)
+        if gaussian:
+            B *= np.sqrt(4.0*np.pi)
+            B.convert_to_units("gauss")
+        else:
+            B.convert_to_units("sqrt(Msun)/sqrt(kpc)/Myr")
+        self["magnetic_field"] = B
+
+    def set_magnetic_field_from_density(self, B0, eta=2./3., gaussian=True):
+        """                                                                                             
+        Set a magnetic field radial profile
+        assuming it is proportional to some power of the 
+        density, usually 2/3. The field can be set in Gaussian
+        or Lorentz-Heaviside (dimensionless) units.
+
+        Parameters                                                                                          
+        ----------                                                       
+        B0 : float                                                                                        
+            The central magnetic field strength in units of
+            gauss. 
+        eta : float, optional
+            The power of the density which the field is 
+            proportional to. Default: 2/3.
+        gaussian : boolean, optional                                                                
+            Set the field in Gaussian units such that                                                       
+            p_B = B^2/(8*pi), otherwise p_B = B^2/2.                                         
+            Default: True                                                                                   
+        """
+        if not hasattr(B0, "units"):
+            B0 = YTQuantity(B0, "gauss")
+        else:
+            B0.convert_to_units("gauss")
+        B = B0*(self["density"]/self["density"][0])**eta
+        if not gaussian:
+            B /= np.sqrt(4.0*np.pi)
+            B.convert_to_units("sqrt(Msun)/sqrt(kpc)/Myr")
+        self["magnetic_field"] = B
+
     def generate_particles(self, num_particles, r_max=None, sub_sample=1):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
