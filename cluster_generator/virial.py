@@ -1,8 +1,8 @@
 import numpy as np
-from yt import YTArray, mylog, get_pbar
+from yt import YTArray, get_pbar
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
-    quad, generate_particle_radii
+    quad, generate_particle_radii, mylog
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import \
     ClusterParticles

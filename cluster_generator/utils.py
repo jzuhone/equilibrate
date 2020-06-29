@@ -1,8 +1,25 @@
 import numpy as np
 from scipy.integrate import quad
 from yt import YTArray
-
 import yt.utilities.physical_constants as pc
+
+
+cgLogger = logging.getLogger("cluster_generator")
+
+ufstring = "%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s"
+cfstring = "%(name)-3s : [%(levelname)-18s] %(asctime)s %(message)s"
+
+cg_sh = logging.StreamHandler()
+# create formatter and add it to the handlers
+formatter = logging.Formatter(ufstring)
+cg_sh.setFormatter(formatter)
+# add the handler to the logger
+cgLogger.addHandler(cg_sh)
+cgLogger.setLevel('INFO')
+cgLogger.propagate = False
+
+mylog = cgLogger
+
 mp = (pc.mp).in_units("Msun")
 G = (pc.G).in_units("kpc**3/Msun/Myr**2")
 kboltz = pc.kboltz

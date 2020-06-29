@@ -1,9 +1,9 @@
 import numpy as np
 from collections import OrderedDict
-from yt import YTArray, YTQuantity, mylog
+from yt import YTArray, YTQuantity
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
-    integrate, \
+    integrate, mylog, \
     integrate_mass, kboltz, \
     mp, G, generate_particle_radii
 from cluster_generator.cluster_model import ClusterModel

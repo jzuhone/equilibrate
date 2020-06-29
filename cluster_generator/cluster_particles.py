@@ -1,8 +1,8 @@
-from yt import mylog, YTArray, uconcatenate, load_particles
+from yt import YTArray, uconcatenate, load_particles
 from collections import OrderedDict, defaultdict
 from yt.funcs import ensure_list
 from scipy.interpolate import InterpolatedUnivariateSpline
-from cluster_generator.utils import ensure_ytarray
+from cluster_generator.utils import ensure_ytarray, mylog
 import h5py
 import numpy as np
 import os

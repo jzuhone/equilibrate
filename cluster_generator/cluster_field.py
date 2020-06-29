@@ -1,6 +1,6 @@
 import numpy as np
 from yt.units.yt_array import YTArray
-from yt import mylog
+from cluster_generator.utils import mylog
 import os
 from cluster_generator.cluster_model import ClusterModel
 
@@ -188,9 +188,9 @@ class ClusterField:
                 units = length_unit
             elif field_unit is not None:
                 if self.vector_potential:
-                    units = "%s*%s" % new_units
+                    units = f"{length_unit}*{field_unit}"
                 else:
-                    units = new_units[1]
+                    units = field_unit
                 self[field].to(units).write_hdf5(filename, dataset_name=field)
             else:
                 self[field].write_hdf5(filename, dataset_name=field)
