@@ -2,7 +2,7 @@ import numpy as np
 from yt.units.yt_array import YTArray
 from yt import mylog
 import os
-
+from cluster_generator.cluster_model import ClusterModel
 
 def parse_value(value, default_units):
     if isinstance(value, YTArray):
@@ -29,7 +29,7 @@ def rot_3d(axis, gx, gy, gz, ang):
     return gx, gy, gz
 
 
-class ClusterField(object):
+class ClusterField:
     _units = "dimensionless"
     _name = "vector"
 
@@ -505,7 +505,7 @@ class RadialRandomVelocityField(GaussianRandomField):
         if profile2 is not None:
             if isinstance(profile2, ClusterModel):
                 r2 = profile2["radius"].to_value("kpc")
-                V2 = profile2["velocity_dispersion"}
+                V2 = profile2["velocity_dispersion"]
             elif isinstance(profile2, str):
                 r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
                                        group_name="fields").d
