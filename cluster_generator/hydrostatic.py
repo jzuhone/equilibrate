@@ -237,9 +237,7 @@ class HydrostaticEquilibrium(ClusterModel):
         B = np.sqrt(2.0*self["pressure"]/beta)
         if gaussian:
             B *= np.sqrt(4.0*np.pi)
-            B.convert_to_units("gauss")
-        else:
-            B.convert_to_units("sqrt(Msun)/sqrt(kpc)/Myr")
+        B.convert_to_units("gauss")
         self.set_field("magnetic_field_strength", B)
 
     def set_magnetic_field_from_density(self, B0, eta=2./3., gaussian=True):
@@ -269,7 +267,6 @@ class HydrostaticEquilibrium(ClusterModel):
         B = B0*(self["density"]/self["density"][0])**eta
         if not gaussian:
             B /= np.sqrt(4.0*np.pi)
-            B.convert_to_units("sqrt(Msun)/sqrt(kpc)/Myr")
         self.set_field("magnetic_field_strength", B)
 
     def generate_particles(self, num_particles, r_max=None, sub_sample=1):

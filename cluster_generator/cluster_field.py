@@ -185,7 +185,7 @@ class ClusterField:
             if in_cgs:
                 self[field].in_cgs().write_hdf5(filename, dataset_name=field)
             elif length_unit is not None and field in "xyz":
-                units = length_unit
+                self[field].to(length_unit).write_hdf5(filename, dataset_name=field)
             elif field_unit is not None:
                 if self.vector_potential:
                     units = f"{length_unit}*{field_unit}"
@@ -201,8 +201,7 @@ class ClusterField:
         f.flush()
         f.close()
 
-    def map_field_to_particles(self, cluster_particles, ptype="gas", length_unit=None,
-                               field_unit=None):
+    def map_field_to_particles(self, cluster_particles, ptype="gas", units=None):
         from scipy.interpolate import RegularGridInterpolator
         v = np.zeros((cluster_particles.num_particles[ptype], 3))
         for i, ax in enumerate("xyz"):
@@ -211,7 +210,7 @@ class ClusterField:
                                            bounds_error=False, fill_value=0.0)
             v[:,i] = func(cluster_particles[ptype, "particle_position"].d)
         cluster_particles.set_field(ptype, self._name, YTArray(v, self.units), 
-                                    length_unit=length_unit, field_unit=field_unit)
+                                    units=units)
 
 
 class GaussianRandomField(ClusterField):
