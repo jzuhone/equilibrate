@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import quad
 from yt import YTArray
 import yt.utilities.physical_constants as pc
-
+import logging
 
 cgLogger = logging.getLogger("cluster_generator")
 
