@@ -154,6 +154,7 @@ class ClusterParticles(object):
         if ptypes is None:
             ptypes = self.particle_types
         ptypes = ensure_list(ptypes)
+        
         for pt in ptypes:
             cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
             for field in self.field_names[pt]:
@@ -287,7 +288,7 @@ class ClusterParticles(object):
             ids = np.arange(num_particles[ptype])+1+npart
             g.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             npart += num_particles[ptype]
-            if ptype in ["star", "dm"]:
+            if ptype in ["star", "dm", "black_hole"]:
                 mass_table[int(rptype_map[ptype][-1])] = g["Masses"][0]
         f.flush()
         hg = f.create_group("Header")
@@ -447,6 +448,8 @@ def combine_two_clusters(particles1, particles2, hse1, hse2,
     ptypes = ["dm"]
     if "star" in particles1.particle_types:
         ptypes.append("star")
+    if "black_hole" in particles1.particle_types:
+        ptypes.append("black_hole")
     particles1.add_offsets(center1, velocity1, ptypes=ptypes)
     particles2.add_offsets(center2, velocity2, ptypes=ptypes)
     particles = particles1+particles2
@@ -471,6 +474,8 @@ def combine_three_clusters(particles1, particles2, particles3,
     ptypes = ["dm"]
     if "star" in particles1.particle_types:
         ptypes.append("star")
+    if "black_hole" in particles1.particle_types:
+        ptypes.append("black_hole")
     particles1.add_offsets(center1, velocity1, ptypes=ptypes)
     particles2.add_offsets(center2, velocity2, ptypes=ptypes)
     particles3.add_offsets(center3, velocity3, ptypes=ptypes)
@@ -494,6 +499,7 @@ def resample_one_cluster(particles, hse, center):
     vol = particles["gas", "particle_mass"] / particles["gas", "density"]
     particles["gas", "particle_mass"] = YTArray(dens*vol.d, "Msun")
     particles["gas", "particle_velocity"][:,:] = 0.0
+    particles["gas", "density"] = YTArray(dens, "Msun/kpc**3")
     return particles
 
 
