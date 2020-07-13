@@ -31,13 +31,14 @@ def format_array(x):
 
 class ClusterICs:
     def __init__(self, num_halos, hse_files, particle_files, 
-                 center, velocity, mag_file=None):
+                 center, velocity, mag_file=None, resample_file=None):
         self.num_halos = num_halos
         self.hse_files = check_for_list(hse_files)
         self.particle_files = check_for_list(particle_files)
         self.center = check_for_list(center)
         self.velocity = check_for_list(velocity)
         self.mag_file = mag_file
+        self.resample_file = resample_file
 
     def to_file(self, filename, overwrite=False):
         if os.path.exists(filename) and not overwrite:
@@ -63,6 +64,10 @@ class ClusterICs:
                 f"center3 = {format_array(self.center[3])} # center of cluster 3 in kpc\n",
                 f"velocity3 = {format_array(self.velocity[3])} # velocity of cluster 3 in km/s\n"
             ]
+        if self.mag_file is not None:
+            outlines.append(f"mag_file = {self.mag_file} # 3D magnetic field file\n")
+        if self.resample_file is not None:
+            outlines.append(f"resample_file = {self.resample_file} # Gadget file for resampling\n")
         with open(filename, "w") as f:
             f.writelines(outlines)
 
@@ -77,6 +82,7 @@ class ClusterICs:
         center = {1: None, 2: None, 3: None}
         velocity = {1: None, 2: None, 3: None}
         mag_file = None
+        resample_file = None
         for line in lines:
             words = line.strip().split()
             if words[0].startswith("#"):
@@ -98,6 +104,8 @@ class ClusterICs:
                     hse_files[3] = set_param("hse_file3", words[2], hse_files[3])
                 elif words[0] == "mag_file":
                     mag_file = set_param("mag_file", words[2], mag_file)
+                elif words[0] == "resample_file":
+                    resample_file = set_param("resample_file", words[2], resample_file)
             elif len(words) == 5:
                 if words[0] == "center1":
                     center[1] = set_param(
@@ -128,6 +136,19 @@ class ClusterICs:
                    center, velocity, mag_file=mag_file)
 
     def setup_gamer_ics(self, input_testprob, overwrite=False):
+        """
+
+        Write the "Input_TestProb" file for use with the 
+        ClusterMerger setup in GAMER.
+
+        Parameters
+        ----------
+        input_testprob : string 
+            The path to the Input__TestProb file which will
+            include the parameters. 
+        :param overwrite: 
+        :return: 
+        """
         if os.path.exists(input_testprob) and not overwrite:
             raise RuntimeError(f"{input_testprob} exists and overwrite=False!")
         outlines = [
@@ -163,7 +184,8 @@ class ClusterICs:
         if self.mag_file is not None:
             mylog.info(f"Rename the file '{self.mag_file}' to 'B_IC' "
                        f"and place it in the same directory as the "
-                       f"Input__* files.")
+                       f"Input__* files, and set OPT__INIT_BFIELD_BYFILE "
+                       f"to 1 in Input__Parameter")
 
     def setup_gadget_ics(self, filename, box_size, dtype='float32', 
                          overwrite=False):
@@ -187,13 +209,16 @@ class ClusterICs:
         all_parts.write_to_gadget_file(filename, box_size, dtype=dtype,
                                        overwrite=overwrite)
 
-    def resample_gadget_ics(self, infile, outfile, box_size,
+    def resample_gadget_ics(self, filename, box_size,
                             dtype='float32', r_max=5000.0,
                             overwrite=False):
-        if os.path.exists(outfile) and not overwrite:
-            raise RuntimeError(f"{outfile} exists and overwrite=False!")
+        if os.path.exists(filename) and not overwrite:
+            raise RuntimeError(f"{filename} exists and overwrite=False!")
         hses = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
-        parts = ClusterParticles.from_gadget_file(infile)
+        if self.resample_file is None or not os.path.exists(self.resample_file):
+            raise IOError("A 'resample_file' must be specified in the "
+                          "parameter file for this operation!")
+        parts = ClusterParticles.from_gadget_file(self.resample_file)
         if self.num_halos == 1:
             new_parts = resample_one_cluster(parts, hses[0], self.center[1],
                                              self.velocity[1])
@@ -208,5 +233,5 @@ class ClusterICs:
                                                 self.center[3], self.velocity[1], 
                                                 self.velocity[2], self.velocity[3], 
                                                 [r_max]*3)
-        new_parts.write_to_gadget_file(outfile, box_size, dtype=dtype,
+        new_parts.write_to_gadget_file(filename, box_size, dtype=dtype,
                                        overwrite=overwrite)
