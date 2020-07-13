@@ -127,6 +127,26 @@ class ClusterParticles(object):
         f.close()
         return cls(particle_types, fields)
 
+    @classmethod
+    def from_gamer_output(cls, filename, ptype="dm"):
+        fields = OrderedDict()
+        particle_types = [ptype]
+        f = h5py.File(filename, "r")
+        g = f["Particle"]
+        lunit = f["Info"]["InputPara"]["Unit_L"].value
+        munit = f["Info"]["InputPara"]["Unit_M"].value
+        vunit = lunit/f["Info"]["InputPara"]["Unit_T"]
+        fields[ptype, "particle_mass"] = YTArray(
+            g["ParMass"][:]*munit, "g").in_base("galactic")
+        fields[ptype, "particle_position"] = YTArray(
+            [g[f"ParPos{ax}"][:]*lunit for ax in "XYZ"],
+            "cm").in_base("galactic")
+        fields[ptype, "particle_velocity"] = YTArray(
+            [g[f"ParVel{ax}"][:]*vunit for ax in "XYZ"],
+            "cm/s").in_base("galactic")
+        f.close()
+        return cls(particle_types, fields)
+
     def _update_num_particles(self):
         self.num_particles = {}
         for ptype in self.particle_types:
@@ -154,7 +174,7 @@ class ClusterParticles(object):
         if ptypes is None:
             ptypes = self.particle_types
         ptypes = ensure_list(ptypes)
-        
+
         for pt in ptypes:
             cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
             for field in self.field_names[pt]:
