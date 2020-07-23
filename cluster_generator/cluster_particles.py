@@ -45,9 +45,7 @@ class ClusterParticles(object):
         self.particle_types = ensure_list(particle_types)
         self.fields = fields
         self._update_num_particles()
-        self.field_names = defaultdict(list)
-        for field in self.fields:
-            self.field_names[field[0]].append(field[1])
+        self._update_field_names()
 
     @classmethod
     def from_h5_file(cls, filename, ptypes=None):
@@ -151,6 +149,21 @@ class ClusterParticles(object):
         self.num_particles = {}
         for ptype in self.particle_types:
             self.num_particles[ptype] = self.fields[ptype, "particle_mass"].size
+
+    def _update_field_names(self):
+        self.field_names = defaultdict(list)
+        for field in self.fields:
+            self.field_names[field[0]].append(field[1])
+
+    def drop_ptypes(self, ptypes):
+        ptypes = ensure_list(ptypes)
+        for ptype in ptypes:
+            self.particle_types.remove(ptype)
+            for name in self.fields:
+                if name[0] in ptypes:
+                   self.fields.pop(name) 
+        self._update_num_particles()
+        self._update_field_names()
 
     def make_radial_cut(self, r_max, center=None, ptypes=None):
         """
