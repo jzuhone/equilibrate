@@ -25,7 +25,6 @@ class ClusterModel(metaclass=RegisteredClusterModel):
 
     @classmethod
     def from_arrays(cls, model_type, fields, parameters=None):
-        self._fix_arrays()
         return equilibrium_model_registry[model_type](fields["radius"].size, 
                                                       fields, parameters=parameters)
 
@@ -77,9 +76,6 @@ class ClusterModel(metaclass=RegisteredClusterModel):
 
     def keys(self):
         return self.fields.keys()
-
-    def _fix_arrays(self):
-        pass
 
     def write_model_to_ascii(self, output_filename, in_cgs=False, overwrite=False):
         """

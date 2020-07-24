@@ -159,7 +159,8 @@ class ClusterParticles(object):
         ptypes = ensure_list(ptypes)
         for ptype in ptypes:
             self.particle_types.remove(ptype)
-            for name in self.fields:
+            names = list(self.fields.keys())
+            for name in names:
                 if name[0] in ptypes:
                    self.fields.pop(name) 
         self._update_num_particles()
