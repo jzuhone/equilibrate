@@ -42,7 +42,7 @@ class ClusterICs:
         self.resample_file = resample_file
 
     def to_file(self, filename, overwrite=False):
-        """r
+        r"""
         Write the initial conditions information to a file.
 
         Parameters
@@ -111,7 +111,7 @@ class ClusterICs:
 
     @classmethod
     def from_file(cls, filename):
-        """r
+        r"""
         Read the initial conditions information
         from an appropriately formatted *filename*.
         """
@@ -208,7 +208,7 @@ class ClusterICs:
                    center, velocity, mag_file=mag_file)
 
     def setup_gamer_ics(self, input_testprob, overwrite=False):
-        """
+        r"""
 
         Write the "Input_TestProb" file for use with the 
         ClusterMerger setup in GAMER.
@@ -268,7 +268,7 @@ class ClusterICs:
 
     def setup_gadget_ics(self, filename, box_size, dtype='float32', 
                          overwrite=False):
-        """
+        r"""
         From a set of initial conditions, set up an initial conditions
         file for use with the Gadget code or one of its derivatives
         (GIZMO, Arepo, etc.). Specifically, the output of this routine
@@ -317,7 +317,7 @@ class ClusterICs:
 
     def resample_gadget_ics(self, filename, dtype='float32', r_max=5000.0,
                             overwrite=False):
-        """r
+        r"""
         Given a Gadget-HDF5-like initial conditions file which has been
         output from some type of relaxation process (such as making a 
         glass or using MESHRELAX in the case of Arepo), resample the density,
