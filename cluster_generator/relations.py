@@ -2,17 +2,38 @@ import numpy as np
 
 
 def f_gas(M500, hubble=0.7):
+    """
+    The relationship between M500 and f_gas = Mgas/Mtot
+    within r500 from Vikhlinin, A., et al. 2009, ApJ, 
+    692, 1033 (https://ui.adsabs.harvard.edu/abs/2009ApJ...692.1033V/).
+
+    Parameters
+    ----------
+    M500 : float
+        The M500 of the cluster in units of Msun/h.
+    hubble : float, optional
+        The Hubble parameter in units of 100 km/s/Mpc.
+        Default: 0.7
+
+    Returns
+    -------
+    f_gas at r500
+    """
     return ((0.72/hubble)**1.5)*(0.125+0.037*np.log10(M500*1.0e-15))
 
 
-def m_bcg(m500):
-    x = np.log10(m500) - 14.5
+def m_bcg(M500):
+    """
+    """
+    x = np.log10(M500) - 14.5
     y = 0.39*x+12.15
     return 10**y
 
 
-def m_sat(m500):
-    x = np.log10(m500) - 14.5
+def m_sat(M500):
+    """
+    """
+    x = np.log10(M500) - 14.5
     y = 0.87*x+12.42
     return 10**y
 

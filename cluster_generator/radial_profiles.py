@@ -44,6 +44,25 @@ class RadialProfile:
         return cls(f)
 
     def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None):
+        """
+        Make a quick plot of a profile using Matplotlib.
+        
+        Parameters
+        ----------
+        rmin : float
+            The minimum radius of the plot in kpc.
+        rmax : float
+            The maximum radius of the plot in kpc. 
+        num_points : integer, optional
+            The number of logspaced points between rmin
+            and rmax to use when making the plot. Default: 1000
+        fig : :class:`~matplotlib.figure.Figure`, optional
+            A Figure instance to plot in. Default: None, one will be
+            created if not provided.
+        ax : :class:`~matplotlib.axes.Axes`, optional
+            An Axes instance to plot in. Default: None, one will be
+            created if not provided.
+        """
         import matplotlib.pyplot as plt
         if fig is None:
             fig = plt.figure(figsize=(10,10))
