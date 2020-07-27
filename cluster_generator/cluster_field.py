@@ -195,6 +195,7 @@ class ClusterField:
             else:
                 self[field].write_hdf5(filename, dataset_name=field)
         f = h5py.File(filename, "r+")
+        f.attrs["unit_system"] = "cgs" if in_cgs else "galactic"
         f.attrs["name"] = self._name
         f.attrs["units"] = self.units
         f.attrs["vector_potential"] = int(self.vector_potential)

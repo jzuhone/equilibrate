@@ -124,6 +124,7 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         f = h5py.File(output_filename, "w")
         f.create_dataset("model_type", data=self._type_name)
         f.create_dataset("num_elements", data=self.num_elements)
+        f.attrs["unit_system"] = "cgs" if in_cgs else "galactic"
         g = f.create_group("parameters")
         for k, v in self.parameters.items():
             g.create_dataset(k, data=v)
@@ -141,7 +142,7 @@ class ClusterModel(metaclass=RegisteredClusterModel):
                                               group_name="fields")
 
     def set_field(self, name, value):
-        """
+        r"""
         Set a field with name *name* to value *value*, which is a YTArray.
         The array will be checked to make sure that it has the appropriate size.
         """
