@@ -41,11 +41,12 @@ rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
 
 class ClusterParticles(object):
-    def __init__(self, particle_types, fields):
+    def __init__(self, particle_types, fields, box_size=None):
         self.particle_types = ensure_list(particle_types)
         self.fields = fields
         self._update_num_particles()
         self._update_field_names()
+        self.box_size = box_size
 
     @classmethod
     def from_h5_file(cls, filename, ptypes=None):
@@ -122,8 +123,9 @@ class ClusterParticles(object):
                 n_type = int(ptype[-1])
                 fields[my_ptype, "particle_mass"] = YTArray([f["Header"].attrs["MassTable"][n_type]]*n_ptype,
                                                             units).in_base("galactic")
+        box_size = f["/Header"].attrs["BoxSize"]
         f.close()
-        return cls(particle_types, fields)
+        return cls(particle_types, fields, box_size=box_size)
 
     @classmethod
     def from_gamer_output(cls, filename, ptype="dm"):
