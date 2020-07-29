@@ -10,12 +10,14 @@
    :maxdepth: 2
    :caption: Contents:
 
+   cluster_models
    radial_profiles
    hydrostatic
    virial
    particles
    fields
    initial_conditions
+   examples
    api
 
 Indices and tables

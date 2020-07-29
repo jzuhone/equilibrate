@@ -1,5 +1,5 @@
-``cluster\_generator`` API Docs
-===============================
+``cluster_generator`` API Docs
+==============================
 
 cluster\_generator.cluster\_field module
 ----------------------------------------
