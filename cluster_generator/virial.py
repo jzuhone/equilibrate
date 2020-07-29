@@ -18,7 +18,29 @@ class VirialEquilibrium(ClusterModel):
     @classmethod
     def from_scratch(cls, rmin, rmax, total_profile, ptype='dark_matter',
                      num_points=1000, stellar_profile=None):
+        r"""
+        Generate a virial equilibrium model for a spherically symmetric
+        dark matter / stellar halo from a total density profile,
+        assuming no gas is present.
 
+        Parameters
+        ----------
+        rmin : float
+            The minimum radius of the halo profile.
+        rmax : float
+            The maximum radius of the halo profile.
+        total_profile : :class:`~cluster_generator.radial_profiles.RadialProfile`
+            The total density profile of the halo.
+        ptype : string, optional
+            The type of the profile, either "dark_matter" or "stellar".
+            Default: "dark_matter"
+        num_points : integer, optional
+            The number of points along the radial profile of the halo.
+            Default: 1000
+        stellar_profile : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+            If set, this profile will serve as the stellar density profile.
+            Default: None
+        """
         profiles = {"total_density": total_profile}
         if stellar_profile is not None:
             profiles["stellar_density"] = stellar_profile
