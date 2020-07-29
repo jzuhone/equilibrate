@@ -10,6 +10,7 @@
    :maxdepth: 2
    :caption: Contents:
 
+   introduction
    cluster_models
    radial_profiles
    hydrostatic

@@ -151,6 +151,11 @@ class VirialEquilibrium(ClusterModel):
         compute_potential : boolean, optional
             If True, the gravitational potential for each particle will
             be computed. Default: False
+
+        Returns
+        -------
+        particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+            A set of dark matter or star particles.
         """
         num_particles_sub = num_particles // sub_sample
         ptype = self.parameters["ptype"]
