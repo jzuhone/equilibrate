@@ -27,7 +27,7 @@ from cluster_generator.radial_profiles import \
     vikhlinin_temperature_profile, baseline_entropy_profile, \
     einasto_density_profile, RadialProfile, \
     rescale_profile_by_mass, find_radius_mass, \
-    snfw_conc, find_overdensity_radius, \
+    snfw_conc, find_overdensity_radius, constant_profile, \
     cored_snfw_density_profile, cored_hernquist_density_profile, \
     cored_snfw_mass_profile, einasto_mass_profile, \
     am06_density_profile, am06_temperature_profile

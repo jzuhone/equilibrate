@@ -46,7 +46,7 @@ class RadialProfile:
     def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None):
         """
         Make a quick plot of a profile using Matplotlib.
-        
+
         Parameters
         ----------
         rmin : float
@@ -74,10 +74,23 @@ class RadialProfile:
         return fig
 
 
+def constant_profile(const):
+    """
+    A constant profile.
+
+    Parameters
+    ----------
+    const : float
+        The value of the constant.
+    """
+    p = lambda r: const
+    return RadialProfile(p)
+
+
 def beta_model_profile(rho_c, r_c, beta):
     """
-    A beta-model density profile (like for galaxy clusters,
-    Cavaliere A., Fusco-Femiano R., 1976, A&A, 49, 137).
+    A beta-model density profile (Cavaliere A., 
+    Fusco-Femiano R., 1976, A&A, 49, 137).
 
     Parameters
     ----------
