@@ -32,8 +32,8 @@ class VirialEquilibrium(ClusterModel):
         total_profile : :class:`~cluster_generator.radial_profiles.RadialProfile`
             The total density profile of the halo.
         ptype : string, optional
-            The type of the profile, either "dark_matter" or "stellar".
-            Default: "dark_matter"
+            The type of the particles which can be generated from this 
+            object, either "dark_matter" or "stellar". Default: "dark_matter"
         num_points : integer, optional
             The number of points along the radial profile of the halo.
             Default: 1000
@@ -51,6 +51,19 @@ class VirialEquilibrium(ClusterModel):
 
     @classmethod
     def from_hse_model(cls, hse_model, ptype='dark_matter'):
+        r"""
+        Generate a virial equilibrium model from a hydrostatic 
+        equilibrium model.
+
+        Parameters
+        ----------
+        hse_model : :class:`~cluster_generator.hydrostatic.HydrostaticEquilibrium`
+            The hydrostatic equilibrium model which will be used to
+            construct the virial equilibrium model.
+        ptype : string, optional
+            The type of the particles which can be generated from this
+            object, either "dark_matter" or "stellar". Default: "dark_matter"
+        """
         keys = ["radius", "%s_density" % ptype, "%s_mass" % ptype,
                 "gravitational_potential", "gravitational_field"]
         fields = OrderedDict([(field, hse_model[field]) for field in keys])
@@ -91,13 +104,28 @@ class VirialEquilibrium(ClusterModel):
         return self["distribution_function"].d[::-1]
 
     def check_model(self):
+        r"""
+        Computes the radial density profile for the collisionless 
+        particles computed from integrating over the distribution 
+        function, and the relative difference between this and the 
+        input density profile.
+
+        Returns
+        -------
+        rho : NumPy array
+            The density profile computed from integrating the
+            distribution function. 
+        chk : NumPy array
+            The relative difference between the input density
+            profile and the one calculated using this method.
+        """
         n = self.num_elements
         rho = np.zeros(n)
         pden = self["%s_density" % self.parameters['ptype']].d
         rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
         for i, e in enumerate(self.ee):
             rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e,))[0]
-        chk = np.abs(rho-pden)/pden
+        chk = (rho-pden)/pden
         mylog.info("The maximum relative deviation of this profile from "
                    "virial equilibrium is %g" % np.abs(chk).max())
         return rho, chk
@@ -116,9 +144,10 @@ class VirialEquilibrium(ClusterModel):
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
         sub_sample : integer, optional
-            This option allows one to generate a sub-sample of unique 
+            This option allows one to generate a sub-sample of unique
             particle radii and velocities which will then be repeated
-            to fill the required number of particles. Default: 1 
+            to fill the required number of particles. Default: 1, which
+            means no sub-sampling.
         compute_potential : boolean, optional
             If True, the gravitational potential for each particle will
             be computed. Default: False

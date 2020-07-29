@@ -204,8 +204,13 @@ class HydrostaticEquilibrium(ClusterModel):
 
     def check_model(self):
         r"""
-        Determine the deviation of the model from hydrostatic equilibrium. Returns
-        an array containing the relative deviation at each radius or height.
+        Determine the deviation of the model from hydrostatic equilibrium. 
+
+        Returns
+        -------
+        chk : NumPy array
+            An array containing the relative deviation from hydrostatic
+            equilibrium as a function of radius.
         """
         rr = self.fields["radius"].v
         pressure_spline = InterpolatedUnivariateSpline(rr, self.fields["pressure"].v)
@@ -241,24 +246,23 @@ class HydrostaticEquilibrium(ClusterModel):
         self.set_field("magnetic_field_strength", B)
 
     def set_magnetic_field_from_density(self, B0, eta=2./3., gaussian=True):
-        """                                                                                             
-        Set a magnetic field radial profile
-        assuming it is proportional to some power of the 
-        density, usually 2/3. The field can be set in Gaussian
-        or Lorentz-Heaviside (dimensionless) units.
+        """
+        Set a magnetic field radial profile assuming it is proportional
+        to some power of the density, usually 2/3. The field can be set
+        in Gaussian or Lorentz-Heaviside (dimensionless) units.
 
-        Parameters                                                                                          
-        ----------                                                       
-        B0 : float                                                                                        
+        Parameters
+        ----------
+        B0 : float
             The central magnetic field strength in units of
             gauss. 
         eta : float, optional
             The power of the density which the field is 
             proportional to. Default: 2/3.
-        gaussian : boolean, optional                                                                
-            Set the field in Gaussian units such that                                                       
-            p_B = B^2/(8*pi), otherwise p_B = B^2/2.                                         
-            Default: True                                                                                   
+        gaussian : boolean, optional
+            Set the field in Gaussian units such that
+            p_B = B^2/(8*pi), otherwise p_B = B^2/2.
+            Default: True
         """
         if not hasattr(B0, "units"):
             B0 = YTQuantity(B0, "gauss")
@@ -282,9 +286,10 @@ class HydrostaticEquilibrium(ClusterModel):
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
         sub_sample : integer, optional
-            This option allows one to generate a sub-sample of unique 
-            particle radii, densities, and energies which will then be 
-            repeated to fill the required number of particles. Default: 1 
+            This option allows one to generate a sub-sample of unique
+            particle radii, densities, and energies which will then be
+            repeated to fill the required number of particles. Default: 1,
+            which means no sub-sampling.
         """
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
