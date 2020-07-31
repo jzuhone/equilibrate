@@ -65,7 +65,8 @@ class VirialEquilibrium(ClusterModel):
             object, either "dark_matter" or "stellar". Default: "dark_matter"
         """
         keys = ["radius", "%s_density" % ptype, "%s_mass" % ptype,
-                "gravitational_potential", "gravitational_field"]
+                "total_density", "total_mass", "gravitational_potential",
+                "gravitational_field"]
         fields = OrderedDict([(field, hse_model[field]) for field in keys])
         parameters = {"ptype": ptype}
         return cls(hse_model.num_elements, fields, parameters=parameters)
@@ -125,10 +126,10 @@ class VirialEquilibrium(ClusterModel):
         rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
         for i, e in enumerate(self.ee):
             rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e,))[0]
-        chk = (rho-pden)/pden
+        chk = (rho[::-1]-pden)/pden
         mylog.info("The maximum relative deviation of this profile from "
                    "virial equilibrium is %g" % np.abs(chk).max())
-        return rho, chk
+        return rho[::-1], chk
 
     def generate_particles(self, num_particles, r_max=None, sub_sample=1,
                            compute_potential=False):

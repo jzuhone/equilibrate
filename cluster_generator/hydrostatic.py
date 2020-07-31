@@ -161,8 +161,9 @@ class HydrostaticEquilibrium(ClusterModel):
         else:
             tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
         gpot_profile = lambda r: tdens_func(r)*r
-        gpot = YTArray(4.*np.pi*integrate(gpot_profile, rr), "Msun/kpc")
-        fields["gravitational_potential"] = -G*(fields["total_mass"]/fields["radius"] + gpot)
+        gpot1 = fields["total_mass"]/fields["radius"]
+        gpot2 = YTArray(4.*np.pi*integrate(gpot_profile, rr), "Msun/kpc")
+        fields["gravitational_potential"] = -G*(gpot1 + gpot2)
         fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
         if mode != "no_gas":
             mylog.info("Integrating gas mass profile.")
@@ -192,10 +193,11 @@ class HydrostaticEquilibrium(ClusterModel):
         else:
             raise RuntimeError("The total dark matter mass is either zero or negative!!")
 
-        fields["gas_fraction"] = fields["gas_mass"]/fields["total_mass"]
-        fields["electron_number_density"] = fields["density"].to("cm**-3", "number_density",
-                                                                 mu=mue)
-        fields["entropy"] = fields["temperature"]*fields["electron_number_density"]**mtt
+        if mode != "no_gas":
+            fields["gas_fraction"] = fields["gas_mass"]/fields["total_mass"]
+            fields["electron_number_density"] = fields["density"].to("cm**-3", "number_density",
+                                                                     mu=mue)
+            fields["entropy"] = fields["temperature"]*fields["electron_number_density"]**mtt
 
         for field in extra_fields:
             fields[field] = profiles[field](rr)
