@@ -354,26 +354,46 @@ class ClusterParticles(object):
         f.flush()
         f.close()
 
-    def set_field(self, ptype, name, value, units=None):
+    def set_field(self, ptype, name, value, units=None, add=False):
         """
         Add or update a particle field using a YTArray.
-        The array will be checked to make sure that it 
+        The array will be checked to make sure that it
         has the appropriate size.
 
         Parameters
         ----------
         ptype : string
-
-        Set a field with name *name* to value *value*, which is a YTArray.
-        The array will be checked to make sure that it has the appropriate size.
+            The particle type of the field to add or update.
+        name : string
+            The name of the field to add or update.
+        value : YTArray
+            The particle field itself--an array with the same 
+            shape as the number of particles.
+        units : string, optional
+            The units to convert the field to. Default: None,
+            indicating the units will be preserved.
+        add : boolean, optional
+            If True and the field already exists, the values
+            in the array will be added to the already existing
+            field array.
         """
         if not isinstance(value, YTArray):
             raise TypeError("value needs to be a YTArray")
         num_particles = self.num_particles[ptype]
+        exists = (ptype, name) in self.fields
         if value.shape[0] == num_particles:
-            if (ptype, name) in self.fields:
-                mylog.warning("Overwriting field (%s, %s)." % (ptype, name))
-            self.fields[ptype, name] = value
+            if exists:
+                if add:
+                    self.fields[ptype, name] += value
+                else:
+                    mylog.warning(f"Overwriting field ({ptype}, {name}).")
+                    self.fields[ptype, name] = value
+            else:
+                if add:
+                    raise RuntimeError(f"Field ({ptype}, {name}) does not "
+                                       f"exist and add=True!")
+                else:
+                    self.fields[ptype, name] = value
             if units is not None:
                 self.fields[ptype, name].convert_to_units(units)
         else:
