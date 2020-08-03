@@ -11,7 +11,6 @@ from cluster_generator.hydrostatic import \
 from cluster_generator.virial import \
     VirialEquilibrium
 from cluster_generator.cluster_field import \
-    GaussianRandomField, \
     RandomMagneticField, \
     RadialRandomMagneticField, \
     TangentialMagneticField, \
