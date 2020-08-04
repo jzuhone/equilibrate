@@ -237,6 +237,34 @@ class ClusterParticles(object):
             fd.write_hdf5(output_filename, dataset_name=field[1],
                           group_name=field[0])
 
+    def write_gamer_input(self, output_filename, overwrite=True):
+        """
+        Write the particles to an HDF5 file to be read in by the GAMER
+        code.
+
+        Parameters
+        ----------
+        output_filename : string
+            The file to write the particles to.
+        overwrite : boolean, optional
+            Overwrite an existing file with the same name. Default False.
+        """
+        if os.path.exists(output_filename) and not overwrite:
+            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
+        ptypes = ["dm"]
+        if "star" in self.particle_types:
+            ptypes.append("star")
+        nparts = [self.num_particles[ptype] for ptype in ptypes]
+        f = h5py.File(output_filename, "w")
+        for field in self.field_names["dm"]:
+            fd = uconcatenate([self.fields[ptype, field] for ptype in ptypes], axis=0)
+            fd.convert_to_cgs()
+            f.create_dataset(field, data=fd.d)
+        fd = np.concatenate([(i+1)*np.ones_like(nparts[i]) for i, ptype in enumerate(ptypes)])
+        f.create_dataset("particle_type", data=fd)
+        f.flush()
+        f.close()
+
     def __add__(self, other):
         fields = self.fields.copy()
         for field in other.fields:
