@@ -26,6 +26,22 @@ class RadialProfile:
     __radd__ = __add__
     __rmul__ = __mul__
 
+    def add_core(self, r_core, alpha):
+        """
+        Add a small core with radius *r_core* to the profile by
+        multiplying it by 1-exp(-(r/r_core)**alpha).
+
+        Parameters
+        ----------
+        r_core : float 
+            The core radius in kpc. 
+        """
+        def _core(r):
+            x = r/r_core
+            ret = 1.0-np.exp(-x**alpha)
+            return self.profile(r)*ret
+        return RadialProfile(_core)
+
     @classmethod
     def from_array(cls, r, f_r):
         """
