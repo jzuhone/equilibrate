@@ -1,4 +1,4 @@
-from cluster_generator.utils import mylog
+from cluster_generator.utils import mylog, ensure_ytarray
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.virial import VirialEquilibrium
 from cluster_generator.cluster_particles import \
@@ -10,36 +10,63 @@ from cluster_generator.cluster_particles import \
     resample_three_clusters
 import os
 import numpy as np
-
-
-def set_param(value, param_name, param):
-    if param is not None:
-        mylog.warning(f"'{param_name}' has already been set with value {param}. "
-                      f"Overwriting with {value}!")
-    return value
-
-
-def check_for_list(x):
-    if isinstance(x, list):
-        return {i: v for i, v in enumerate(x)}
-    else:
-        return x
-
-
-def format_array(x):
-    return f"{x[0]} {x[1]} {x[2]}"
+from ruamel.yaml import YAML
 
 
 class ClusterICs:
-    def __init__(self, num_halos, hse_files, num_particles,
-                 center, velocity, mag_file=None, resample_file=None):
+    def __init__(self, num_halos, hse_files, center,
+                 velocity, num_particles=None, mag_file=None, 
+                 resample_file=None):
         self.num_halos = num_halos
-        self.hse_files = check_for_list(hse_files)
-        self.num_particles = num_particles
-        self.center = check_for_list(center)
-        self.velocity = check_for_list(velocity)
+        self.hse_files = hse_files
+        self.center = ensure_ytarray(center, "kpc")
+        self.velocity = ensure_ytarray(velocity, "kpc/Myr")
         self.mag_file = mag_file
         self.resample_file = resample_file
+        if num_particles is None:
+            self.tot_np = {"dm": 0, "gas": 0, "star": 0}
+        else:
+            self.tot_np = num_particles
+        self._determine_num_particles()
+
+    def _determine_num_particles(self):
+        from collections import defaultdict
+        dm_masses = []
+        gas_masses = []
+        star_masses = []
+        for hsef in self.hse_files:
+            hse = ClusterModel.from_h5_file(hsef)
+            dm_masses.append(hse["dark_matter_mass"][-1].value)
+            if "gas_mass" in hse:
+                gmass = hse["gas_mass"][-1].value
+            else:
+                gmass = 0.0
+            gas_masses.append(gmass)
+            if "stellar_mass" in hse:
+                smass = hse["stellar_mass"][-1].value
+            else:
+                smass = 0.0
+            star_masses.append(smass)
+        tot_dm_mass = np.sum(dm_masses)
+        tot_gas_mass = np.sum(gas_masses)
+        tot_star_mass = np.sum(star_masses)
+        self.num_particles = defaultdict(list)
+        for i in range(self.num_halos):
+            if self.tot_np["dm"] > 0:
+                ndp = int(self.tot_np["dm"]*dm_masses[i]/tot_dm_mass)
+            else:
+                ndp = 0
+            self.num_particles["dm"].append(ndp)
+            if self.tot_np["gas"] > 0:
+                ngp = int(self.tot_np["gas"]*gas_masses[i]/tot_gas_mass)
+            else:
+                ngp = 0
+            self.num_particles["gas"].append(ngp)
+            if self.tot_np["star"] > 0:
+                nsp = int(self.tot_np["star"]*star_masses[i]/tot_star_mass)
+            else:
+                nsp = 0
+            self.num_particles["star"].append(nsp)
 
     def _generate_particles(self, r_max=None):
         parts = []
@@ -49,15 +76,15 @@ class ClusterICs:
             hse = ClusterModel.from_h5_file(hf)
             vird = VirialEquilibrium.from_hse_model(hse, ptype="dm")
             p = vird.generate_particles(
-                self.num_particles[i+1]["dm"], r_max=r_max)
-            if self.num_particles["star"][i+1] > 0:
+                self.num_particles["dm"][i], r_max=r_max)
+            if self.num_particles["star"][i] > 0:
                 virs = VirialEquilibrium.from_hse_model(hse, ptype="star")
                 sp = virs.generate_particles(
-                    self.num_particles[i+1]["star"], r_max=r_max)
+                    self.num_particles["star"][i], r_max=r_max)
                 p = p + sp
-            if self.num_particles["gas"][i+1] > 0:
+            if self.num_particles["gas"][i] > 0:
                 gp = hse.generate_particles(
-                    self.num_particles[i+1]["star"], r_max=r_max)
+                    self.num_particles["gas"][i], r_max=r_max)
                 p = p + gp
             parts.append(p)
         return parts
@@ -75,156 +102,70 @@ class ClusterICs:
         """
         if os.path.exists(filename) and not overwrite:
             raise RuntimeError(f"{filename} exists and overwrite=False!")
-        outlines = [
-            f"num_halos = {self.num_halos} # number of halos\n",
-            f"profile1 = {self.hse_files[1]} # profile table of cluster 1\n",
-            f"center1 = {format_array(self.center[1])} # center of cluster 1 in kpc\n",
-            f"velocity1 = {format_array(self.velocity[1])} # velocity of cluster 1 in km/s\n"
-        ]
-        if self.num_particles[1]['dm'] > 0:
-            outlines.append(
-                f"num_dm_particles1 = {self.num_particles[1]['dm']} # number of dm particles for cluster 1\n"
-            )
-        if self.num_particles[1]['gas'] > 0:
-            outlines.append(
-                f"num_gas_particles1 = {self.num_particles[1]['gas']} # number of gas particles for cluster 1\n"
-                )
-        if self.num_particles[1]['star'] > 0:
-            outlines.append(
-                f"num_star_particles1 = {self.num_particles[1]['star']} # number of star particles for cluster 1\n"
-                )
+        from ruamel.yaml.comments import CommentedMap
+        out = CommentedMap()
+        out["num_halos"] = self.num_halos
+        out.yaml_add_eol_comment("number of halos", key='num_halos')
+        out["profile1"] = self.hse_files[0]
+        out.yaml_add_eol_comment("profile for cluster 1", key='profile1')
+        out["center1"] = self.center[0].tolist()
+        out.yaml_add_eol_comment("center for cluster 1", key='center1')
+        out["velocity1"] = self.velocity[0].tolist()
+        out.yaml_add_eol_comment("velocity for cluster 1", key='velocity1')
         if self.num_halos > 1:
-            outlines += [
-                f"\nprofile2 = {self.hse_files[2]} # profile table of cluster 2\n",
-                f"center2 = {format_array(self.center[2])} # center of cluster 2 in kpc\n",
-                f"velocity2 = {format_array(self.velocity[2])} # velocity of cluster 2 in km/s\n",
-            ]
-            if self.num_particles[2]['dm'] > 0:
-                outlines.append(
-                    f"num_dm_particles2 = {self.num_particles[2]['dm']} # number of dm particles for cluster 2\n"
-                )
-            if self.num_particles[2]['gas'] > 0:
-                outlines.append(
-                    f"num_gas_particles2 = {self.num_particles[2]['gas']} # number of gas particles for cluster 2\n"
-                )
-            if self.num_particles[2]['star'] > 0:
-                outlines.append(
-                    f"num_star_particles2 = {self.num_particles[2]['star']} # number of star particles for cluster 2\n"
-                )
+            out["profile2"] = self.hse_files[1]
+            out.yaml_add_eol_comment("profile for cluster 2", key='profile2')
+            out["center2"] = self.center[1].tolist()
+            out.yaml_add_eol_comment("center for cluster 2", key='center2')
+            out["velocity2"] = self.velocity[1].tolist()
+            out.yaml_add_eol_comment("velocity for cluster 2", key='velocity2')
         if self.num_halos == 3:
-            outlines += [
-                f"\nprofile3 = {self.hse_files[3]} # profile table of cluster 3\n",
-                f"center3 = {format_array(self.center[3])} # center of cluster 3 in kpc\n",
-                f"velocity3 = {format_array(self.velocity[3])} # velocity of cluster 3 in km/s\n"
-            ]
-            if self.num_particles[3]['dm'] > 0:
-                outlines.append(
-                    f"num_dm_particles3 = {self.num_particles[3]['dm']} # number of dm particles for cluster 3\n"
-                )
-            if self.num_particles[3]['gas'] > 0:
-                outlines.append(
-                    f"num_gas_particles3 = {self.num_particles[3]['gas']} # number of gas particles for cluster 3\n"
-                )
-            if self.num_particles[3]['star'] > 0:
-                outlines.append(
-                    f"num_star_particles3 = {self.num_particles[3]['star']} # number of star particles for cluster 3\n"
-                )
+            out["profile3"] = self.hse_files[2]
+            out.yaml_add_eol_comment("profile for cluster 3", key='profile3')
+            out["center3"] = self.center[2].tolist()
+            out.yaml_add_eol_comment("center for cluster 3", key='center3')
+            out["velocity3"] = self.velocity[2].tolist()
+            out.yaml_add_eol_comment("velocity for cluster 3", key='velocity3')
+        if self.tot_np["dm"] > 0:
+            out["num_dm_particles"] = self.tot_np["dm"]
+            out.yaml_add_eol_comment("number of DM particles", key='num_dm_particles')
+        if self.tot_np["gas"] > 0:
+            out["num_gas_particles"] = self.tot_np["gas"]
+            out.yaml_add_eol_comment("number of gas particles", key='num_gas_particles')
+        if self.tot_np["star"] > 0:
+            out["num_star_particles"] = self.tot_np["star"]
+            out.yaml_add_eol_comment("number of star particles", key='num_star_particles')
         if self.mag_file is not None:
-            outlines.append(f"\nmag_file = {self.mag_file} # 3D magnetic field file\n")
+            out["mag_file"] = self.mag_file
+            out.yaml_add_eol_comment("3D magnetic field file", key='mag_file')
         if self.resample_file is not None:
-            outlines.append(f"\nresample_file = {self.resample_file} # Gadget file for resampling\n")
+            out["resample_file"] = self.resample_file
+            out.yaml_add_eol_comment("Gadget resampling file", key='resample_file')
+        yaml = YAML()
         with open(filename, "w") as f:
-            f.writelines(outlines)
+            yaml.dump(out, f)
 
     @classmethod
     def from_file(cls, filename):
         r"""
         Read the initial conditions information
-        from an appropriately formatted *filename*.
+        from a YAML-formatted *filename*.
         """
-        f = open(filename, "r")
-        lines = f.readlines()
-        f.close()
-        num_halos = None
-        hse_files = {1: None, 2: None, 3: None}
-        num_particles = {i: {ptype: None for ptype in ["dm", "star", "gas"]}
-                         for i in range(1, 4)}
-        center = {1: None, 2: None, 3: None}
-        velocity = {1: None, 2: None, 3: None}
-        mag_file = None
-        resample_file = None
-        for line in lines:
-            words = line.strip().split()
-            if words[0].startswith("#"):
-                continue
-            elif len(words) == 3:
-                if words[0] == "num_halos":
-                    num_halos = set_param("num_halos", int(words[2]), num_halos)
-                elif words[0] == "hse_file1":
-                    hse_files[1] = set_param("hse_file1", words[2], hse_files[1])
-                elif words[0] == "hse_file2" and num_halos > 1:
-                    hse_files[2] = set_param("hse_file2", words[2], hse_files[2])
-                elif words[0] == "hse_file3" and num_halos > 2:
-                    hse_files[3] = set_param("hse_file3", words[2], hse_files[3])
-                elif words[0] == "num_dm_particles1":
-                    num_particles[1]["dm"] = set_param("num_dm_particles1", int(words[2]), 
-                                                       num_particles[1]["dm"])
-                elif words[0] == "num_dm_particles2":
-                    num_particles[2]["dm"] = set_param("num_dm_particles2", int(words[2]),
-                                                       num_particles[2]["dm"])
-                elif words[0] == "num_dm_particles3":
-                    num_particles[3]["dm"] = set_param("num_dm_particles3", int(words[2]),
-                                                       num_particles[3]["dm"])
-                elif words[0] == "num_gas_particles1":
-                    num_particles[1]["gas"] = set_param("num_gas_particles1", int(words[2]),
-                                                        num_particles[1]["gas"])
-                elif words[0] == "num_gas_particles2":
-                    num_particles[2]["gas"] = set_param("num_gas_particles2", int(words[2]),
-                                                        num_particles[2]["gas"])
-                elif words[0] == "num_gas_particles3":
-                    num_particles[3]["gas"] = set_param("num_gas_particles3", int(words[2]),
-                                                        num_particles[3]["gas"])
-                elif words[0] == "num_star_particles1":
-                    num_particles[1]["star"] = set_param("num_star_particles1", int(words[2]),
-                                                         num_particles[1]["star"])
-                elif words[0] == "num_star_particles2":
-                    num_particles[2]["star"] = set_param("num_star_particles2", int(words[2]),
-                                                         num_particles[2]["star"])
-                elif words[0] == "num_star_particles3":
-                    num_particles[3]["star"] = set_param("num_star_particles3", int(words[2]),
-                                                         num_particles[3]["star"])
-                elif words[0] == "mag_file":
-                    mag_file = set_param("mag_file", words[2], mag_file)
-                elif words[0] == "resample_file":
-                    resample_file = set_param("resample_file", words[2], resample_file)
-            elif len(words) == 5:
-                if words[0] == "center1":
-                    center[1] = set_param(
-                        "center1", np.array(words[2:]).astype("float64"),
-                        center[1])
-                if words[0] == "center2":
-                    center[2] = set_param(
-                        "center2", np.array(words[2:]).astype("float64"),
-                        center[2])
-                if words[0] == "center3":
-                    center[3] = set_param(
-                        "center3", np.array(words[2:]).astype("float64"),
-                        center[3])
-                if words[0] == "velocity1":
-                    velocity[1] = set_param(
-                        "velocity1", np.array(words[2:]).astype("float64"),
-                        velocity[1])
-                if words[0] == "velocity2":
-                    velocity[2] = set_param(
-                        "velocity2", np.array(words[2:]).astype("float64"),
-                        velocity[2])
-                if words[0] == "velocity3":
-                    velocity[3] = set_param(
-                        "velocity3", np.array(words[2:]).astype("float64"),
-                        velocity[3])
-
-        return cls(num_halos, hse_files, num_particles,
-                   center, velocity, mag_file=mag_file)
+        from ruamel.yaml import YAML
+        yaml = YAML()
+        with open(filename, "r") as f:
+            params = yaml.load(f)
+        num_halos = params["num_halos"]
+        hse_files = [params[f"profile{i}"] for i in range(1, 4)]
+        center = [np.array(params[f"center{i}"]) for i in range(1, 4)]
+        velocity = [np.array(params[f"velocity{i}"]) for i in range(1, 4)]
+        num_particles = {k: params.get(f"num_{k}_particles", 0)
+                         for k in ["gas", "dm", "star"]}
+        mag_file = params.get("mag_file", None)
+        resample_file = params.get("resample_file", None)
+        return cls(num_halos, hse_files, center, velocity, 
+                   num_particles=num_particles, mag_file=mag_file, 
+                   resample_file=resample_file)
 
     def setup_gamer_ics(self, input_testprob, particle_file_prefix,
                         overwrite=False):
@@ -249,24 +190,20 @@ class ClusterICs:
             "# problem-specific runtime parameters\n",
             f"Merger_Coll_NumHalos    {self.num_halos} # number of halos\n"
         ]
-        for i in range(1, self.num_halos+1):
+        for i in range(self.num_halos):
             particle_file = f"{particle_file_prefix}_parts{i}.h5"
-            parts[i-1].write_gamer_input(particle_file)
+            parts[i].write_gamer_input(particle_file)
             outlines += [
-                f"Merger_File_Prof{i}       {self.hse_files[i]} # profile table of cluster {i}\n",
-                f"Merger_File_Par{i}        {particle_file} # particle file of cluster {i}\n",
-                f"Merger_Coll_PosX{i}       {self.center[i][0]} # X-center of cluster {i} in kpc\n",
-                f"Merger_Coll_PosY{i}       {self.center[i][1]} # Y-center of cluster {i} in kpc\n",
-                f"Merger_Coll_VelX{i}       {self.velocity[i][0]} # X-velocity of cluster {i} in km/s\n",
-                f"Merger_Coll_VelY{i}       {self.velocity[i][1]} # Y-velocity of cluster {i} in km/s\n",
+                f"Merger_File_Prof{i+1}       {self.hse_files[i]} # profile table of cluster {i}\n",
+                f"Merger_File_Par{i+1}        {particle_file} # particle file of cluster {i}\n",
+                f"Merger_Coll_PosX{i+1}       {self.center[i][0]} # X-center of cluster {i} in kpc\n",
+                f"Merger_Coll_PosY{i+1}       {self.center[i][1]} # Y-center of cluster {i} in kpc\n",
+                f"Merger_Coll_VelX{i+1}       {self.velocity[i][0]} # X-velocity of cluster {i} in km/s\n",
+                f"Merger_Coll_VelY{i+1}       {self.velocity[i][1]} # Y-velocity of cluster {i} in km/s\n",
             ]
         with open(input_testprob, "w") as f:
             f.writelines(outlines)
-        num_particles = 0
-        for i in range(1, self.num_halos+1):
-            for key in ["dm", "star"]:
-                if self.num_particles[i][key] is not None:
-                    num_particles += self.num_particles[i][key]
+        num_particles = sum([self.tot_np[key] for key in ["dm", "star"]])
         mylog.info(f"In the Input__Parameter file, set PAR__NPAR = {num_particles}.")
         if self.mag_file is not None:
             mylog.info(f"Rename the file '{self.mag_file}' to 'B_IC' "
@@ -315,15 +252,15 @@ class ClusterICs:
             all_parts = parts[0]
         elif self.num_halos == 2:
             all_parts = combine_two_clusters(parts[0], parts[1], hses[0],
-                                             hses[1], self.center[1], 
-                                             self.center[2], self.velocity[1],
-                                             self.velocity[2])
+                                             hses[1], self.center[0],
+                                             self.center[1], self.velocity[0],
+                                             self.velocity[1])
         else:
             all_parts = combine_three_clusters(parts[0], parts[1], parts[2],
-                                               hses[0], hses[1], hses[2], 
-                                               self.center[1], self.center[2], 
-                                               self.center[3], self.velocity[1],
-                                               self.velocity[2], self.velocity[3])
+                                               hses[0], hses[1], hses[2],
+                                               self.center[0], self.center[1],
+                                               self.center[2], self.velocity[0],
+                                               self.velocity[1], self.velocity[2])
         all_parts.write_to_gadget_file(filename, box_size, dtype=dtype,
                                        overwrite=overwrite)
 
@@ -358,18 +295,24 @@ class ClusterICs:
                           "parameter file for this operation!")
         parts = ClusterParticles.from_gadget_file(self.resample_file)
         if self.num_halos == 1:
-            new_parts = resample_one_cluster(parts, hses[0], self.center[1],
-                                             self.velocity[1])
+            new_parts = resample_one_cluster(parts, hses[0], self.center[0],
+                                             self.velocity[0])
         elif self.num_halos == 2:
             new_parts = resample_two_clusters(parts, hses[0], hses[1],
-                                              self.center[1], self.center[2],
-                                              self.velocity[1], self.velocity[2],
+                                              self.center[0], self.center[1],
+                                              self.velocity[0], self.velocity[1],
                                               [r_max]*2)
         else:
             new_parts = resample_three_clusters(parts, hses[0], hses[1], hses[2],
-                                                self.center[1], self.center[2],
-                                                self.center[3], self.velocity[1], 
-                                                self.velocity[2], self.velocity[3], 
+                                                self.center[0], self.center[1],
+                                                self.center[2], self.velocity[0], 
+                                                self.velocity[1], self.velocity[2], 
                                                 [r_max]*3)
         new_parts.write_to_gadget_file(filename, parts.box_size, dtype=dtype,
                                        overwrite=overwrite)
+
+    def setup_flash_ics(self):
+        pass
+
+    def setup_athena_ics(self):
+        pass
