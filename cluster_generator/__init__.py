@@ -13,10 +13,8 @@ from cluster_generator.virial import \
 from cluster_generator.cluster_field import \
     RandomMagneticField, \
     RadialRandomMagneticField, \
-    TangentialMagneticField, \
     RandomMagneticVectorPotential, \
     RadialRandomMagneticVectorPotential, \
-    TangentialMagneticVectorPotential, \
     RandomVelocityField
 from cluster_generator.radial_profiles import \
     snfw_density_profile, snfw_mass_profile, \
