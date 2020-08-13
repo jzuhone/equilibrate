@@ -1,4 +1,4 @@
-from yt import YTArray, uconcatenate, load_particles
+from yt import YTArray, YTQuantity, uconcatenate, load_particles
 from collections import OrderedDict, defaultdict
 from yt.funcs import ensure_list
 from scipy.interpolate import InterpolatedUnivariateSpline
@@ -197,20 +197,62 @@ class ClusterParticles(object):
                 self.fields[pt, field] = self.fields[pt, field][cidx]
         self._update_num_particles()
 
-    def add_black_hole(self, bh_mass, pos=[0.0,0.0,0.0], vel=[0.0,0.0,0.0],
+    def add_black_hole(self, bh_mass, pos=None, vel=None,
                        use_pot_min=False):
+        r"""
+        Add a black hole particle to the set of cluster
+        particles.
+
+        Parameters
+        ----------
+        bh_mass : float
+            The mass of the black hole particle in solar masses.
+        pos : array-like, optional
+            The position of the particle, assumed to be in units of
+            kpc if units are not given. If use_pot_min=True this
+            argument is ignored. Default: None, in which case the 
+            particle position is [0.0, 0.0, 0.0] kpc. 
+        vel : array-like, optional
+            The velocity of the particle, assumed to be in units of
+            kpc/Myr if units are not given. If use_pot_min=True this
+            argument is ignored. Default: None, in which case the 
+            particle velocity is [0.0, 0.0, 0.0] kpc/Myr. 
+        use_pot_min : boolean, optional 
+            If True, use the dark matter particle with the minimum
+            value of the gravitational potential to determine the 
+            position and velocity of the black hole particle. Default:
+            False
+        """
+        mass = YTQuantity(bh_mass, "Msun")
         self.fields["black_hole", "particle_mass"] = YTArray([bh_mass], "Msun")
         if use_pot_min:
             idx = np.argmin(self.fields["dm", "potential_energy"])
-            for fd in ["particle_position", "particle_velocity"]: 
-                self.fields["black_hole", fd] = YTArray(self.fields["dm", fd][i])
+            pos = YTArray(self.fields["dm", "particle_position"][idx]).reshape(1,3)
+            vel = YTArray(self.fields["dm", "particle_velocity"][idx]).reshape(1,3)
         else:
-            self.fields["black_hole", "particle_position"] = YTArray(pos, "kpc")
-            self.fields["black_hole", "particle_velocity"] = YTArray(vel, "kpc/Myr")
-        self.particle_types.append("black_hole")
+            if pos is None:
+                pos = YTArray(np.zeros((1,3)), "kpc")
+            if vel is None:
+                vel = YTArray(np.zeros((1,3)), "kpc/Myr")
+            pos = ensure_ytarray(pos, "kpc")
+            vel = ensure_ytarray(vel, "kpc/Myr")
+        if "black_hole" not in self.particle_types:
+            self.particle_types.append("black_hole")
+            self.fields["black_hole", "particle_position"] = pos
+            self.fields["black_hole", "particle_velocity"] = vel
+            self.fields["black_hole", "particle_mass"] = mass
+        else:
+            uappend = lambda x, y: YTArray(np.append(x, y, axis=0).v, x.units)
+            self.fields["black_hole", "particle_position"] = uappend(
+                self.fields["black_hole", "particle_position"], pos)
+            self.fields["black_hole", "particle_velocity"] = uappend(
+                self.fields["black_hole", "particle_velocity"], vel)
+            self.fields["black_hole", "particle_mass"] = uappend(
+                self.fields["black_hole", "particle_mass"], mass)
         self._update_num_particles()
 
-    def write_particles_to_h5(self, output_filename, in_cgs=False, overwrite=False):
+    def write_particles_to_h5(self, output_filename, in_cgs=False, 
+                              overwrite=False):
         """
         Write the particles to an HDF5 file.
 
