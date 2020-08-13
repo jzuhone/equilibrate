@@ -211,41 +211,25 @@ class ClusterICs:
                        f"Input__* files, and set OPT__INIT_BFIELD_BYFILE "
                        f"to 1 in Input__Parameter")
 
-    def setup_gadget_ics(self, filename, box_size, r_max=5000.0,
-                         dtype='float32', overwrite=False):
+    def setup_particle_ics(self, r_max=5000.0):
         r"""
-        From a set of initial conditions, set up an initial conditions
-        file for use with the Gadget code or one of its derivatives
-        (GIZMO, Arepo, etc.). Specifically, the output of this routine
-        is a HDF5 file in "snapshot" format suitable for use as an
-        initial condition.
+        From a set of cluster models and their relative positions and
+        velocities, set up initial conditions for use with SPH codes.
 
-        This routine will either write a single cluster or will combine
+        This routine will either generate a single cluster or will combine
         two or three clusters together. If more than one cluster is 
-        written, the gas particles will have their densities set by 
+        generated, the gas particles will have their densities set by 
         adding the densities from the overlap of the two particles 
         together, and will have their thermal energies and velocities 
         set by mass-weighting them from the two profiles.
 
         Parameters
         ----------
-        filename : string
-            The file to be written to. 
-        box_size : float
-            The box size in which the initial conditions will be placed
-            in units of kpc.
         r_max : float, optional
             The maximum radius in kpc for each cluster to which the 
             resampling from the profiles occurs. Ignored in the case
             of a single cluster. Default: 5000.0
-        dtype : string, optional
-            The datatype of the fields to be written. Default: float32
-        overwrite : boolean, optional
-            If True, a file of the same name will be overwritten. 
-            Default: False
         """
-        if os.path.exists(filename) and not overwrite:
-            raise RuntimeError(f"{filename} exists and overwrite=False!")
         hses = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
         parts = self._generate_particles(r_max=r_max)
         if self.num_halos == 1:
@@ -261,8 +245,7 @@ class ClusterICs:
                                                self.center[0], self.center[1],
                                                self.center[2], self.velocity[0],
                                                self.velocity[1], self.velocity[2])
-        all_parts.write_to_gadget_file(filename, box_size, dtype=dtype,
-                                       overwrite=overwrite)
+        return all_parts
 
     def resample_gadget_ics(self, filename, dtype='float32', r_max=5000.0,
                             overwrite=False):
