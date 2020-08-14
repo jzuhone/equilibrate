@@ -18,7 +18,29 @@ class VirialEquilibrium(ClusterModel):
     @classmethod
     def from_scratch(cls, rmin, rmax, total_profile, ptype='dark_matter',
                      num_points=1000, stellar_profile=None):
+        r"""
+        Generate a virial equilibrium model for a spherically symmetric
+        dark matter / stellar halo from a total density profile,
+        assuming no gas is present.
 
+        Parameters
+        ----------
+        rmin : float
+            The minimum radius of the halo profile.
+        rmax : float
+            The maximum radius of the halo profile.
+        total_profile : :class:`~cluster_generator.radial_profiles.RadialProfile`
+            The total density profile of the halo.
+        ptype : string, optional
+            The type of the particles which can be generated from this 
+            object, either "dark_matter" or "stellar". Default: "dark_matter"
+        num_points : integer, optional
+            The number of points along the radial profile of the halo.
+            Default: 1000
+        stellar_profile : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+            If set, this profile will serve as the stellar density profile.
+            Default: None
+        """
         profiles = {"total_density": total_profile}
         if stellar_profile is not None:
             profiles["stellar_density"] = stellar_profile
@@ -28,13 +50,24 @@ class VirialEquilibrium(ClusterModel):
         return cls.from_hse_model(hse, ptype=ptype)
 
     @classmethod
-    def from_hse_model(cls, hse_model, ptype='dark_matter', omit_gas=False):
+    def from_hse_model(cls, hse_model, ptype='dark_matter'):
+        r"""
+        Generate a virial equilibrium model from a hydrostatic 
+        equilibrium model.
+
+        Parameters
+        ----------
+        hse_model : :class:`~cluster_generator.hydrostatic.HydrostaticEquilibrium`
+            The hydrostatic equilibrium model which will be used to
+            construct the virial equilibrium model.
+        ptype : string, optional
+            The type of the particles which can be generated from this
+            object, either "dark_matter" or "stellar". Default: "dark_matter"
+        """
         keys = ["radius", "%s_density" % ptype, "%s_mass" % ptype,
-                "gravitational_potential", "gravitational_field"]
+                "total_density", "total_mass", "gravitational_potential",
+                "gravitational_field"]
         fields = OrderedDict([(field, hse_model[field]) for field in keys])
-        if omit_gas:
-            fields["%s_density" % ptype] = hse_model["total_density"]
-            fields["%s_mass" % ptype] = hse_model["total_mass"]
         parameters = {"ptype": ptype}
         return cls(hse_model.num_elements, fields, parameters=parameters)
 
@@ -72,16 +105,31 @@ class VirialEquilibrium(ClusterModel):
         return self["distribution_function"].d[::-1]
 
     def check_model(self):
+        r"""
+        Computes the radial density profile for the collisionless 
+        particles computed from integrating over the distribution 
+        function, and the relative difference between this and the 
+        input density profile.
+
+        Returns
+        -------
+        rho : NumPy array
+            The density profile computed from integrating the
+            distribution function. 
+        chk : NumPy array
+            The relative difference between the input density
+            profile and the one calculated using this method.
+        """
         n = self.num_elements
         rho = np.zeros(n)
         pden = self["%s_density" % self.parameters['ptype']].d
         rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
         for i, e in enumerate(self.ee):
             rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e,))[0]
-        chk = np.abs(rho-pden)/pden
+        chk = (rho[::-1]-pden)/pden
         mylog.info("The maximum relative deviation of this profile from "
                    "virial equilibrium is %g" % np.abs(chk).max())
-        return rho, chk
+        return rho[::-1], chk
 
     def generate_particles(self, num_particles, r_max=None, sub_sample=1,
                            compute_potential=False):
@@ -97,12 +145,18 @@ class VirialEquilibrium(ClusterModel):
             particle positions. If not supplied, it will generate
             positions out to the maximum radius available. Default: None
         sub_sample : integer, optional
-            This option allows one to generate a sub-sample of unique 
+            This option allows one to generate a sub-sample of unique
             particle radii and velocities which will then be repeated
-            to fill the required number of particles. Default: 1 
+            to fill the required number of particles. Default: 1, which
+            means no sub-sampling.
         compute_potential : boolean, optional
             If True, the gravitational potential for each particle will
             be computed. Default: False
+
+        Returns
+        -------
+        particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+            A set of dark matter or star particles.
         """
         num_particles_sub = num_particles // sub_sample
         ptype = self.parameters["ptype"]

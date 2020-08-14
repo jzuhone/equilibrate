@@ -75,6 +75,9 @@ class ClusterModel(metaclass=RegisteredClusterModel):
     def __getitem__(self, key):
         return self.fields[key]
 
+    def __contains__(self, key):
+        return key in self.fields
+
     def keys(self):
         return self.fields.keys()
 

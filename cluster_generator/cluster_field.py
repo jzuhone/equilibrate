@@ -4,6 +4,7 @@ from cluster_generator.utils import mylog
 import os
 from cluster_generator.cluster_model import ClusterModel
 
+
 def parse_value(value, default_units):
     if isinstance(value, YTArray):
         val = YTArray(value.v, value.units).in_units(default_units)
@@ -33,16 +34,22 @@ class ClusterField:
     _units = "dimensionless"
     _name = "vector"
 
-    def __init__(self, left_edge, right_edge, ddims, vector_potential=False,
-                 divergence_clean=False):
+    def __init__(self, left_edge, right_edge, ddims, padding=0.1, 
+                 vector_potential=False, divergence_clean=False):
 
-        self.left_edge = parse_value(left_edge, "kpc").v
-        self.right_edge = parse_value(right_edge, "kpc").v
-        self.ddims = ddims
+        ddims = np.array(ddims).astype("int")
+        left_edge = parse_value(left_edge, "kpc").v
+        right_edge = parse_value(right_edge, "kpc").v
+        width = right_edge-left_edge
+        deltas = width/ddims
+        pad_dims = (2*np.ceil(0.5*padding*ddims)).astype("int")
+        self.left_edge = left_edge - 0.5*pad_dims*deltas 
+        self.right_edge = right_edge + 0.5*pad_dims*deltas
+        self.ddims = ddims + pad_dims
         self.vector_potential = vector_potential
         self.divergence_clean = divergence_clean
         self.comps = ["{}_{}".format(self._name, ax) for ax in "xyz"]
-        self.dx, self.dy, self.dz = (self.right_edge-self.left_edge)/self.ddims
+        self.dx, self.dy, self.dz = deltas
 
     def _compute_coords(self):
         nx, ny, nz = self.ddims
@@ -173,8 +180,27 @@ class ClusterField:
         else:
             return self._units
 
-    def write_to_h5(self, filename, in_cgs=False, overwrite=False, length_unit=None,
-                    field_unit=None):
+    def write_to_h5(self, filename, in_cgs=False, overwrite=False, 
+                    length_unit=None, field_unit=None):
+        r"""
+        Write the 3D field to an HDF5 file. The coordinates of
+        the cells along the different axes are also written.
+
+        Parameters
+        ----------
+        filename : string
+            The name of the file to write the fields to.
+        in_cgs : boolean, optional
+            If True, the field and the coordinates are written
+            in cgs units. Default: False, which means that "galactic"
+            units are used.
+        overwrite : boolean, optional
+            Overwrite an existing file with the same name. Default False.
+        length_unit : string, optional
+            The length unit (affects coordinates and potential fields). 
+            Default: None, which uses "kpc" unless "cgs" units are set.
+        field_unit : string, optional 
+        """
         import h5py
         if length_unit is None:
             length_unit = "kpc"
@@ -202,7 +228,24 @@ class ClusterField:
         f.flush()
         f.close()
 
-    def map_field_to_particles(self, cluster_particles, ptype="gas", units=None):
+    def map_field_to_particles(self, cluster_particles,
+                               ptype="gas", units=None):
+        r"""
+        Map the 3D field to a set of particles, creating new
+        particle fields. This uses tri-linear interpolation. 
+
+        Parameters
+        ----------
+        cluster_particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+            The ClusterParticles object which will have new
+            fields added.
+        ptype : string, optional
+            The particle type to add the new fields to. Default:
+            "gas", which will almost always be the case.
+        units : string, optional
+            Change the units of the field. Default: None, which
+            implies they will remain in "galactic" units. 
+        """
         from scipy.interpolate import RegularGridInterpolator
         v = np.zeros((cluster_particles.num_particles[ptype], 3))
         for i, ax in enumerate("xyz"):
@@ -216,14 +259,16 @@ class ClusterField:
 
 class GaussianRandomField(ClusterField):
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 alpha=-11./3., g_rms=1.0, ctr1=None, ctr2=None, r1=None,
-                 r2=None, g1=None, g2=None, vector_potential=False,
+                 padding=0.1, alpha=-11./3., g_rms=1.0, ctr1=None,
+                 ctr2=None, ctr3=None, r1=None, r2=None, r3=None, 
+                 g1=None, g2=None, g3=None, vector_potential=False, 
                  divergence_clean=False, prng=None):
 
         if prng is None:
             prng = np.random
 
-        super(GaussianRandomField, self).__init__(left_edge, right_edge, ddims, 
+        super(GaussianRandomField, self).__init__(left_edge, right_edge, ddims,
+                                                  padding=padding,
                                                   vector_potential=vector_potential,
                                                   divergence_clean=divergence_clean)
 
@@ -234,6 +279,8 @@ class GaussianRandomField(ClusterField):
             num_halos += 1
         if r2 is not None:
             num_halos += 1
+        if r3 is not None:
+            num_halos += 1
 
         if num_halos >= 1:
             if ctr1 is None:
@@ -242,12 +289,18 @@ class GaussianRandomField(ClusterField):
                 ctr1 = parse_value(ctr1, "kpc").v
             r1 = parse_value(r1, "kpc").v
             g1 = parse_value(g1, self._units)
-        if num_halos == 2:
+        if num_halos >= 2:
             if ctr2 is None:
                 raise RuntimeError("Need to specify 'ctr2' for the second halo!")
             ctr2 = parse_value(ctr2, "kpc").v
             r2 = parse_value(r2, "kpc").v
             g2 = parse_value(g2, self._units)
+        if num_halos == 3:
+            if ctr3 is None:
+                raise RuntimeError("Need to specify 'ctr3' for the second halo!")
+            ctr3 = parse_value(ctr3, "kpc").v
+            r3 = parse_value(r3, "kpc").v
+            g3 = parse_value(g3, self._units)
 
         # Derived stuff
 
@@ -304,7 +357,7 @@ class GaussianRandomField(ClusterField):
         gx /= g_avg
         gy /= g_avg
         gz /= g_avg
-        
+
         x, y, z = self._compute_coords()
 
         if num_halos == 0:
@@ -317,12 +370,18 @@ class GaussianRandomField(ClusterField):
                 idxs1 = np.searchsorted(r1, rr1) - 1
                 dr1 = (rr1-r1[idxs1])/(r1[idxs1+1]-r1[idxs1])
                 g_rms = ((1.-dr1)*g1[idxs1] + dr1*g1[idxs1+1])**2
-            if num_halos == 2:
+            if num_halos >= 2:
                 mylog.info("Scaling the fields by cluster 2.")
                 rr2 = np.sqrt((x-ctr2[0])**2 + (y-ctr2[1])**2 + (z-ctr2[2])**2)
                 idxs2 = np.searchsorted(r2, rr2) - 1
                 dr2 = (rr2-r2[idxs2])/(r2[idxs2+1]-r2[idxs2])
                 g_rms += ((1.-dr2)*g2[idxs2] + dr2*g2[idxs2+1])**2
+            if num_halos == 3:
+                mylog.info("Scaling the fields by cluster 3.")
+                rr3 = np.sqrt((x-ctr3[0])**2 + (y-ctr3[1])**2 + (z-ctr3[2])**2)
+                idxs3 = np.searchsorted(r3, rr3) - 1
+                dr3 = (rr3-r3[idxs3])/(r3[idxs3+1]-r3[idxs3])
+                g_rms += ((1.-dr3)*g3[idxs3] + dr3*g3[idxs3+1])**2
             g_rms = np.sqrt(g_rms).in_units(self._units).d
 
         gx *= g_rms
@@ -360,10 +419,10 @@ class RandomMagneticField(GaussianRandomField):
     _vector_potential = False
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 B_rms, alpha=-11./3., prng=None):
+                 B_rms, padding=0.1, alpha=-11./3., prng=None):
         super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
-            l_min, l_max, alpha=alpha, divergence_clean=True, g_rms=B_rms,
-            vector_potential=self._vector_potential, prng=prng)
+            l_min, l_max, padding=padding, alpha=alpha, divergence_clean=True, 
+            g_rms=B_rms, vector_potential=self._vector_potential, prng=prng)
 
 
 class RadialRandomMagneticField(GaussianRandomField):
@@ -372,8 +431,8 @@ class RadialRandomMagneticField(GaussianRandomField):
     _vector_potential = False
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 ctr1, profile1, ctr2=None, profile2=None, 
-                 alpha=-11./3., prng=None):
+                 ctr1, profile1, padding=0.1, ctr2=None, profile2=None, 
+                 ctr3=None, profile3=None, alpha=-11./3., prng=None):
         if isinstance(profile1, ClusterModel):
             r1 = profile1["radius"].to_value("kpc")
             B1 = profile1["magnetic_field_strength"]
@@ -395,66 +454,28 @@ class RadialRandomMagneticField(GaussianRandomField):
                                        group_name="fields")
             else:
                 r2, B2 = profile2
-        super(RadialRandomMagneticField, self).__init__(
-              left_edge, right_edge, ddims, l_min, l_max, alpha=alpha, 
-              ctr1=ctr1, ctr2=ctr2, r1=r1, r2=r2, g1=B1, g2=B2, 
-              divergence_clean=True, vector_potential=self._vector_potential, 
-              prng=prng)
-
-
-class TangentialMagneticField(ClusterField):
-    _units = "gauss"
-    _name = "magnetic_field"
-    _vector_potential = False
-
-    def __init__(self, left_edge, right_edge, ddims, B_mag, m=2.0, ctr=None, radius=None):
-        super(TangentialMagneticField, self).__init__(
-            left_edge, right_edge, ddims, vector_potential=self._vector_potential,
-            divergence_clean=True)
-        if ctr is None:
-            ctr = 0.5*(self.left_edge+self.right_edge)
         else:
-            ctr = parse_value(ctr, "kpc").v
-
-        x, y, z = self._compute_coords()
-
-        r = np.sqrt((x-ctr[0])**2+(y-ctr[1])**2+(z-ctr[2])**2)
-
-        self.x = x[:,0,0]
-        self.y = y[0,:,0]
-        self.z = z[0,0,:]
-
-        sin_theta = np.sqrt((x-ctr[0])**2+(y-ctr[1])**2)/r
-        cos_theta = (z-ctr[2])/r
-        sin_2theta = 2.0*sin_theta*cos_theta
-        sin_phi = (y-ctr[1])/(r*sin_theta)
-        cos_phi = (x-ctr[0])/(r*sin_theta)
-        phi = np.angle(cos_phi+1j*sin_phi)
-        phi[phi < 0.0] += 2.0*np.pi
-
-        del x, y, z
-
-        g_theta = sin_theta*np.cos(m*phi)
-        g_phi = -sin_2theta*np.sin(m*phi)/m
-
-        self.gx = B_mag*(g_theta*cos_theta*cos_phi-g_phi*sin_phi)
-        self.gy = B_mag*(g_theta*cos_theta*sin_phi+g_phi*cos_phi)
-        self.gz = -B_mag*g_theta*sin_theta
-
-        if radius is not None:
-            radius = parse_value(radius, "kpc").v
-            self.gx[r > radius] = 0.0
-            self.gy[r > radius] = 0.0
-            self.gz[r > radius] = 0.0
-
-        del r
-
-        kx, ky, kz = self._compute_waves()
-
-        self._divergence_clean(kx, ky, kz)
-
-        if self.vector_potential:
-            self._compute_vector_potential(kx, ky, kz)
+            r2 = None
+            B2 = None
+        if profile3 is not None:
+            if isinstance(profile3, ClusterModel):
+                r3 = profile3["radius"].to_value("kpc")
+                B3 = profile3["magnetic_field_strength"]
+            elif isinstance(profile3, str):
+                r3 = YTArray.from_hdf5(profile3, dataset_name="radius",
+                                       group_name="fields").to('kpc').d
+                B3 = YTArray.from_hdf5(profile3, dataset_name="magnetic_field_strength",
+                                       group_name="fields")
+            else:
+                r3, B3 = profile3
+        else:
+            r3 = None
+            B3 = None
+        super(RadialRandomMagneticField, self).__init__(
+              left_edge, right_edge, ddims, l_min, l_max, padding=padding,
+              alpha=alpha, ctr1=ctr1, ctr2=ctr2, ctr3=ctr3, r1=r1, r2=r2, 
+              r3=r3, g1=B1, g2=B2, g3=B3, divergence_clean=True, 
+              vector_potential=self._vector_potential, prng=prng)
 
 
 class RandomMagneticVectorPotential(RandomMagneticField):
@@ -467,20 +488,15 @@ class RadialRandomMagneticVectorPotential(RadialRandomMagneticField):
     _vector_potential = True
 
 
-class TangentialMagneticVectorPotential(TangentialMagneticField):
-    _name = "magnetic_vector_potential"
-    _vector_potential = True
-
-
 class RandomVelocityField(GaussianRandomField):
     _units = "kpc/Myr"
     _name = "velocity"
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 V_rms, alpha=-11./3., divergence_clean=False,
+                 V_rms, padding=0.1, alpha=-11./3., divergence_clean=False,
                  prng=None):
         super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims, 
-            l_min, l_max, g_rms=V_rms, alpha=alpha, prng=prng,
+            l_min, l_max, padding=padding, g_rms=V_rms, alpha=alpha, prng=prng,
             divergence_clean=divergence_clean)
 
 
@@ -489,9 +505,9 @@ class RadialRandomVelocityField(GaussianRandomField):
     _name = "velocity"
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 ctr1, profile1, ctr2=None, profile2=None,
-                 alpha=-11./3., divergence_clean=False,
-                 prng=None):
+                 ctr1, profile1, padding=0.1, ctr2=None, profile2=None,
+                 ctr3=None, profile3=None, alpha=-11./3., 
+                 divergence_clean=False, prng=None):
         if isinstance(profile1, ClusterModel):
             r1 = profile1["radius"].to_value("kpc")
             V1 = profile1["velocity_dispersion"]
@@ -513,6 +529,24 @@ class RadialRandomVelocityField(GaussianRandomField):
                                        group_name="fields")
             else:
                 r2, V2 = profile2
+        else:
+            r2 = None
+            V2 = None
+        if profile3 is not None:
+            if isinstance(profile3, ClusterModel):
+                r3 = profile3["radius"].to_value("kpc")
+                V3 = profile3["velocity_dispersion"]
+            elif isinstance(profile3, str):
+                r3 = YTArray.from_hdf5(profile3, dataset_name="radius",
+                                       group_name="fields").to('kpc').d
+                V3 = YTArray.from_hdf5(profile3, dataset_name="velocity_dispersion",
+                                       group_name="fields")
+            else:
+                r3, V3 = profile3
+        else:
+            r3 = None
+            V3 = None
         super(RadialRandomVelocityField, self).__init__(left_edge, right_edge, 
-            ddims, l_min, l_max, alpha=alpha, ctr1=ctr1, ctr2=ctr2, r1=r1,
-            r2=r2, g1=V1, g2=V2, divergence_clean=divergence_clean, prng=prng)
+            ddims, l_min, l_max, padding=padding, alpha=alpha, ctr1=ctr1, 
+            ctr2=ctr2, r1=r1, r2=r2, r3=r3, g1=V1, g2=V2, g3=V3, 
+            divergence_clean=divergence_clean, prng=prng)

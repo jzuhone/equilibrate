@@ -38,7 +38,7 @@ def integrate(profile, rr):
     ret = np.zeros(rr.shape)
     rmax = rr[-1]
     for i, r in enumerate(rr):
-        ret[i] = quad(prof_int, r, rmax, epsabs=1.0e-5, epsrel=1.0e-5)[0]
+        ret[i] = quad(prof_int, r, rmax)[0]
     return ret
 
 

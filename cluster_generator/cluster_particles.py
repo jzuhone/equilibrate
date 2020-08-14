@@ -1,4 +1,4 @@
-from yt import YTArray, uconcatenate, load_particles
+from yt import YTArray, YTQuantity, uconcatenate, load_particles
 from collections import OrderedDict, defaultdict
 from yt.funcs import ensure_list
 from scipy.interpolate import InterpolatedUnivariateSpline
@@ -197,20 +197,62 @@ class ClusterParticles(object):
                 self.fields[pt, field] = self.fields[pt, field][cidx]
         self._update_num_particles()
 
-    def add_black_hole(self, bh_mass, pos=[0.0,0.0,0.0], vel=[0.0,0.0,0.0],
+    def add_black_hole(self, bh_mass, pos=None, vel=None,
                        use_pot_min=False):
+        r"""
+        Add a black hole particle to the set of cluster
+        particles.
+
+        Parameters
+        ----------
+        bh_mass : float
+            The mass of the black hole particle in solar masses.
+        pos : array-like, optional
+            The position of the particle, assumed to be in units of
+            kpc if units are not given. If use_pot_min=True this
+            argument is ignored. Default: None, in which case the 
+            particle position is [0.0, 0.0, 0.0] kpc. 
+        vel : array-like, optional
+            The velocity of the particle, assumed to be in units of
+            kpc/Myr if units are not given. If use_pot_min=True this
+            argument is ignored. Default: None, in which case the 
+            particle velocity is [0.0, 0.0, 0.0] kpc/Myr. 
+        use_pot_min : boolean, optional 
+            If True, use the dark matter particle with the minimum
+            value of the gravitational potential to determine the 
+            position and velocity of the black hole particle. Default:
+            False
+        """
+        mass = YTQuantity(bh_mass, "Msun")
         self.fields["black_hole", "particle_mass"] = YTArray([bh_mass], "Msun")
         if use_pot_min:
             idx = np.argmin(self.fields["dm", "potential_energy"])
-            for fd in ["particle_position", "particle_velocity"]: 
-                self.fields["black_hole", fd] = YTArray(self.fields["dm", fd][i])
+            pos = YTArray(self.fields["dm", "particle_position"][idx]).reshape(1,3)
+            vel = YTArray(self.fields["dm", "particle_velocity"][idx]).reshape(1,3)
         else:
-            self.fields["black_hole", "particle_position"] = YTArray(pos, "kpc")
-            self.fields["black_hole", "particle_velocity"] = YTArray(vel, "kpc/Myr")
-        self.particle_types.append("black_hole")
+            if pos is None:
+                pos = YTArray(np.zeros((1,3)), "kpc")
+            if vel is None:
+                vel = YTArray(np.zeros((1,3)), "kpc/Myr")
+            pos = ensure_ytarray(pos, "kpc")
+            vel = ensure_ytarray(vel, "kpc/Myr")
+        if "black_hole" not in self.particle_types:
+            self.particle_types.append("black_hole")
+            self.fields["black_hole", "particle_position"] = pos
+            self.fields["black_hole", "particle_velocity"] = vel
+            self.fields["black_hole", "particle_mass"] = mass
+        else:
+            uappend = lambda x, y: YTArray(np.append(x, y, axis=0).v, x.units)
+            self.fields["black_hole", "particle_position"] = uappend(
+                self.fields["black_hole", "particle_position"], pos)
+            self.fields["black_hole", "particle_velocity"] = uappend(
+                self.fields["black_hole", "particle_velocity"], vel)
+            self.fields["black_hole", "particle_mass"] = uappend(
+                self.fields["black_hole", "particle_mass"], mass)
         self._update_num_particles()
 
-    def write_particles_to_h5(self, output_filename, in_cgs=False, overwrite=False):
+    def write_particles_to_h5(self, output_filename, in_cgs=False, 
+                              overwrite=False):
         """
         Write the particles to an HDF5 file.
 
@@ -236,6 +278,34 @@ class ClusterParticles(object):
                 fd = self.fields[field]
             fd.write_hdf5(output_filename, dataset_name=field[1],
                           group_name=field[0])
+
+    def write_gamer_input(self, output_filename, overwrite=True):
+        """
+        Write the particles to an HDF5 file to be read in by the GAMER
+        code.
+
+        Parameters
+        ----------
+        output_filename : string
+            The file to write the particles to.
+        overwrite : boolean, optional
+            Overwrite an existing file with the same name. Default False.
+        """
+        if os.path.exists(output_filename) and not overwrite:
+            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
+        ptypes = ["dm"]
+        if "star" in self.particle_types:
+            ptypes.append("star")
+        nparts = [self.num_particles[ptype] for ptype in ptypes]
+        f = h5py.File(output_filename, "w")
+        for field in self.field_names["dm"]:
+            fd = uconcatenate([self.fields[ptype, field] for ptype in ptypes], axis=0)
+            fd.convert_to_cgs()
+            f.create_dataset(field, data=fd.d)
+        fd = np.concatenate([(i+1)*np.ones_like(nparts[i]) for i, ptype in enumerate(ptypes)])
+        f.create_dataset("particle_type", data=fd)
+        f.flush()
+        f.close()
 
     def __add__(self, other):
         fields = self.fields.copy()
@@ -354,26 +424,46 @@ class ClusterParticles(object):
         f.flush()
         f.close()
 
-    def set_field(self, ptype, name, value, units=None):
+    def set_field(self, ptype, name, value, units=None, add=False):
         """
         Add or update a particle field using a YTArray.
-        The array will be checked to make sure that it 
+        The array will be checked to make sure that it
         has the appropriate size.
 
         Parameters
         ----------
         ptype : string
-
-        Set a field with name *name* to value *value*, which is a YTArray.
-        The array will be checked to make sure that it has the appropriate size.
+            The particle type of the field to add or update.
+        name : string
+            The name of the field to add or update.
+        value : YTArray
+            The particle field itself--an array with the same 
+            shape as the number of particles.
+        units : string, optional
+            The units to convert the field to. Default: None,
+            indicating the units will be preserved.
+        add : boolean, optional
+            If True and the field already exists, the values
+            in the array will be added to the already existing
+            field array.
         """
         if not isinstance(value, YTArray):
             raise TypeError("value needs to be a YTArray")
         num_particles = self.num_particles[ptype]
+        exists = (ptype, name) in self.fields
         if value.shape[0] == num_particles:
-            if (ptype, name) in self.fields:
-                mylog.warning("Overwriting field (%s, %s)." % (ptype, name))
-            self.fields[ptype, name] = value
+            if exists:
+                if add:
+                    self.fields[ptype, name] += value
+                else:
+                    mylog.warning(f"Overwriting field ({ptype}, {name}).")
+                    self.fields[ptype, name] = value
+            else:
+                if add:
+                    raise RuntimeError(f"Field ({ptype}, {name}) does not "
+                                       f"exist and add=True!")
+                else:
+                    self.fields[ptype, name] = value
             if units is not None:
                 self.fields[ptype, name].convert_to_units(units)
         else:

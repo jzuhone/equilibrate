@@ -4,3 +4,4 @@ cluster_generator.egg-info
 *.o
 *.c
 *~
+doc/build
