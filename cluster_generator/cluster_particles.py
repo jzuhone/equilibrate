@@ -23,8 +23,7 @@ gadget_field_map = {"Coordinates": "particle_position",
                     "Density": "density",
                     "Potential": "potential_energy",
                     "InternalEnergy": "thermal_energy",
-                    "MagneticField": "magnetic_field",
-                    "PassiveScalars": "passive_scalars"}
+                    "MagneticField": "magnetic_field"}
 
 gadget_field_units = {"Coordinates": "kpc",
                       "Velocities": "km/s",
@@ -50,6 +49,7 @@ class ClusterParticles(object):
         self._update_num_particles()
         self._update_field_names()
         self.box_size = box_size
+        self.passive_scalars = []
 
     @classmethod
     def from_h5_file(cls, filename, ptypes=None):
@@ -320,6 +320,10 @@ class ClusterParticles(object):
         particle_types = list(set(self.particle_types + other.particle_types))
         return ClusterParticles(particle_types, fields)
 
+    @property
+    def num_passive_scalars(self):
+        return len(self.passive_scalars)
+
     def add_offsets(self, r_ctr, v_ctr, ptypes=None):
         """
         Add offsets in position and velocity to the cluster particles,
@@ -356,14 +360,21 @@ class ClusterParticles(object):
         for field in gadget_fields[ptype]:
             if field == "ParticleIDs":
                 continue
-            my_field = gadget_field_map[field]
-            if (ptype, my_field) in self.fields:
-                units = gadget_field_units[field]
-                fd = self.fields[ptype, my_field]
-                data = fd[idxs].to(units).d.astype(dtype)
-                h5_group.create_dataset(field, data=data)
+            if field == "PassiveScalars" and ptype == "gas":
+                if self.num_passive_scalars > 0:
+                    data = np.stack(
+                        [self[ptype, s].d for s in self.passive_scalars], 
+                        axis=-1)
+                    h5_group.create_dataset("PassiveScalars", data=data)
+            else:
+                my_field = gadget_field_map[field]
+                if (ptype, my_field) in self.fields:
+                    units = gadget_field_units[field]
+                    fd = self.fields[ptype, my_field]
+                    data = fd[idxs].to(units).d.astype(dtype)
+                    h5_group.create_dataset(field, data=data)
 
-    def write_to_gadget_file(self, ic_filename, box_size,
+    def write_to_gadget_file(self, ic_filename, box_size, 
                              dtype='float32', overwrite=False):
         """
         Write the particles to a file in the HDF5 Gadget format
@@ -427,7 +438,8 @@ class ClusterParticles(object):
         f.flush()
         f.close()
 
-    def set_field(self, ptype, name, value, units=None, add=False):
+    def set_field(self, ptype, name, value, units=None, add=False,
+                  passive_scalar=False):
         """
         Add or update a particle field using a YTArray.
         The array will be checked to make sure that it
@@ -451,7 +463,7 @@ class ClusterParticles(object):
             field array.
         """
         if not isinstance(value, YTArray):
-            raise TypeError("value needs to be a YTArray")
+            value = YTArray(value, "dimensionless")
         num_particles = self.num_particles[ptype]
         exists = (ptype, name) in self.fields
         if value.shape[0] == num_particles:
@@ -467,6 +479,8 @@ class ClusterParticles(object):
                                        f"exist and add=True!")
                 else:
                     self.fields[ptype, name] = value
+                if passive_scalar and ptype == "gas":
+                    self.passive_scalars.append(name)
             if units is not None:
                 self.fields[ptype, name].convert_to_units(units)
         else:
@@ -554,7 +568,8 @@ def _sample_clusters(particles, hses, center, velocity,
     particles["gas", "thermal_energy"][idxs] = eint[idxs]
     particles["gas", "particle_velocity"][idxs] = mom.T[idxs]
     if num_scalars > 0:
-        particles["gas", "passive_scalars"][idxs] = ps[idxs]
+        for j, name in enumerate(passive_scalars):
+            particles["gas", name][idxs] = ps[j,idxs]
     return particles
 
 
