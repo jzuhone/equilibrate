@@ -27,6 +27,7 @@ from cluster_generator.radial_profiles import \
     snfw_conc, find_overdensity_radius, constant_profile, \
     cored_snfw_density_profile, cored_hernquist_density_profile, \
     cored_snfw_mass_profile, einasto_mass_profile, \
-    am06_density_profile, am06_temperature_profile
+    am06_density_profile, am06_temperature_profile, \
+    broken_entropy_profile
 from cluster_generator.relations import \
     m_bcg, m_sat, r_bcg, f_gas

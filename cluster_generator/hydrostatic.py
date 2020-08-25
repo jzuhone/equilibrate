@@ -1,36 +1,27 @@
 import numpy as np
 from collections import OrderedDict
 from yt import YTArray, YTQuantity
+from scipy.integrate import cumtrapz, quad
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
-    integrate, mylog, \
+    integrate, integrate_toinf, mylog, \
     integrate_mass, kboltz, \
     mp, G, generate_particle_radii
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import \
     ClusterParticles
 
-gamma = 5./3.
-
-modes = {"dens_temp": ("density", "temperature"),
-         "dens_tden": ("density", "total_density"),
-         "dens_grav": ("density", "gravitational_field"),
-         "no_gas": ("total_density",)}
-
 X_H = 0.76
 mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
 mue = 1.0/(X_H+0.5*(1.0-X_H))
-mtt = -2.0/3.0
-
-
-class RequiredProfilesError(Exception):
-    def __init__(self, mode):
-        self.mode = mode
-
-    def __str__(self):
-        ret = "Not all of the required profiles for mode \"%s\" have been set!\n" % self.mode
-        ret += "The following profiles are needed: %s" % modes[self.mode]
-        return ret
+tt = 2.0/3.0
+mtt = -tt
+ft = 5.0/3.0
+tf = 3.0/5.0
+mtf = -tf
+gamma = ft
+et = 8.0/3.0
+te = 3.0/8.0
 
 
 class HydrostaticEquilibrium(ClusterModel):
@@ -43,142 +34,33 @@ class HydrostaticEquilibrium(ClusterModel):
                       "dark_matter_density","stellar_density","stellar_mass"]
 
     @classmethod
-    def from_scratch(cls, mode, rmin, rmax, profiles, num_points=1000,
-                     T_amb=1.0e5):
-        r"""
-        Generate a set of profiles of physical quantities based on the assumption
-        of hydrostatic equilibrium. Currently assumes an ideal gas with a gamma-law
-        equation of state.
-
-        Parameters
-        ----------
-        mode : string
-            The method to generate the profiles from an initial set. Can be
-            one of the following:
-                "dens_temp": Generate the profiles given a gas density and
-                gas temperature profile.
-                "dens_tden": Generate the profiles given a gas density and
-                total density profile.
-                "dens_grav": Generate the profiles given a gas density and
-                gravitational acceleration profile.
-                "no_gas": Generate profiles of gravitational potential
-                and acceleration assuming an initial density profile of DM
-                and/or stars.
-        rmin : float
-            The minimum radius for the profiles, assumed to be in kpc.
-        rmax : float
-            The maximum radius for the profiles, assumed to be in kpc.
-        profiles : dict of functions
-            A dictionary of callable functions of radius or height which return
-            quantities such as density, total density, and so on. The functions 
-            are not unit-aware for speed purposes, but they assume that the base
-            units are:
-                "length": "kpc"
-                "time": "Myr"
-                "mass": "Msun"
-                "temperature": "keV"
-        num_points : integer
-            The number of points at which to evaluate the profile.
-        T_amb : float, optional
-            The ambient temperature in units of K, used with *rho_amb* to 
-            create a boundary condition on the pressure integral. Used only
-            if the "dens_tden" or "dens_grav" modes are chosen. 
-            Default: 1.0e5
-        """
-
-        if not isinstance(T_amb, YTQuantity):
-            T_amb = YTQuantity(T_amb, "K")
-
-        for p in modes[mode]:
-            if p not in profiles:
-                raise RequiredProfilesError(mode)
-
-        extra_fields = [field for field in profiles if field not in cls.default_fields]
-
-        fields = OrderedDict()
-
-        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
-        fields["radius"] = YTArray(rr, "kpc")
-
-        if mode == "no_gas":
-            fields["density"] = YTArray(np.zeros(num_points), "Msun/kpc**3")
-            fields["pressure"] = YTArray(np.zeros(num_points), "Msun/kpc/Myr**2")
-            fields["temperature"] = YTArray(np.zeros(num_points), "keV")
-        else:
-            fields["density"] = YTArray(profiles["density"](rr), "Msun/kpc**3")
-
-        if mode == "dens_temp":
-
-            mylog.info("Computing the profiles from density and temperature.")
-
-            fields["temperature"] = YTArray(profiles["temperature"](rr), "keV")
-            fields["pressure"] = fields["density"]*fields["temperature"]
-            fields["pressure"] /= mu*mp
-            fields["pressure"].convert_to_units("Msun/(Myr**2*kpc)")
-
-            pressure_spline = InterpolatedUnivariateSpline(rr, fields["pressure"].v)
-            dPdx = YTArray(pressure_spline(rr, 1), "Msun/(Myr**2*kpc**2)")
-            fields["gravitational_field"] = dPdx/fields["density"]
-            fields["gravitational_field"].convert_to_units("kpc/Myr**2")
-
-        else:
-
-            if mode == "dens_tden" or mode == "no_gas":
-                if mode == "dens_tden":
-                    mylog.info("Computing the profiles from density and total density.")
-                else:
-                    mylog.info("Computing the profiles for dark matter only.")
-                fields["total_density"] = YTArray(profiles["total_density"](rr), "Msun/kpc**3")
-                mylog.info("Integrating total mass profile.")
-                fields["total_mass"] = YTArray(integrate_mass(profiles["total_density"], rr), "Msun")
-                fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
-                fields["gravitational_field"].convert_to_units("kpc/Myr**2")
-            elif mode == "dens_grav":
-                mylog.info("Computing the profiles from density and gravitational acceleration.")
-                fields["gravitational_field"] = YTArray(profiles["gravitational_field"](rr), "kpc/Myr**2")
-
-            if mode != "no_gas":
-                g = fields["gravitational_field"].in_units("kpc/Myr**2").v
-                g_r = InterpolatedUnivariateSpline(rr, g)
-                dPdr_int = lambda r: profiles["density"](r)*g_r(r)
-                mylog.info("Integrating pressure profile.")
-                fields["pressure"] = -YTArray(integrate(dPdr_int, rr), "Msun/kpc/Myr**2")
-                P_amb = fields["density"][-1]*kboltz*T_amb/(mu*mp)
-                P_amb.convert_to_base("galactic")
-                fields['pressure'] += P_amb
-                fields["temperature"] = fields["pressure"]*mu*mp/fields["density"]
-                fields["temperature"].convert_to_units("keV")
-
-        if "total_mass" not in fields:
-            fields["total_mass"] = -fields["radius"]**2*fields["gravitational_field"]/G
-        if "total_density" not in fields:
-            total_mass_spline = InterpolatedUnivariateSpline(rr, fields["total_mass"].v)
-            dMdr = YTArray(total_mass_spline(rr, 1), "Msun/kpc")
-            fields["total_density"] = dMdr/(4.*np.pi*fields["radius"]**2)
+    def _from_scratch(cls, fields, stellar_density=None, parameters=None):
+        rr = fields["radius"].d
         mylog.info("Integrating gravitational potential profile.")
-        if "total_density" in profiles:
-            tdens_func = profiles["total_density"]
-        else:
-            tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
+        tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
         gpot_profile = lambda r: tdens_func(r)*r
         gpot1 = fields["total_mass"]/fields["radius"]
         gpot2 = YTArray(4.*np.pi*integrate(gpot_profile, rr), "Msun/kpc")
         fields["gravitational_potential"] = -G*(gpot1 + gpot2)
         fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
-        if mode != "no_gas":
-            mylog.info("Integrating gas mass profile.")
-            fields["gas_mass"] = YTArray(integrate_mass(profiles["density"], rr), "Msun")
 
-        if "stellar_density" in profiles:
-            fields["stellar_density"] = YTArray(profiles["stellar_density"](rr), 
+        if "density" in fields and "gas_mass" not in fields:
+            mylog.info("Integrating gas mass profile.")
+            m0 = fields["density"].d[0]*rr[0]**3/3.
+            fields["gas_mass"] = YTArray(
+                4.0*np.pi*cumtrapz(fields["density"]*rr*rr,
+                                   x=rr, initial=0.0)+m0, "Msun")
+
+        if stellar_density is not None:
+            fields["stellar_density"] = YTArray(stellar_density(rr),
                                                 "Msun/kpc**3")
             mylog.info("Integrating stellar mass profile.")
-            fields["stellar_mass"] = YTArray(integrate_mass(profiles["stellar_density"], rr),
+            fields["stellar_mass"] = YTArray(integrate_mass(stellar_density, rr),
                                              "Msun")
 
         mdm = fields["total_mass"].copy()
         ddm = fields["total_density"].copy()
-        if mode != "no_gas":
+        if "density" in fields:
             mdm -= fields["gas_mass"]
             ddm -= fields["density"]
         if "stellar_mass" in fields:
@@ -193,16 +75,127 @@ class HydrostaticEquilibrium(ClusterModel):
         else:
             raise RuntimeError("The total dark matter mass is either zero or negative!!")
 
-        if mode != "no_gas":
+        if "density" in fields:
             fields["gas_fraction"] = fields["gas_mass"]/fields["total_mass"]
-            fields["electron_number_density"] = fields["density"].to("cm**-3", "number_density",
-                                                                     mu=mue)
-            fields["entropy"] = fields["temperature"]*fields["electron_number_density"]**mtt
+            fields["electron_number_density"] = \
+                fields["density"].to("cm**-3", "number_density", mu=mue)
+            fields["entropy"] = \
+                fields["temperature"]*fields["electron_number_density"]**mtt
 
-        for field in extra_fields:
-            fields[field] = profiles[field](rr)
+        return cls(rr.size, fields, parameters=parameters)
 
-        return cls(num_points, fields, parameters={"mu": mu})
+    @classmethod
+    def from_dens_and_temp(cls, rmin, rmax, density, temperature,
+                           stellar_density=None, num_points=1000, 
+                           parameters=None):
+        mylog.info("Computing the profiles from density and temperature.")
+        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
+                         endpoint=True)
+        fields = OrderedDict()
+        fields["radius"] = YTArray(rr, "kpc")
+        fields["density"] = YTArray(density(rr), "Msun/kpc**3")
+        fields["temperature"] = YTArray(temperature(rr), "keV")
+        fields["pressure"] = fields["density"]*fields["temperature"]
+        fields["pressure"] /= mu*mp
+        fields["pressure"].convert_to_units("Msun/(Myr**2*kpc)")
+        pressure_spline = InterpolatedUnivariateSpline(rr, fields["pressure"].d)
+        dPdr = YTArray(pressure_spline(rr, 1), "Msun/(Myr**2*kpc**2)")
+        fields["gravitational_field"] = dPdr/fields["density"]
+        fields["gravitational_field"].convert_to_units("kpc/Myr**2")
+        fields["gas_mass"] = YTArray(integrate_mass(density, rr), "Msun")
+        fields["total_mass"] = -fields["radius"]**2*fields["gravitational_field"]/G
+        total_mass_spline = InterpolatedUnivariateSpline(rr, fields["total_mass"].v)
+        dMdr = YTArray(total_mass_spline(rr, nu=1), "Msun/kpc")
+        fields["total_density"] = dMdr/(4.*np.pi*fields["radius"]**2)
+        return cls._from_scratch(fields, stellar_density=stellar_density,
+                                 parameters=parameters)
+
+    @classmethod
+    def from_dens_and_tden(cls, rmin, rmax, density, total_density,
+                           stellar_density=None, num_points=1000, 
+                           parameters=None):
+        mylog.info("Computing the profiles from density and total density.")
+        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
+                         endpoint=True)
+        fields = OrderedDict()
+        fields["radius"] = YTArray(rr, "kpc")
+        fields["density"] = YTArray(density(rr), "Msun/kpc**3")
+        fields["total_density"] = YTArray(total_density(rr), "Msun/kpc**3")
+        mylog.info("Integrating total mass profile.")
+        fields["total_mass"] = YTArray(integrate_mass(total_density, rr), "Msun")
+        fields["gas_mass"] = YTArray(integrate_mass(density, rr), "Msun")
+        fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
+        fields["gravitational_field"].convert_to_units("kpc/Myr**2")
+        g = fields["gravitational_field"].in_units("kpc/Myr**2").v
+        g_r = InterpolatedUnivariateSpline(rr, g)
+        dPdr_int = lambda r: density(r)*g_r(r)
+        mylog.info("Integrating pressure profile.")
+        P = -integrate(dPdr_int, rr)
+        dPdr_int2 = lambda r: density(r)*g[-1]*(rr[-1]/r)**2
+        P -= quad(dPdr_int2, rr[-1], np.inf, limit=100)[0]
+        fields["pressure"] = YTArray(P, "Msun/kpc/Myr**2")
+        fields["temperature"] = fields["pressure"]*mu*mp/fields["density"]
+        fields["temperature"].convert_to_units("keV")
+
+        return cls._from_scratch(fields, stellar_density=stellar_density, 
+                                 parameters=parameters)
+
+    @classmethod
+    def no_gas(cls, rmin, rmax, total_density, stellar_density=None,
+               num_points=1000, parameters=None):
+        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
+                         endpoint=True)
+        fields = OrderedDict()
+        fields["radius"] = YTArray(rr, "kpc")
+        fields["total_density"] = YTArray(total_density(rr), "Msun/kpc**3")
+        mylog.info("Integrating total mass profile.")
+        fields["total_mass"] = YTArray(integrate_mass(total_density, rr), "Msun")
+        fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
+        fields["gravitational_field"].convert_to_units("kpc/Myr**2")
+
+        return cls._from_scratch(fields, stellar_density=stellar_density,
+                                 parameters=parameters)
+
+    @classmethod
+    def from_entr_and_tden(cls, rmin, rmax, entropy, total_density,
+                           rfgas, fgas, stellar_density=None,
+                           parameters=None, num_points=1000):
+        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
+                         endpoint=True)
+        fields = OrderedDict()
+        mylog.info("Computing the profiles from density and entropy.")
+        fields["radius"] = YTArray(rr, "kpc")
+        fields["total_density"] = YTArray(total_density(rr), "Msun/kpc**3")
+        mylog.info("Integrating total mass profile.")
+        fields["total_mass"] = YTArray(integrate_mass(total_density, rr), "Msun")
+        fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
+        fields["gravitational_field"].convert_to_units("kpc/Myr**2")
+        g = fields["gravitational_field"].d
+        g_r = InterpolatedUnivariateSpline(rr, g)
+        K = YTArray(entropy(rr), "keV*cm**2").in_base("galactic")
+        K *= (mp*mue)**-ft
+        Kr = InterpolatedUnivariateSpline(rr, K.d)
+        integrand = lambda r: Kr(r)**mtf*g_r(r)
+        I = integrate(integrand, rr)
+        integrand2 = lambda r: Kr(rr[-1])**mtf*g[-1]*(rr[-1]/r)**2
+        I += quad(integrand2, rr[-1], np.inf, limit=100)[0]
+        P = (-0.4*I)**2.5
+        rho = (P/K.d)**tf
+        m0 = rho[0]*rr[0]**3/3.
+        m_g = 4.0*np.pi*cumtrapz(rho*rr*rr, x=rr, initial=0.0)+m0
+        mgval = np.interp(rfgas, rr, m_g)
+        mtval = np.interp(rfgas, rr, fields["total_mass"].d)
+        x = fgas * mtval / mgval
+        P *= x
+        rho *= x
+        fields["pressure"] = YTArray(P, "Msun/kpc/Myr**2")
+        fields["density"] = YTArray(rho, "Msun/kpc**3")
+        density = InterpolatedUnivariateSpline(rr, rho)
+        fields["gas_mass"] = YTArray(integrate_mass(density, rr), "Msun")
+        fields["temperature"] = fields["pressure"]*mu*mp/fields["density"]
+        fields["temperature"].convert_to_units("keV")
+        return cls._from_scratch(fields, stellar_density=stellar_density,
+                                 parameters=parameters)
 
     def check_model(self):
         r"""

@@ -10,7 +10,8 @@ import os
 gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
                         "Potential"],
                  "gas": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                         "InternalEnergy", "MagneticField","Density","Potential"],
+                         "InternalEnergy", "MagneticField", "Density", "Potential",
+                         "PassiveScalars"],
                  "star": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
                           "Potential"],
                  "black_hole": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
@@ -22,7 +23,8 @@ gadget_field_map = {"Coordinates": "particle_position",
                     "Density": "density",
                     "Potential": "potential_energy",
                     "InternalEnergy": "thermal_energy",
-                    "MagneticField": "magnetic_field"}
+                    "MagneticField": "magnetic_field",
+                    "PassiveScalars": "passive_scalars"}
 
 gadget_field_units = {"Coordinates": "kpc",
                       "Velocities": "km/s",
@@ -30,6 +32,7 @@ gadget_field_units = {"Coordinates": "kpc",
                       "Density": "1e10*Msun/kpc**3",
                       "InternalEnergy": "km**2/s**2",
                       "Potential": "km**2/s**2",
+                      "PassiveScalars": "",
                       "MagneticField": "1e5*sqrt(Msun)*km/s/(kpc**1.5)"}
 
 ptype_map = OrderedDict([("PartType0", "gas"),
@@ -499,67 +502,59 @@ class ClusterParticles(object):
             pos = data.pop((ptype, "particle_position"))
             vel = data.pop((ptype, "particle_velocity"))
             for i, ax in enumerate("xyz"):
-                data[ptype,"particle_position_%s" % ax] = pos[:,i]
-                data[ptype,"particle_velocity_%s" % ax] = vel[:,i]
+                data[ptype, "particle_position_%s" % ax] = pos[:,i]
+                data[ptype, "particle_velocity_%s" % ax] = vel[:,i]
         return load_particles(data, length_unit="kpc", bbox=[[0.0, box_size]]*3,
                               mass_unit="Msun", time_unit="Myr")
 
 
-def _sample_clusters(particles, hse1, hse2, center1, center2,
-                     velocity1, velocity2, radii=None,
-                     resample=False, hse3=None, center3=None,
-                     velocity3=None): 
-    center1 = ensure_ytarray(center1, "kpc")
-    center2 = ensure_ytarray(center2, "kpc")
-    if center3 is not None:
-        center3 = ensure_ytarray(center3, "kpc")
-    velocity1 = ensure_ytarray(velocity1, "kpc/Myr")
-    velocity2 = ensure_ytarray(velocity2, "kpc/Myr")
-    if velocity3 is not None:
-        velocity3 = ensure_ytarray(velocity3, "kpc/Myr")
-    r1 = ((particles["gas", "particle_position"]-center1)**2).sum(axis=1).d
-    np.sqrt(r1, r1)
-    r2 = ((particles["gas", "particle_position"]-center2)**2).sum(axis=1).d
-    np.sqrt(r2, r2)
-    if center3 is not None:
-        r3 = ((particles["gas", "particle_position"]-center3)**2).sum(axis=1).d
-        np.sqrt(r3, r3)
+def _sample_clusters(particles, hses, center, velocity,
+                     radii=None, resample=False, 
+                     passive_scalars=None):
+    num_halos = len(hses)
+    center = [ensure_ytarray(c, "kpc") for c in center]
+    velocity = [ensure_ytarray(v, "kpc/Myr") for v in velocity]
+    r = np.zeros((num_halos, particles.num_particles["gas"]))
+    for i, c in enumerate(center):
+        r[i,:] = ((particles["gas", "particle_position"]-c)**2).sum(axis=1).d
+    np.sqrt(r, r)
     if radii is None:
         idxs = slice(None, None, None)
     else:
-        idxs = np.logical_or(r1 <= radii[0], r2 <= radii[1])
-        if center3 is not None:
-            idxs = np.logical_or(idxs, r3 <= radii[2])
-    get_density1 = InterpolatedUnivariateSpline(hse1["radius"], hse1["density"])
-    dens1 = get_density1(r1)
-    get_density2 = InterpolatedUnivariateSpline(hse2["radius"], hse2["density"])
-    dens2 = get_density2(r2)
-    dens = dens1+dens2
-    if hse3 is not None:
-        get_density3 = InterpolatedUnivariateSpline(hse3["radius"], hse3["density"])
-        dens3 = get_density3(r3)
-        dens += dens3
-    e_arr1 = 1.5*hse1["pressure"]/hse1["density"]
-    get_energy1 = InterpolatedUnivariateSpline(hse1["radius"], e_arr1)
-    eint1 = get_energy1(r1)
-    e_arr2 = 1.5*hse2["pressure"]/hse2["density"]
-    get_energy2 = InterpolatedUnivariateSpline(hse2["radius"], e_arr2)
-    eint2 = get_energy2(r2)
-    if hse3 is not None:
-        e_arr3 = 1.5*hse3["pressure"]/hse3["density"]
-        get_energy3 = InterpolatedUnivariateSpline(hse3["radius"], e_arr3)
-        eint3 = get_energy3(r3)
+        radii = np.array(radii)
+        idxs = np.any(r <= radii[:,np.newaxis], axis=0)
+    d = np.zeros((num_halos, particles.num_particles["gas"]))
+    e = np.zeros((num_halos, particles.num_particles["gas"]))
+    m = np.zeros((num_halos, 3, particles.num_particles["gas"]))
+    num_scalars = 0
+    if passive_scalars is not None:
+        num_scalars = len(passive_scalars)
+        s = np.zeros((num_halos, num_scalars, particles.num_particles["gas"]))
+    for i in range(num_halos):
+        hse = hses[i]
+        get_density = InterpolatedUnivariateSpline(hse["radius"], hse["density"])
+        d[i,:] = get_density(r[i,:])
+        e_arr = 1.5*hse["pressure"]/hse["density"]
+        get_energy = InterpolatedUnivariateSpline(hse["radius"], e_arr)
+        e[i,:] = get_energy(r[i,:])*d[i,:]
+        m[i,:,:] = velocity[i].d[:,np.newaxis]*d[i,:]
+        if num_scalars > 0:
+            for j, name in enumerate(passive_scalars):
+                get_scalar = InterpolatedUnivariateSpline(hse["radius"], hse[name])
+                s[i,j,:] = get_scalar(r[i,:])*d[i,:]
+    dens = d.sum(axis=0)
+    eint = e.sum(axis=0)/dens
+    mom  = m.sum(axis=0)/dens
+    if num_scalars > 0:
+        ps = s.sum(axis=0)/dens
     if resample:
         vol = particles["gas", "particle_mass"]/particles["gas", "density"]
         particles["gas", "particle_mass"][idxs] = dens[idxs]*vol[idxs]
     particles["gas", "density"][idxs] = dens[idxs]
-    eint = eint1*dens1+eint2*dens2
-    mom = velocity1.d[:,np.newaxis]*dens1 + velocity2.d[:,np.newaxis]*dens2
-    if hse3 is not None:
-        eint += eint3*dens3
-        mom += velocity3.d[:,np.newaxis]*dens3
-    particles["gas", "thermal_energy"][idxs] = (eint/dens)[idxs]
-    particles["gas", "particle_velocity"][idxs] = (mom/dens).T[idxs]
+    particles["gas", "thermal_energy"][idxs] = eint[idxs]
+    particles["gas", "particle_velocity"][idxs] = mom.T[idxs]
+    if num_scalars > 0:
+        particles["gas", "passive_scalars"][idxs] = ps[idxs]
     return particles
 
 
@@ -584,9 +579,9 @@ def combine_two_clusters(particles1, particles2, hse1, hse2,
     return particles
 
 
-def combine_three_clusters(particles1, particles2, particles3, 
-                           hse1, hse2, hse3, center1, center2, 
-                           center3, velocity1, velocity2, 
+def combine_three_clusters(particles1, particles2, particles3,
+                           hse1, hse2, hse3, center1, center2,
+                           center3, velocity1, velocity2,
                            velocity3):
     center1 = ensure_ytarray(center1, "kpc")
     center2 = ensure_ytarray(center2, "kpc")
@@ -606,10 +601,9 @@ def combine_three_clusters(particles1, particles2, particles3,
     particles2.add_offsets(center2, velocity2, ptypes=ptypes)
     particles3.add_offsets(center3, velocity3, ptypes=ptypes)
     particles = particles1+particles2+particles3
-    particles = _sample_clusters(particles, hse1, hse2, center1, 
-                                 center2, velocity1, velocity2, 
-                                 hse3=hse3, center3=center3,
-                                 velocity3=velocity3)
+    particles = _sample_clusters(particles, [hse1, hse2, hse3],
+                                 [center1, center2, center3],
+                                 [velocity1, velocity2, velocity3])
     return particles
 
 
@@ -631,20 +625,22 @@ def resample_one_cluster(particles, hse, center, velocity):
 
 
 def resample_two_clusters(particles, hse1, hse2, center1, center2,
-                          velocity1, velocity2, radii):
-    particles = _sample_clusters(particles, hse1, hse2,
-                                 center1, center2,
-                                 velocity1, velocity2,
-                                 radii=radii, resample=True)
+                          velocity1, velocity2, radii,
+                          passive_scalars=None):
+    particles = _sample_clusters(particles, [hse1, hse2],
+                                 [center1, center2],
+                                 [velocity1, velocity2],
+                                 radii=radii, resample=True,
+                                 passive_scalars=passive_scalars)
     return particles
 
 
 def resample_three_clusters(particles, hse1, hse2, hse3, center1,
                             center2, center3, velocity1, velocity2,
-                            velocity3, radii):
-    particles = _sample_clusters(particles, hse1, hse2, center1,
-                                 center2, velocity1, velocity2,
+                            velocity3, radii, passive_scalars=None):
+    particles = _sample_clusters(particles, [hse1, hse2, hse3],
+                                 [center1, center2, center3],
+                                 [velocity1, velocity2, velocity3],
                                  radii=radii, resample=True,
-                                 hse3=hse3, center3=center3,
-                                 velocity3=velocity3)
+                                 passive_scalars=passive_scalars)
     return particles

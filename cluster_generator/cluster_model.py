@@ -3,7 +3,7 @@ from yt import YTArray
 import h5py
 import os
 import numpy as np
-from utils import mylog
+from .utils import mylog
 
 equilibrium_model_registry = {}
 

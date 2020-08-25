@@ -492,6 +492,14 @@ def baseline_entropy_profile(K_0, K_200, r_200, alpha):
     return RadialProfile(p)
 
 
+def broken_entropy_profile(r_s, K_scale, alpha, K_0=0.0):
+    def _entr(r):
+        x = r/r_s
+        ret = (x**alpha)*(1.+x**5)**(0.2*(1.1-alpha))
+        return K_scale*(K_0+ret)
+    return RadialProfile(_entr)
+
+
 def rescale_profile_by_mass(profile, mass, radius):
     """
     Rescale a density profile by a total mass

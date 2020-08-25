@@ -328,7 +328,7 @@ class GaussianRandomField(ClusterField):
         kx, ky, kz = self._compute_waves()
         kk = np.sqrt(kx**2+ky**2+kz**2)
         with np.errstate(invalid='ignore', divide='ignore'):
-            sigma = (1.0+(kk/k1)**2)**(0.25*alpha)*np.exp(-(kk/k0)**2)
+            sigma = (1.0+(kk/k1)**2)**(0.25*alpha)*np.exp(-0.5*(kk/k0)**2)
         sigma[np.isinf(sigma)] = 0.0
         sigma[np.isnan(sigma)] = 0.0
         del kk

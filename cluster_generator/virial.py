@@ -16,8 +16,8 @@ class VirialEquilibrium(ClusterModel):
     _type_name = "virial"
 
     @classmethod
-    def from_scratch(cls, rmin, rmax, total_profile, ptype='dark_matter',
-                     num_points=1000, stellar_profile=None):
+    def from_scratch(cls, rmin, rmax, total_density, ptype='dark_matter',
+                     num_points=1000, stellar_density=None):
         r"""
         Generate a virial equilibrium model for a spherically symmetric
         dark matter / stellar halo from a total density profile,
@@ -41,12 +41,9 @@ class VirialEquilibrium(ClusterModel):
             If set, this profile will serve as the stellar density profile.
             Default: None
         """
-        profiles = {"total_density": total_profile}
-        if stellar_profile is not None:
-            profiles["stellar_density"] = stellar_profile
-
-        hse = HydrostaticEquilibrium.from_scratch("no_gas", rmin, rmax, profiles,
-                                                  num_points=num_points)
+        hse = HydrostaticEquilibrium.no_gas(rmin, rmax, total_density,
+                                            stellar_density=stellar_density,
+                                            num_points=num_points)
         return cls.from_hse_model(hse, ptype=ptype)
 
     @classmethod
