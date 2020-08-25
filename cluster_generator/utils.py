@@ -34,21 +34,19 @@ def integrate_mass(profile, rr):
 
 
 def integrate(profile, rr):
-    prof_int = lambda r: profile(r)
     ret = np.zeros(rr.shape)
     rmax = rr[-1]
     for i, r in enumerate(rr):
-        ret[i] = quad(prof_int, r, rmax)[0]
+        ret[i] = quad(profile, r, rmax)[0]
     return ret
 
 
 def integrate_toinf(profile, rr):
-    prof_int = lambda r: profile(r)
     ret = np.zeros(rr.shape)
     rmax = rr[-1]
     for i, r in enumerate(rr):
-        ret[i] = quad(prof_int, r, rmax)[0]
-    ret[:] += quad(prof_int, rmax, np.inf, limit=100)[0]
+        ret[i] = quad(profile, r, rmax)[0]
+    ret[:] += quad(profile, rmax, np.inf, limit=100)[0]
     return ret
 
 
