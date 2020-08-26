@@ -589,8 +589,8 @@ def combine_two_clusters(particles1, particles2, hse1, hse2,
     particles1.add_offsets(center1, velocity1, ptypes=ptypes)
     particles2.add_offsets(center2, velocity2, ptypes=ptypes)
     particles = particles1+particles2
-    particles = _sample_clusters(particles, hse1, hse2, center1,
-                                 center2, velocity1, velocity2)
+    particles = _sample_clusters(particles, [hse1, hse2], 
+                                 [center1, center2], [velocity1, velocity2])
     return particles
 
 
