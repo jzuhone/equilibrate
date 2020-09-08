@@ -215,13 +215,14 @@ class ClusterICs:
         for i in range(self.num_halos):
             particle_file = f"{self.basename}_gamerp_{i}.h5"
             parts[i].write_gamer_input(particle_file)
+            vel = self.velocity[i].to("km/s")
             outlines += [
                 f"Merger_File_Prof{i+1}       {self.hse_files[i]} # profile table of cluster {i+1}\n",
                 f"Merger_File_Par{i+1}        {self.particle_files[i]} # particle file of cluster {i+1}\n",
                 f"Merger_Coll_PosX{i+1}       {self.center[i][0]} # X-center of cluster {i+1} in kpc\n",
                 f"Merger_Coll_PosY{i+1}       {self.center[i][1]} # Y-center of cluster {i+1} in kpc\n",
-                f"Merger_Coll_VelX{i+1}       {self.velocity[i][0]} # X-velocity of cluster {i+1} in km/s\n",
-                f"Merger_Coll_VelY{i+1}       {self.velocity[i][1]} # Y-velocity of cluster {i+1} in km/s\n",
+                f"Merger_Coll_VelX{i+1}       {vel[0]} # X-velocity of cluster {i+1} in km/s\n",
+                f"Merger_Coll_VelY{i+1}       {vel[1]} # Y-velocity of cluster {i+1} in km/s\n",
             ]
         mylog.info("Write the following lines to Input__TestProblem: ")
         for line in outlines:
@@ -307,12 +308,13 @@ class ClusterICs:
             f"testSingleCluster    {self.num_halos} # number of halos\n"
         ]
         for i in range(self.num_halos):
+            vel = self.velocity[i].to("km/s")
             outlines += [
                 f"profile{i+1} = {self.hse_files[i]} # profile table of cluster {i+1}\n",
                 f"xInit{i+1} = {self.center[i][0]} # X-center of cluster {i+1} in kpc\n",
                 f"yInit{i+1} = {self.center[i][1]} # Y-center of cluster {i+1} in kpc\n",
-                f"vxInit{i+1} = {self.velocity[i][0]} # X-velocity of cluster {i+1} in km/s\n",
-                f"vyInit{i+1} = {self.velocity[i][1]} # Y-velocity of cluster {i+1} in km/s\n",
+                f"vxInit{i+1} = {vel[0]} # X-velocity of cluster {i+1} in km/s\n",
+                f"vyInit{i+1} = {vel[1]} # Y-velocity of cluster {i+1} in km/s\n",
             ]
             if use_particles:
                 outlines.append(
