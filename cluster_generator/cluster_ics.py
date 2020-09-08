@@ -14,24 +14,27 @@ from ruamel.yaml import YAML
 
 
 class ClusterICs:
-    def __init__(self, num_halos, hse_files, center,
+    def __init__(self, basename, num_halos, hse_files, center,
                  velocity, num_particles=None, mag_file=None, 
-                 resample_file=None, r_max=10000.0):
+                 particle_files=None, r_max=10000.0):
+        self.basename = basename
         self.num_halos = num_halos
         self.hse_files = hse_files
         self.center = ensure_ytarray(center, "kpc")
         self.velocity = ensure_ytarray(velocity, "kpc/Myr")
         self.mag_file = mag_file
-        self.resample_file = resample_file
         self.r_max = r_max
         if num_particles is None:
             self.tot_np = {"dm": 0, "gas": 0, "star": 0}
         else:
             self.tot_np = num_particles
         self._determine_num_particles()
+        if particle_files is None:
+            particle_files = [None]*3
+        self.particle_files = particle_files
 
     _profiles = None
-    
+
     @property
     def profiles(self):
         if self._profiles is None:
@@ -78,23 +81,30 @@ class ClusterICs:
                 nsp = 0
             self.num_particles["star"].append(nsp)
 
-    def _generate_particles(self):
+    def _generate_particles(self, regenerate_particles=False):
         parts = []
         for i, hf in enumerate(self.hse_files):
-            hse = ClusterModel.from_h5_file(hf)
-            vird = VirialEquilibrium.from_hse_model(hse, ptype="dark_matter")
-            p = vird.generate_particles(
-                self.num_particles["dm"][i], r_max=self.r_max)
-            if self.num_particles["star"][i] > 0:
-                virs = VirialEquilibrium.from_hse_model(hse, ptype="stellar")
-                sp = virs.generate_particles(
-                    self.num_particles["star"][i], r_max=self.r_max)
-                p = p + sp
-            if self.num_particles["gas"][i] > 0:
-                gp = hse.generate_particles(
-                    self.num_particles["gas"][i], r_max=self.r_max)
-                p = p + gp
-            parts.append(p)
+            if regenerate_particles or self.particle_files[i] is None:
+                hse = ClusterModel.from_h5_file(hf)
+                vird = VirialEquilibrium.from_hse_model(hse, ptype="dark_matter")
+                p = vird.generate_particles(
+                    self.num_particles["dm"][i], r_max=self.r_max)
+                if self.num_particles["star"][i] > 0:
+                    virs = VirialEquilibrium.from_hse_model(hse, ptype="stellar")
+                    sp = virs.generate_particles(
+                        self.num_particles["star"][i], r_max=self.r_max)
+                    p = p + sp
+                if self.num_particles["gas"][i] > 0:
+                    gp = hse.generate_particles(
+                        self.num_particles["gas"][i], r_max=self.r_max)
+                    p = p + gp
+                parts.append(p)
+                outfile = f"{self.basename}_{i}_particles.h5"
+                p.write_particles_to_h5(outfile)
+                self.particle_files[i] = outfile
+            else:
+                p = ClusterParticles.from_h5_file(self.particle_files[i])
+                parts.append(p)
         return parts
 
     def to_file(self, filename, overwrite=False):
@@ -112,6 +122,8 @@ class ClusterICs:
             raise RuntimeError(f"{filename} exists and overwrite=False!")
         from ruamel.yaml.comments import CommentedMap
         out = CommentedMap()
+        out["basename"] = self.basename
+        out.yaml_add_eol_comment("base name for ICs", key="basename")
         out["num_halos"] = self.num_halos
         out.yaml_add_eol_comment("number of halos", key='num_halos')
         out["profile1"] = self.hse_files[0]
@@ -120,6 +132,10 @@ class ClusterICs:
         out.yaml_add_eol_comment("center for cluster 1", key='center1')
         out["velocity1"] = self.velocity[0].tolist()
         out.yaml_add_eol_comment("velocity for cluster 1", key='velocity1')
+        if self.particle_files[0] is not None:
+            out["particle_file1"] = self.particle_files[0]
+            out.yaml_add_eol_comment("particle file for cluster 1",
+                                     key='particle_file1')
         if self.num_halos > 1:
             out["profile2"] = self.hse_files[1]
             out.yaml_add_eol_comment("profile for cluster 2", key='profile2')
@@ -127,6 +143,10 @@ class ClusterICs:
             out.yaml_add_eol_comment("center for cluster 2", key='center2')
             out["velocity2"] = self.velocity[1].tolist()
             out.yaml_add_eol_comment("velocity for cluster 2", key='velocity2')
+            if self.particle_files[1] is not None:
+                out["particle_file2"] = self.particle_files[1]
+                out.yaml_add_eol_comment("particle file for cluster 2", 
+                                         key='particle_file2')
         if self.num_halos == 3:
             out["profile3"] = self.hse_files[2]
             out.yaml_add_eol_comment("profile for cluster 3", key='profile3')
@@ -134,6 +154,10 @@ class ClusterICs:
             out.yaml_add_eol_comment("center for cluster 3", key='center3')
             out["velocity3"] = self.velocity[2].tolist()
             out.yaml_add_eol_comment("velocity for cluster 3", key='velocity3')
+            if self.particle_files[2] is not None:
+                out["particle_file3"] = self.particle_files[2]
+                out.yaml_add_eol_comment("particle file for cluster 3",
+                                         key='particle_file3')
         if self.tot_np.get("dm", 0) > 0:
             out["num_dm_particles"] = self.tot_np["dm"]
             out.yaml_add_eol_comment("number of DM particles", key='num_dm_particles')
@@ -146,9 +170,6 @@ class ClusterICs:
         if self.mag_file is not None:
             out["mag_file"] = self.mag_file
             out.yaml_add_eol_comment("3D magnetic field file", key='mag_file')
-        if self.resample_file is not None:
-            out["resample_file"] = self.resample_file
-            out.yaml_add_eol_comment("Gadget resampling file", key='resample_file')
         yaml = YAML()
         with open(filename, "w") as f:
             yaml.dump(out, f)
@@ -163,6 +184,7 @@ class ClusterICs:
         yaml = YAML()
         with open(filename, "r") as f:
             params = yaml.load(f)
+        basename = params["basename"]
         num_halos = params["num_halos"]
         hse_files = [params[f"profile{i}"] for i in range(1, num_halos+1)]
         center = [np.array(params[f"center{i}"]) for i in range(1, num_halos+1)]
@@ -170,47 +192,40 @@ class ClusterICs:
         num_particles = {k: params.get(f"num_{k}_particles", 0)
                          for k in ["gas", "dm", "star"]}
         mag_file = params.get("mag_file", None)
-        resample_file = params.get("resample_file", None)
-        return cls(num_halos, hse_files, center, velocity, 
-                   num_particles=num_particles, mag_file=mag_file, 
-                   resample_file=resample_file)
+        particle_files = [params.get(f"particle_file{i}", None)
+                          for i in range(1, num_halos+1)]
+        return cls(basename, num_halos, hse_files, center, velocity, 
+                   num_particles=num_particles, mag_file=mag_file,
+                   particle_files=particle_files)
 
-    def setup_gamer_ics(self, input_testprob, particle_file_prefix,
-                        overwrite=False):
+    def setup_gamer_ics(self, regenerate_particles=False):
         r"""
 
-        Write the "Input_TestProb" file for use with the 
-        ClusterMerger setup in GAMER.
+        Generate the "Input_TestProb" lines needed for use 
+        with the ClusterMerger setup in GAMER.
 
         Parameters
         ----------
-        input_testprob : string 
-            The path to the Input__TestProb file which will
-            include the parameters. 
-        overwrite : boolean, optional
-            If True, a file of the same name will be overwritten.
-            Default: False
         """
-        if os.path.exists(input_testprob) and not overwrite:
-            raise RuntimeError(f"{input_testprob} exists and overwrite=False!")
-        parts = self._generate_particles()
+        parts = self._generate_particles(
+            regenerate_particles=regenerate_particles)
         outlines = [
-            "# problem-specific runtime parameters\n",
             f"Merger_Coll_NumHalos    {self.num_halos} # number of halos\n"
         ]
         for i in range(self.num_halos):
-            particle_file = f"{particle_file_prefix}_parts{i}.h5"
+            particle_file = f"{self.basename}_gamerp_{i}.h5"
             parts[i].write_gamer_input(particle_file)
             outlines += [
-                f"Merger_File_Prof{i+1}       {self.hse_files[i]} # profile table of cluster {i}\n",
-                f"Merger_File_Par{i+1}        {particle_file} # particle file of cluster {i}\n",
-                f"Merger_Coll_PosX{i+1}       {self.center[i][0]} # X-center of cluster {i} in kpc\n",
-                f"Merger_Coll_PosY{i+1}       {self.center[i][1]} # Y-center of cluster {i} in kpc\n",
-                f"Merger_Coll_VelX{i+1}       {self.velocity[i][0]} # X-velocity of cluster {i} in km/s\n",
-                f"Merger_Coll_VelY{i+1}       {self.velocity[i][1]} # Y-velocity of cluster {i} in km/s\n",
+                f"Merger_File_Prof{i+1}       {self.hse_files[i]} # profile table of cluster {i+1}\n",
+                f"Merger_File_Par{i+1}        {self.particle_files[i]} # particle file of cluster {i+1}\n",
+                f"Merger_Coll_PosX{i+1}       {self.center[i][0]} # X-center of cluster {i+1} in kpc\n",
+                f"Merger_Coll_PosY{i+1}       {self.center[i][1]} # Y-center of cluster {i+1} in kpc\n",
+                f"Merger_Coll_VelX{i+1}       {self.velocity[i][0]} # X-velocity of cluster {i+1} in km/s\n",
+                f"Merger_Coll_VelY{i+1}       {self.velocity[i][1]} # Y-velocity of cluster {i+1} in km/s\n",
             ]
-        with open(input_testprob, "w") as f:
-            f.writelines(outlines)
+        mylog.info("Write the following lines to Input__TestProblem: ")
+        for line in outlines:
+            print(line)
         num_particles = sum([self.tot_np[key] for key in ["dm", "star"]])
         mylog.info(f"In the Input__Parameter file, set PAR__NPAR = {num_particles}.")
         if self.mag_file is not None:
@@ -219,7 +234,7 @@ class ClusterICs:
                        f"Input__* files, and set OPT__INIT_BFIELD_BYFILE "
                        f"to 1 in Input__Parameter")
 
-    def setup_particle_ics(self):
+    def setup_particle_ics(self, regenerate_particles=False):
         r"""
         From a set of cluster models and their relative positions and
         velocities, set up initial conditions for use with SPH codes.
@@ -233,13 +248,10 @@ class ClusterICs:
 
         Parameters
         ----------
-        r_max : float, optional
-            The maximum radius in kpc for each cluster to which the 
-            resampling from the profiles occurs. Ignored in the case
-            of a single cluster. Default: 5000.0
         """
         hses = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
-        parts = self._generate_particles()
+        parts = self._generate_particles(
+            regenerate_particles=regenerate_particles)
         if self.num_halos == 1:
             all_parts = parts[0]
         elif self.num_halos == 2:
@@ -255,7 +267,7 @@ class ClusterICs:
                                                self.velocity[1], self.velocity[2])
         return all_parts
 
-    def resample_particle_ics(self, parts, r_max=5000.0, passive_scalars=None):
+    def resample_particle_ics(self, parts, passive_scalars=None):
         r"""
         Given a Gadget-HDF5-like initial conditions file which has been
         output from some type of relaxation process (such as making a 
@@ -267,39 +279,49 @@ class ClusterICs:
         ----------
         filename : string
             The name of file to output the resampled ICs to.
-        dtype : string, optional
-            The datatype of the fields to be written. Default: float32
-        r_max : float, optional
-            The maximum radius in kpc for each cluster to which the 
-            resampling from the profiles occurs. Ignored in the case
-            of a single cluster. Default: 5000.0
-        overwrite : boolean, optional
-            If True, a file of the same name will be overwritten.
-            Default: False
         """
         hses = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
         if self.num_halos == 1:
             new_parts = resample_one_cluster(parts, hses[0], self.center[0],
-                                             self.velocity[0], 
-                                             passive_scalars=passive_scalars)
+                                             self.velocity[0])
         elif self.num_halos == 2:
             new_parts = resample_two_clusters(parts, hses[0], hses[1],
                                               self.center[0], self.center[1],
                                               self.velocity[0], self.velocity[1],
-                                              [r_max]*2, passive_scalars=passive_scalars)
+                                              [self.r_max]*2,
+                                              passive_scalars=passive_scalars)
         else:
             new_parts = resample_three_clusters(parts, hses[0], hses[1], hses[2],
                                                 self.center[0], self.center[1],
                                                 self.center[2], self.velocity[0], 
                                                 self.velocity[1], self.velocity[2], 
-                                                [r_max]*3, passive_scalars=passive_scalars)
+                                                [self.r_max]*3, 
+                                                passive_scalars=passive_scalars)
         return new_parts
 
-        #new_parts.write_to_gadget_file(filename, parts.box_size, dtype=dtype,
-        #                               overwrite=overwrite)
-
-    def setup_flash_ics(self):
-        pass
+    def setup_flash_ics(self, use_particles=True, regenerate_particles=False):
+        if use_particles:
+            self._generate_particles(
+                regenerate_particles=regenerate_particles)
+        outlines = [
+            f"testSingleCluster    {self.num_halos} # number of halos\n"
+        ]
+        for i in range(self.num_halos):
+            outlines += [
+                f"profile{i+1} = {self.hse_files[i]} # profile table of cluster {i+1}\n",
+                f"xInit{i+1} = {self.center[i][0]} # X-center of cluster {i+1} in kpc\n",
+                f"yInit{i+1} = {self.center[i][1]} # Y-center of cluster {i+1} in kpc\n",
+                f"vxInit{i+1} = {self.velocity[i][0]} # X-velocity of cluster {i+1} in km/s\n",
+                f"vyInit{i+1} = {self.velocity[i][1]} # Y-velocity of cluster {i+1} in km/s\n",
+            ]
+            if use_particles:
+                outlines.append(
+                    f"Merger_File_Par{i+1} = {self.particle_files[i]} # particle file of cluster {i+1}\n",
+                    )
+        mylog.info("Add the following lines to flash.par: ")
+        for line in outlines:
+            print(line)
 
     def setup_athena_ics(self):
-        pass
+        mylog.info("Add the following lines to athinput.cluster3d: ")
+
