@@ -67,19 +67,23 @@ class ClusterParticles(object):
         >>> dm_particles = ClusterParticles.from_h5_file("dm_particles.h5")
         """
         names = {}
-        f = h5py.File(filename, "r")
-        if ptypes is None:
-            ptypes = list(f.keys())
-        ptypes = ensure_list(ptypes)
-        for ptype in ptypes:
-            names[ptype] = list(f[ptype].keys())
-        f.close()
+        with h5py.File(filename, "r") as f:
+            if ptypes is None:
+                ptypes = list(f.keys())
+            ptypes = ensure_list(ptypes)
+            for ptype in ptypes:
+                names[ptype] = list(f[ptype].keys())
         fields = OrderedDict()
         for ptype in ptypes:
             for field in names[ptype]:
-                a = YTArray.from_hdf5(filename, dataset_name=field,
-                                      group_name=ptype)
-                fields[ptype, field] = YTArray(a.d, str(a.units)).in_base("galactic")
+                if field == "particle_index":
+                    with h5py.File(filename, "r") as f:
+                        fields[ptype, field] = f[ptype][field][:]
+                else:
+                    a = YTArray.from_hdf5(filename, dataset_name=field,
+                                          group_name=ptype)
+                    fields[ptype, field] = YTArray(
+                        a.d.astype("float64"), str(a.units)).in_base("galactic")
         return cls(ptypes, fields)
 
     @classmethod
@@ -116,10 +120,12 @@ class ClusterParticles(object):
             g = f[ptype]
             for field in gadget_fields[my_ptype]:
                 if field in g:
-                    if field != "ParticleIDs":
+                    if field == "ParticleIDs":
+                        fields[my_ptype, "particle_index"] = g[field][:]
+                    else:
                         fd = gadget_field_map[field]
                         units = gadget_field_units[field]
-                        fields[my_ptype, fd] = YTArray(g[field], units).in_base("galactic")
+                        fields[my_ptype, fd] = YTArray(g[field], units, dtype='float64').in_base("galactic")
             if "Masses" not in g:
                 n_ptype = g["ParticleIDs"].size
                 units = gadget_field_units["Masses"]
@@ -161,6 +167,9 @@ class ClusterParticles(object):
             self.field_names[field[0]].append(field[1])
 
     def drop_ptypes(self, ptypes):
+        """
+        Drop all particles with a type in *ptypes*.
+        """
         ptypes = ensure_list(ptypes)
         for ptype in ptypes:
             self.particle_types.remove(ptype)
@@ -170,7 +179,7 @@ class ClusterParticles(object):
                    self.fields.pop(name) 
         self._update_num_particles()
         self._update_field_names()
-
+        
     def make_radial_cut(self, r_max, center=None, ptypes=None):
         """
         Make a radial cut on particles. All particles outside
@@ -270,17 +279,21 @@ class ClusterParticles(object):
         """
         if os.path.exists(output_filename) and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
-        f = h5py.File(output_filename, "w")
-        [f.create_group(ptype) for ptype in self.particle_types]
-        f.flush()
-        f.close()
+        with h5py.File(output_filename, "w") as f:
+            for ptype in self.particle_types:
+                f.create_group(ptype)
         for field in self.fields:
-            if in_cgs:
-                fd = self.fields[field].in_cgs()
+            if field[1] == "particle_index":
+                with h5py.File(output_filename, "r+") as f:
+                    g = f[field[0]]
+                    g.create_dataset("particle_index", data=self.fields[field])
             else:
-                fd = self.fields[field]
-            fd.write_hdf5(output_filename, dataset_name=field[1],
-                          group_name=field[0])
+                if in_cgs:
+                    fd = self.fields[field].in_cgs()
+                else:
+                    fd = self.fields[field]
+                    fd.write_hdf5(output_filename, dataset_name=field[1],
+                                  group_name=field[0])
 
     def write_gamer_input(self, output_filename, overwrite=True):
         """
@@ -303,9 +316,11 @@ class ClusterParticles(object):
         f = h5py.File(output_filename, "w")
         for field in self.field_names["dm"]:
             fd = uconcatenate([self.fields[ptype, field] for ptype in ptypes], axis=0)
-            fd.convert_to_cgs()
-            f.create_dataset(field, data=fd.d)
-        fd = np.concatenate([(i+1)*np.ones_like(nparts[i]) for i, ptype in enumerate(ptypes)])
+            if hasattr(fd, "units"):
+                print(field, fd.units)
+                fd.convert_to_cgs()
+            f.create_dataset(field, data=np.asarray(fd))
+        fd = np.concatenate([(i+1)*np.ones(nparts[i]) for i, ptype in enumerate(ptypes)])
         f.create_dataset("particle_type", data=fd)
         f.flush()
         f.close()
