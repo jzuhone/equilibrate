@@ -46,7 +46,7 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         """
         f = h5py.File(filename, "r")
 
-        model_type = f["model_type"][()]
+        model_type = f["model_type"][()].decode()
         fnames = list(f['fields'].keys())
 
         parameters = {}
