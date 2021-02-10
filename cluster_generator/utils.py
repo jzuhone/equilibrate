@@ -3,6 +3,7 @@ from scipy.integrate import quad
 from yt import YTArray
 import yt.utilities.physical_constants as pc
 import logging
+from more_itertools import always_iterable
 
 cgLogger = logging.getLogger("cluster_generator")
 
@@ -68,3 +69,6 @@ def ensure_ytarray(arr, units):
     if not isinstance(arr, YTArray):
         arr = YTArray(arr, units)
     return arr.to(units)
+
+
+ensure_list = lambda x: list(always_iterable(x))
