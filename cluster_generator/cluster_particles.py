@@ -1,11 +1,13 @@
 from yt import YTArray, YTQuantity, uconcatenate, load_particles
 from collections import OrderedDict, defaultdict
-from yt.funcs import ensure_list
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import ensure_ytarray, mylog
 import h5py
 import numpy as np
 import os
+from more_itertools import always_iterable
+
+ensure_list = lambda x: list(always_iterable(x))
 
 gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
                         "Potential"],
