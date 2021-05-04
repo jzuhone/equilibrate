@@ -210,7 +210,7 @@ class ClusterICs:
         parts = self._generate_particles(
             regenerate_particles=regenerate_particles)
         outlines = [
-            f"Merger_Coll_NumHalos    {self.num_halos} # number of halos"
+            f"Merger_Coll_NumHalos\t\t{self.num_halos}\t# number of halos"
         ]
         for i in range(self.num_halos):
             particle_file = f"{self.basename}_gamerp_{i+1}.h5"
@@ -305,20 +305,20 @@ class ClusterICs:
             self._generate_particles(
                 regenerate_particles=regenerate_particles)
         outlines = [
-            f"testSingleCluster    {self.num_halos} # number of halos\n"
+            f"testSingleCluster    {self.num_halos} # number of halos"
         ]
         for i in range(self.num_halos):
             vel = self.velocity[i].to("km/s")
             outlines += [
-                f"profile{i+1} = {self.hse_files[i]} # profile table of cluster {i+1}\n",
-                f"xInit{i+1} = {self.center[i][0]} # X-center of cluster {i+1} in kpc\n",
-                f"yInit{i+1} = {self.center[i][1]} # Y-center of cluster {i+1} in kpc\n",
-                f"vxInit{i+1} = {vel[0]} # X-velocity of cluster {i+1} in km/s\n",
-                f"vyInit{i+1} = {vel[1]} # Y-velocity of cluster {i+1} in km/s\n",
+                f"profile{i+1}\t=\t{self.hse_files[i]}\t# profile table of cluster {i+1}",
+                f"xInit{i+1}\t=\t{self.center[i][0]}\t# X-center of cluster {i+1} in kpc",
+                f"yInit{i+1}\t=\t{self.center[i][1]}\t# Y-center of cluster {i+1} in kpc",
+                f"vxInit{i+1}\t=\t{vel[0]}\t# X-velocity of cluster {i+1} in km/s",
+                f"vyInit{i+1}\t=\t{vel[1]}\t# Y-velocity of cluster {i+1} in km/s",
             ]
             if use_particles:
                 outlines.append(
-                    f"Merger_File_Par{i+1} = {self.particle_files[i]} # particle file of cluster {i+1}\n",
+                    f"Merger_File_Par{i+1}\t=\t{self.particle_files[i]}\t# particle file of cluster {i+1}",
                     )
         mylog.info("Add the following lines to flash.par: ")
         for line in outlines:
@@ -326,4 +326,8 @@ class ClusterICs:
 
     def setup_athena_ics(self):
         mylog.info("Add the following lines to athinput.cluster3d: ")
+        
+    def make_gizmo_funcs(self):
+        pass
+        
 

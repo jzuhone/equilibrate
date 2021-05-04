@@ -48,7 +48,7 @@ class ClusterField:
         self.ddims = ddims + pad_dims
         self.vector_potential = vector_potential
         self.divergence_clean = divergence_clean
-        self.comps = ["{}_{}".format(self._name, ax) for ax in "xyz"]
+        self.comps = [f"{self._name}_{ax}" for ax in "xyz"]
         self.dx, self.dy, self.dz = deltas
 
     def _compute_coords(self):
@@ -168,7 +168,7 @@ class ClusterField:
         if item in "xyz":
             return YTArray(getattr(self, item), "kpc")
         elif item in self.comps:
-            comp = "g{}".format(item[-1])
+            comp = f"g{item[-1]}"
             return YTArray(getattr(self, comp), self.units)
         else:
             raise KeyError
@@ -205,7 +205,7 @@ class ClusterField:
         if length_unit is None:
             length_unit = "kpc"
         if os.path.exists(filename) and not overwrite:
-            raise IOError("Cannot create %s. It exists and overwrite=False." % filename)
+            raise IOError(f"Cannot create {filename}. It exists and overwrite=False.")
         all_comps = ["x", "y", "z"] + self.comps
         for field in all_comps:
             if in_cgs:
@@ -362,7 +362,7 @@ class GaussianRandomField(ClusterField):
 
         if num_halos == 0:
             g_rms = parse_value(g_rms, self._units)
-            mylog.info("Scaling the fields by the constant value %s." % g_rms)
+            mylog.info(f"Scaling the fields by the constant value {g_rms}.")
         else:
             if num_halos >= 1:
                 mylog.info("Scaling the fields by cluster 1.")
