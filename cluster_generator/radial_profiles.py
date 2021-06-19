@@ -62,7 +62,8 @@ class RadialProfile:
         f = InterpolatedUnivariateSpline(r, f_r)
         return cls(f)
 
-    def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None):
+    def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None,
+             lw=2, **kwargs):
         """
         Make a quick plot of a profile using Matplotlib.
 
@@ -83,13 +84,15 @@ class RadialProfile:
             created if not provided.
         """
         import matplotlib.pyplot as plt
+        plt.rc("font", size=18)
+        plt.rc("axes", linewidth=2)
         if fig is None:
             fig = plt.figure(figsize=(10,10))
         if ax is None:
             ax = fig.add_subplot(111)
         rr = np.logspace(np.log10(rmin), np.log10(rmax),
                          num_points, endpoint=True)
-        ax.loglog(rr, self(rr))
+        ax.loglog(rr, self(rr), lw=lw, **kwargs)
         ax.set_xlabel("Radius (kpc)")
         ax.tick_params(which="major", width=2, length=6)
         ax.tick_params(which="minor", width=2, length=3)
