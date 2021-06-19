@@ -6,14 +6,11 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     integrate, integrate_toinf, mylog, \
     integrate_mass, kboltz, \
-    mp, G, generate_particle_radii
+    mp, G, generate_particle_radii, X_H, mu, mue
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import \
     ClusterParticles
 
-X_H = 0.76
-mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
-mue = 1.0/(X_H+0.5*(1.0-X_H))
 tt = 2.0/3.0
 mtt = -tt
 ft = 5.0/3.0
@@ -197,6 +194,11 @@ class HydrostaticEquilibrium(ClusterModel):
         return cls._from_scratch(fields, stellar_density=stellar_density,
                                  parameters=parameters)
 
+    def find_field_at_radius(self, field, r):
+        return YTArray(np.interp(r, self["radius"], self[field]),
+                       self[field].units)
+
+
     def check_model(self):
         r"""
         Determine the deviation of the model from hydrostatic equilibrium. 
@@ -337,3 +339,20 @@ class HydrostaticEquilibrium(ClusterModel):
         fields["gas", "particle_velocity"] = YTArray(np.zeros((num_particles, 3)), "kpc/Myr")
 
         return ClusterParticles("gas", fields)
+
+    def plot(self, field, fig=None, ax=None, rmin=None, rmax=None,
+             lw=2, **kwargs):
+        import matplotlib.pyplot as plt
+        plt.rc("font", size=18)
+        plt.rc("axes", linewidth=2)
+        if fig is None:
+            fig = plt.figure(figsize=(10,10))
+        if ax is None:
+            ax = fig.add_subplot(111)
+        ax.loglog(self["radius"], self[field], lw=lw, **kwargs)
+        ax.set_xlim(rmin, rmax)
+        ax.set_xlabel("Radius (kpc)")
+        ax.tick_params(which="major", width=2, length=6)
+        ax.tick_params(which="minor", width=2, length=3)
+        return fig, ax
+

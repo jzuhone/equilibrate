@@ -1,6 +1,9 @@
 import numpy as np
 
 
+_nfw_factor = lambda conc: 1.0/(np.log(conc+1.0)-conc/(1.0+conc))
+
+
 class RadialProfile:
     def __init__(self, profile):
         self.profile = profile
@@ -87,7 +90,10 @@ class RadialProfile:
         rr = np.logspace(np.log10(rmin), np.log10(rmax),
                          num_points, endpoint=True)
         ax.loglog(rr, self(rr))
-        return fig
+        ax.set_xlabel("Radius (kpc)")
+        ax.tick_params(which="major", width=2, length=6)
+        ax.tick_params(which="minor", width=2, length=3)
+        return fig, ax
 
 
 def constant_profile(const):
@@ -204,6 +210,27 @@ def hernquist_mass_profile(M_0, a):
     return RadialProfile(p)
 
 
+def convert_nfw_to_hernquist(M_200, r_200, conc):
+    """
+    Given M200, r200, and a concentration parameter for an
+    NFW profile, return the Hernquist mass and scale radius
+    parameters.
+
+    Parameters
+    ----------
+    M_200 : float
+        The mass of the halo at r200 in Msun.
+    r_200 : float
+        The radius corresponding to the overdensity of 200 times the
+        critical density of the universe in kpc.
+    conc : float
+        The concentration parameter r200/r_s for the NFW profile.
+    """
+    a = r_200/(np.sqrt(0.5*conc*conc*_nfw_factor(conc))-1.0)
+    M0 = M_200*(r_200+a)**2/r_200**2
+    return M0, a
+
+
 def nfw_density_profile(rho_s, r_s):
     """
     An NFW density profile (Navarro, J.F., Frenk, C.S.,
@@ -218,6 +245,24 @@ def nfw_density_profile(rho_s, r_s):
     """
     p = lambda r: rho_s/((r/r_s)*(1.0+r/r_s)**2)
     return RadialProfile(p)
+
+
+def nfw_mass_profile(rho_s, r_s):
+    """
+    An NFW mass profile (Navarro, J.F., Frenk, C.S.,
+    & White, S.D.M. 1996, ApJ, 462, 563).
+
+    Parameters
+    ----------
+    rho_s : float
+        The scale density in Msun/kpc**3.
+    r_s : float
+        The scale radius in kpc.
+    """
+    def _nfw(r):
+        x = r/r_s
+        return 4*np.pi*rho_s*r_s**3*(np.log(1+x)-x/(1+x))
+    return RadialProfile(_nfw)
 
 
 def tnfw_density_profile(rho_s, r_s, r_t):
@@ -240,22 +285,34 @@ def tnfw_density_profile(rho_s, r_s, r_t):
     return RadialProfile(_tnfw)
 
 
-def nfw_mass_profile(rho_s, r_s):
+def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
     """
-    An NFW mass profile (Navarro, J.F., Frenk, C.S.,
-    & White, S.D.M. 1996, ApJ, 462, 563).
+    Compute a scale density parameter for an NFW profile
+    given a concentration parameter, and optionally
+    a redshift, overdensity, and cosmology.
 
     Parameters
     ----------
-    rho_s : float
-        The scale density in Msun/kpc**3.
-    r_s : float
-        The scale radius in kpc.
+    conc : float
+        The concentration parameter for the halo, which should 
+        correspond the selected overdensity (which has a default
+        of 200). 
+    z : float, optional
+        The redshift of the halo formation. Default: 0.0
+    delta : float, optional
+        The overdensity parameter for which the concentration
+        is defined. Default: 200.0
+    cosmo : yt Cosmology object
+        The cosmology to be used when computing the critical
+        density. If not supplied, a default one from yt will 
+        be used.
     """
-    def _nfw(r):
-        x = r/r_s
-        return 4*np.pi*rho_s*r_s**3*(np.log(1+x)-x/(1+x))
-    return RadialProfile(_nfw)
+    from yt.utilities.cosmology import Cosmology
+    if cosmo is None:
+        cosmo = Cosmology()
+    rho_crit = cosmo.critical_density(z).to_value("Msun/kpc**3")
+    rho_s = delta*rho_crit*conc**3*_nfw_factor(conc)/3.
+    return rho_s
 
 
 def snfw_density_profile(M, a):
@@ -292,6 +349,11 @@ def snfw_mass_profile(M, a):
         x = r/a
         return M*(1.-(2.+3.*x)/(2.*(1.+x)**1.5))
     return RadialProfile(_snfw)
+
+
+def snfw_total_mass(Mr, r, a):
+    mp = snfw_mass_profile(1.0, a)
+    return Mr/mp(r)
 
 
 def cored_snfw_density_profile(M, a, r_c):
@@ -340,6 +402,26 @@ def cored_snfw_mass_profile(M, a, r_c):
         ret += d*(np.arctan(y*d)-np.arctan(d))/e
         return 1.5*M*b*ret.astype("float64")
     return RadialProfile(_snfw)
+
+
+def snfw_conc(conc_nfw):
+    """
+    Given an NFW concentration parameter, calculate the 
+    corresponding sNFW concentration parameter. This comes
+    from Equation 31 of (Lilley, E. J., Wyn Evans, N., & 
+    Sanders, J.L. 2018, MNRAS).
+
+    Parameters
+    ----------
+    conc_nfw : float
+        NFW concentration for r200c.
+    """
+    return 0.76*conc_nfw+1.36
+
+
+def cored_snfw_total_mass(Mr, r, a, r_c):
+    mp = cored_snfw_mass_profile(1.0, a, r_c)
+    return Mr/mp(r)
 
 
 _dn = lambda n: 3.0*n - 1./3. + 8.0/(1215.*n) + 184.0/(229635.*n*n)
@@ -531,40 +613,6 @@ def rescale_profile_by_mass(profile, mass, radius):
     return rescale*profile
 
 
-def _nfw_factor(conc):
-    return 1.0/(np.log(conc+1.0)-conc/(1.0+conc))
-
-
-def compute_nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
-    """
-    Compute a scale density parameter for an NFW profile
-    given a concentration parameter, and optionally
-    a redshift, overdensity, and cosmology.
-
-    Parameters
-    ----------
-    conc : float
-        The concentration parameter for the halo, which should 
-        correspond the selected overdensity (which has a default
-        of 200). 
-    z : float, optional
-        The redshift of the halo formation. Default: 0.0
-    delta : float, optional
-        The overdensity parameter for which the concentration
-        is defined. Default: 200.0
-    cosmo : yt Cosmology object
-        The cosmology to be used when computing the critical
-        density. If not supplied, a default one from yt will 
-        be used.
-    """
-    from yt.utilities.cosmology import Cosmology
-    if cosmo is None:
-        cosmo = Cosmology()
-    rho_crit = cosmo.critical_density(z).to_value("Msun/kpc**3")
-    rho_s = delta*rho_crit*conc**3*_nfw_factor(conc)/3.
-    return rho_s
-
-
 def find_overdensity_radius(m, delta, z=0.0, cosmo=None):
     """
     Given a mass value and an overdensity, find the radius
@@ -616,37 +664,3 @@ def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
     f = lambda r: 3.0*m_r(r)/(4.*np.pi*r**3) - delta*rho_crit
     r_delta = bisect(f, 0.01, 10000.0)
     return r_delta, m_r(r_delta)
-
-
-def snfw_conc(conc_nfw):
-    """
-    Given an NFW concentration parameter, calculate the 
-    corresponding sNFW concentration parameter.
-
-    Parameters
-    ----------
-    conc_nfw : float
-        NFW concentration for r200.
-    """
-    return 0.76*conc_nfw+1.36
-
-
-def convert_nfw_to_hernquist(M_200, r_200, conc):
-    """
-    Given M200, r200, and a concentration parameter for an
-    NFW profile, return the Hernquist mass and scale radius
-    parameters.
-
-    Parameters
-    ----------
-    M_200 : float
-        The mass of the halo at r200 in Msun.
-    r_200 : float
-        The radius corresponding to the overdensity of 200 times the
-        critical density of the universe in kpc.
-    conc : float
-        The concentration parameter r200/r_s for the NFW profile.
-    """
-    a = r_200/(np.sqrt(0.5*conc*conc*_nfw_factor(conc))-1.0)
-    M0 = M_200*(r_200+a)**2/r_200**2
-    return M0, a

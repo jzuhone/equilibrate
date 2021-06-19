@@ -25,6 +25,10 @@ mp = (pc.mp).in_units("Msun")
 G = (pc.G).in_units("kpc**3/Msun/Myr**2")
 kboltz = pc.kboltz
 
+X_H = 0.76
+mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
+mue = 1.0/(X_H+0.5*(1.0-X_H))
+
 
 def integrate_mass(profile, rr):
     mass_int = lambda r: profile(r)*r*r

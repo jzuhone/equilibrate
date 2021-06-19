@@ -1,4 +1,6 @@
 import numpy as np
+import unyt as u
+from .utils import mue
 
 
 def f_gas(M500, hubble=0.7):
@@ -42,3 +44,9 @@ def r_bcg(r200):
     x = np.log10(r200) - 1.0
     y = 0.95*x-0.3
     return 10**y
+
+
+def convert_ne_to_density(ne):
+    ne = ne*u.cm**-3
+    return ne.to_value("Msun/kpc**3", "number_density", mu=mue)
+    
