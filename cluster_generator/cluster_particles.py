@@ -439,7 +439,7 @@ class ClusterParticles(object):
                                                  num_particles.get("dm", 0),
                                                  0, 0,
                                                  num_particles.get("star", 0),
-                                                 num_particles.get("black_hole", 0)], 
+                                                 num_particles.get("black_hole", 0)],
                                                 dtype='uint32')
         hg.attrs["NumPart_Total"] = hg.attrs["NumPart_ThisFile"]
         hg.attrs["NumPart_Total_HighWord"] = np.zeros(6, dtype='uint32')
