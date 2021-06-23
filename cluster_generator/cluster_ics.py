@@ -1,4 +1,4 @@
-from cluster_generator.utils import mylog, ensure_ytarray
+from cluster_generator.utils import mylog, ensure_ytarray, ensure_list
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.virial import VirialEquilibrium
 from cluster_generator.cluster_particles import \
@@ -19,9 +19,12 @@ class ClusterICs:
                  particle_files=None, r_max=10000.0):
         self.basename = basename
         self.num_halos = num_halos
-        self.hse_files = hse_files
+        self.hse_files = ensure_list(hse_files)
         self.center = ensure_ytarray(center, "kpc")
         self.velocity = ensure_ytarray(velocity, "kpc/Myr")
+        if self.num_halos == 1:
+            self.center = self.center.reshape(1, 3)
+            self.velocity = self.velocity.reshape(1, 3)
         self.mag_file = mag_file
         self.r_max = r_max
         if num_particles is None:
@@ -29,9 +32,8 @@ class ClusterICs:
         else:
             self.tot_np = num_particles
         self._determine_num_particles()
-        if particle_files is None:
-            particle_files = [None]*3
-        self.particle_files = particle_files
+        self.particle_files = [None]*3
+        self.particle_files[:num_halos] = ensure_list(particle_files)
 
     _profiles = None
 
