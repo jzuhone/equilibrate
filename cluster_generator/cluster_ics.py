@@ -102,7 +102,7 @@ class ClusterICs:
                     p = p + gp
                 parts.append(p)
                 outfile = f"{self.basename}_{i}_particles.h5"
-                p.write_particles_to_h5(outfile)
+                p.write_particles_to_h5(outfile, overwrite=True)
                 self.particle_files[i] = outfile
             else:
                 p = ClusterParticles.from_h5_file(self.particle_files[i])
@@ -257,6 +257,7 @@ class ClusterICs:
             regenerate_particles=regenerate_particles)
         if self.num_halos == 1:
             all_parts = parts[0]
+            all_parts.add_offsets(self.center[0], self.velocity[0])
         elif self.num_halos == 2:
             all_parts = combine_two_clusters(parts[0], parts[1], hses[0],
                                              hses[1], self.center[0],
