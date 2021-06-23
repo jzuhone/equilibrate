@@ -85,6 +85,28 @@ class HydrostaticEquilibrium(ClusterModel):
     def from_dens_and_temp(cls, rmin, rmax, density, temperature,
                            stellar_density=None, num_points=1000, 
                            parameters=None):
+        """
+        Construct a hydrostatic equilibrium model using gas density
+        and temperature profiles. 
+
+        Parameters
+        ----------
+        rmin : float
+            Minimum radius of profiles in kpc.
+        rmax : float
+            Maximum radius of profiles in kpc.
+        density : :class:`~cluster_generator.radial_profiles.RadialProfile`
+            A radial profile describing the gas mass density.
+        temperature : :class:`~cluster_generator.radial_profiles.RadialProfile`
+            A radial profile describing the gas temperature.
+        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+            A radial profile describing the stellar mass density, if desired.
+        num_points : integer, optional
+            The number of points the profiles are evaluated at.
+        parameters : dict, optional
+            A dictionary of user-defined parameters that may be useful for the
+            model.
+        """
         mylog.info("Computing the profiles from density and temperature.")
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
                          endpoint=True)
@@ -111,6 +133,28 @@ class HydrostaticEquilibrium(ClusterModel):
     def from_dens_and_tden(cls, rmin, rmax, density, total_density,
                            stellar_density=None, num_points=1000, 
                            parameters=None):
+        """
+        Construct a hydrostatic equilibrium model using gas density
+        and total density profiles
+
+        Parameters
+        ----------
+        rmin : float
+            Minimum radius of profiles in kpc.
+        rmax : float
+            Maximum radius of profiles in kpc.
+        density : :class:`~cluster_generator.radial_profiles.RadialProfile`
+            A radial profile describing the gas mass density.
+        total_density : :class:`~cluster_generator.radial_profiles.RadialProfile`
+            A radial profile describing the total mass density.
+        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+            A radial profile describing the stellar mass density, if desired.
+        num_points : integer, optional
+            The number of points the profiles are evaluated at.
+        parameters : dict, optional
+            A dictionary of user-defined parameters that may be useful for the
+            model.
+        """
         mylog.info("Computing the profiles from density and total density.")
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
                          endpoint=True)
@@ -195,13 +239,16 @@ class HydrostaticEquilibrium(ClusterModel):
                                  parameters=parameters)
 
     def find_field_at_radius(self, field, r):
+        """
+        Find the value of a *field* in the profiles
+        at radius *r*.
+        """
         return YTArray(np.interp(r, self["radius"], self[field]),
                        self[field].units)
 
-
     def check_model(self):
         r"""
-        Determine the deviation of the model from hydrostatic equilibrium. 
+        Determine the deviation of the model from hydrostatic equilibrium.
 
         Returns
         -------
