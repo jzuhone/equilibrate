@@ -30,7 +30,7 @@ from cluster_generator.radial_profiles import \
     am06_density_profile, am06_temperature_profile, \
     broken_entropy_profile, snfw_total_mass, cored_snfw_total_mass, \
     beta_model_profile, nfw_scale_density, \
-    tnfw_density_profile
+    tnfw_density_profile, walker_entropy_profile
 from cluster_generator.relations import \
     m_bcg, m_sat, r_bcg, f_gas, \
     convert_ne_to_density

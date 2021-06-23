@@ -585,6 +585,13 @@ def broken_entropy_profile(r_s, K_scale, alpha, K_0=0.0):
     return RadialProfile(_entr)
 
 
+def walker_entropy_profile(r_200, A, B, K_scale, alpha=1.1):
+    def _entr(r):
+        x = r/r_200
+        return K_scale*(A*x**alpha)*np.exp(-(x/B)**2)
+    return RadialProfile(_entr)
+
+
 def rescale_profile_by_mass(profile, mass, radius):
     """
     Rescale a density profile by a total mass
