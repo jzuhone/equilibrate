@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import quad
-from yt import YTArray
+from yt import YTArray, YTQuantity
 import yt.utilities.physical_constants as pc
 import logging
 from more_itertools import always_iterable
@@ -21,9 +21,9 @@ cgLogger.propagate = False
 
 mylog = cgLogger
 
-mp = (pc.mp).in_units("Msun")
-G = (pc.G).in_units("kpc**3/Msun/Myr**2")
-kboltz = pc.kboltz
+mp = (pc.mp).to("Msun")
+G = (pc.G).to("kpc**3/Msun/Myr**2")
+kboltz = (pc.kboltz).to("Msun*kpc**2/Myr**2/K")
 
 X_H = 0.76
 mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
@@ -67,6 +67,12 @@ def generate_particle_radii(r, m, num_particles, r_max=None):
     r = np.insert(r[:ridx], 0, 0.0)
     radius = np.interp(u, P_r, r, left=0.0, right=1.0)
     return radius, mtot
+
+
+def ensure_ytquantity(x, units):
+    if not isinstance(x, YTQuantity):
+        x = YTQuantity(x, units)
+    return x.to(units)
 
 
 def ensure_ytarray(arr, units):
