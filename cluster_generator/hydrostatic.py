@@ -4,9 +4,8 @@ from yt import YTArray, YTQuantity
 from scipy.integrate import cumtrapz, quad
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
-    integrate, integrate_toinf, mylog, \
-    integrate_mass, kboltz, \
-    mp, G, generate_particle_radii, X_H, mu, mue
+    integrate, mylog, integrate_mass, \
+    mp, G, generate_particle_radii, mu, mue
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import \
     ClusterParticles
