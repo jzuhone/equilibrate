@@ -65,11 +65,10 @@ class HydrostaticEquilibrium(ClusterModel):
         mdm[ddm.v < 0.0][:] = mdm.max()
         ddm[ddm.v < 0.0][:] = 0.0
 
-        if ddm.sum() > 0.0 and mdm.sum() > 0.0:
-            fields["dark_matter_density"] = ddm
-            fields["dark_matter_mass"] = mdm
-        else:
-            raise RuntimeError("The total dark matter mass is either zero or negative!!")
+        if ddm.sum() < 0.0 or mdm.sum() < 0.0:
+            mylog.warning("The total dark matter mass is either zero or negative!!")
+        fields["dark_matter_density"] = ddm
+        fields["dark_matter_mass"] = mdm
 
         if "density" in fields:
             fields["gas_fraction"] = fields["gas_mass"]/fields["total_mass"]
