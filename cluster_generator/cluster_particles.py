@@ -651,7 +651,7 @@ def resample_one_cluster(particles, hse, center, velocity):
     particles["gas", "thermal_energy"] = YTArray(get_energy(r), "kpc**2/Myr**2")
     vol = particles["gas", "particle_mass"] / particles["gas", "density"]
     particles["gas", "particle_mass"] = YTArray(dens*vol.d, "Msun")
-    particles["gas", "particle_velocity"][:,:] += velocity
+    particles["gas", "particle_velocity"][:,:] = velocity
     particles["gas", "density"] = YTArray(dens, "Msun/kpc**3")
     return particles
 
