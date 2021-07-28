@@ -6,7 +6,10 @@ _nfw_factor = lambda conc: 1.0/(np.log(conc+1.0)-conc/(1.0+conc))
 
 class RadialProfile:
     def __init__(self, profile):
-        self.profile = profile
+        if isinstance(profile, RadialProfile):
+            self.profile = profile.profile
+        else:
+            self.profile = profile
 
     def __call__(self, r):
         return self.profile(r)
