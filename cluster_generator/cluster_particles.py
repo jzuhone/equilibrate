@@ -1,11 +1,13 @@
-from yt import YTArray, YTQuantity, uconcatenate, load_particles
+from yt import load_particles
 from collections import OrderedDict, defaultdict
 from scipy.interpolate import InterpolatedUnivariateSpline
-from cluster_generator.utils import ensure_ytarray, ensure_list, mylog
+from cluster_generator.utils import ensure_ytarray, ensure_list, \
+    mylog, ensure_ytquantity, mu, mp, kboltz
 import h5py
 import numpy as np
 import os
 from more_itertools import always_iterable
+from unyt import unyt_array, unyt_quantity, uconcatenate
 
 ensure_list = lambda x: list(always_iterable(x))
 
@@ -82,9 +84,9 @@ class ClusterParticles(object):
                     with h5py.File(filename, "r") as f:
                         fields[ptype, field] = f[ptype][field][:]
                 else:
-                    a = YTArray.from_hdf5(filename, dataset_name=field,
-                                          group_name=ptype)
-                    fields[ptype, field] = YTArray(
+                    a = unyt_array.from_hdf5(filename, dataset_name=field,
+                                             group_name=ptype)
+                    fields[ptype, field] = unyt_array(
                         a.d.astype("float64"), str(a.units)).in_base("galactic")
         return cls(ptypes, fields)
 
@@ -127,13 +129,15 @@ class ClusterParticles(object):
                     else:
                         fd = gadget_field_map[field]
                         units = gadget_field_units[field]
-                        fields[my_ptype, fd] = YTArray(g[field], units, dtype='float64').in_base("galactic")
+                        fields[my_ptype, fd] = unyt_array(g[field], units, 
+                            dtype='float64').in_base("galactic")
             if "Masses" not in g:
                 n_ptype = g["ParticleIDs"].size
                 units = gadget_field_units["Masses"]
                 n_type = int(ptype[-1])
-                fields[my_ptype, "particle_mass"] = YTArray([f["Header"].attrs["MassTable"][n_type]]*n_ptype,
-                                                            units).in_base("galactic")
+                fields[my_ptype, "particle_mass"] = unyt_array(
+                    [f["Header"].attrs["MassTable"][n_type]]*n_ptype,
+                    units).in_base("galactic")
         box_size = f["/Header"].attrs["BoxSize"]
         f.close()
         return cls(particle_types, fields, box_size=box_size)
@@ -147,12 +151,12 @@ class ClusterParticles(object):
         lunit = f["Info"]["InputPara"]["Unit_L"].value
         munit = f["Info"]["InputPara"]["Unit_M"].value
         vunit = lunit/f["Info"]["InputPara"]["Unit_T"]
-        fields[ptype, "particle_mass"] = YTArray(
+        fields[ptype, "particle_mass"] = unyt_array(
             g["ParMass"][:]*munit, "g").in_base("galactic")
-        fields[ptype, "particle_position"] = YTArray(
+        fields[ptype, "particle_position"] = unyt_array(
             [g[f"ParPos{ax}"][:]*lunit for ax in "XYZ"],
             "cm").in_base("galactic")
-        fields[ptype, "particle_velocity"] = YTArray(
+        fields[ptype, "particle_velocity"] = unyt_array(
             [g[f"ParVel{ax}"][:]*vunit for ax in "XYZ"],
             "cm/s").in_base("galactic")
         f.close()
@@ -181,7 +185,7 @@ class ClusterParticles(object):
                    self.fields.pop(name) 
         self._update_num_particles()
         self._update_field_names()
-        
+
     def make_radial_cut(self, r_max, center=None, ptypes=None):
         """
         Make a radial cut on particles. All particles outside
@@ -237,17 +241,20 @@ class ClusterParticles(object):
             position and velocity of the black hole particle. Default:
             False
         """
-        mass = YTQuantity(bh_mass, "Msun")
-        self.fields["black_hole", "particle_mass"] = YTArray([bh_mass], "Msun")
+        mass = unyt_quantity(bh_mass, "Msun")
+        self.fields["black_hole", "particle_mass"] = unyt_array(
+            [bh_mass], "Msun")
         if use_pot_min:
             idx = np.argmin(self.fields["dm", "potential_energy"])
-            pos = YTArray(self.fields["dm", "particle_position"][idx]).reshape(1,3)
-            vel = YTArray(self.fields["dm", "particle_velocity"][idx]).reshape(1,3)
+            pos = unyt_array(self.fields["dm", "particle_position"][idx]
+                             ).reshape(1,3)
+            vel = unyt_array(self.fields["dm", "particle_velocity"][idx]
+                             ).reshape(1,3)
         else:
             if pos is None:
-                pos = YTArray(np.zeros((1,3)), "kpc")
+                pos = unyt_array(np.zeros((1,3)), "kpc")
             if vel is None:
-                vel = YTArray(np.zeros((1,3)), "kpc/Myr")
+                vel = unyt_array(np.zeros((1,3)), "kpc/Myr")
             pos = ensure_ytarray(pos, "kpc")
             vel = ensure_ytarray(vel, "kpc/Myr")
         if "black_hole" not in self.particle_types:
@@ -256,7 +263,8 @@ class ClusterParticles(object):
             self.fields["black_hole", "particle_velocity"] = vel
             self.fields["black_hole", "particle_mass"] = mass
         else:
-            uappend = lambda x, y: YTArray(np.append(x, y, axis=0).v, x.units)
+            uappend = lambda x, y: unyt_array(np.append(x, y, axis=0).v, 
+                                              x.units)
             self.fields["black_hole", "particle_position"] = uappend(
                 self.fields["black_hole", "particle_position"], pos)
             self.fields["black_hole", "particle_velocity"] = uappend(
@@ -349,10 +357,10 @@ class ClusterParticles(object):
         Parameters
         ----------
         r_ctr : array-like
-            A 3-element list, NumPy array, or YTArray of the coordinates
+            A 3-element list, NumPy array, or unyt_array of the coordinates
             of the new center of the particle distribution.
         v_ctr : array-like
-            A 3-element list, NumPy array, or YTArray of the coordinates
+            A 3-element list, NumPy array, or unyt_array of the coordinates
             of the new bulk velocity of the particle distribution.
         ptypes : string or list of strings, optional
             A single string or list of strings indicating the particle
@@ -367,6 +375,46 @@ class ClusterParticles(object):
         for ptype in ptypes:
             self.fields[ptype, "particle_position"] += r_ctr
             self.fields[ptype, "particle_velocity"] += v_ctr
+
+    def add_background_grid(self, nxb, box_size, part_mass=None,
+                            T_bg=None):
+        ngp = nxb**3
+        dx = box_size/nxb
+        if T_bg is None:
+            T_bg = unyt_quantity(1.0e5, "K")
+        T_bg = ensure_ytquantity(T_bg, "K")
+        if part_mass is None:
+            part_mass = np.mean(self.fields["gas","particle_mass"])
+        part_mass = ensure_ytquantity(part_mass, "Msun")
+        x, y, z = (np.mgrid[0:nxb,0:nxb,0:nxb] + 0.5)*dx
+        self.fields["gas", "particle_position"] = uconcatenate([
+            self.fields["gas", "particle_position"],
+            unyt_array([x.flatten(), y.flatten(), z.flatten()], "kpc").T
+        ])
+        self.fields["gas", "particle_velocity"] = uconcatenate([
+            self.fields["gas", "particle_velocity"],
+            unyt_array(np.zeros((ngp, 3)), "kpc/Myr")
+        ])
+        mass = part_mass*np.ones(ngp)
+        self.fields["gas", "particle_mass"] = uconcatenate([
+            self.fields["gas", "particle_mass"],
+            mass
+        ])
+        self.fields["gas", "density"] = uconcatenate([
+            self.fields["gas", "density"],
+            mass/unyt_array(dx**3, "kpc**3")
+        ])
+        e_th = 1.5*kboltz*T_bg/(mu*mp)
+        self.fields["gas", "thermal_energy"] = uconcatenate([
+            self.fields["gas", "thermal_energy"],
+            e_th*np.ones(ngp)
+        ])
+        if ("gas", "magnetic_field") in self.fields:
+            bunits = self.fields["gas", "magnetic_field"].units
+            self.fields["gas", "magnetic_field"] = uconcatenate([
+                self.fields["gas", "magnetic_field"],
+                unyt_array(np.zeros((ngp, 3)), bunits)
+            ])
 
     def _clip_to_box(self, ptype, box_size):
         pos = self.fields[ptype, "particle_position"]
@@ -391,7 +439,7 @@ class ClusterParticles(object):
                     data = fd[idxs].to(units).d.astype(dtype)
                     h5_group.create_dataset(field, data=data)
 
-    def write_to_gadget_file(self, ic_filename, box_size, 
+    def write_to_gadget_file(self, ic_filename, box_size,
                              dtype='float32', overwrite=False):
         """
         Write the particles to a file in the HDF5 Gadget format
@@ -411,7 +459,8 @@ class ClusterParticles(object):
             Whether or not to overwrite an existing file. Default: False
         """
         if os.path.exists(ic_filename) and not overwrite:
-            raise IOError("Cannot create %s. It exists and overwrite=False." % ic_filename)
+            raise IOError(f"Cannot create {ic_filename}. It exists and "
+                          f"overwrite=False.")
         num_particles = {}
         npart = 0
         mass_table = np.zeros(6)
@@ -458,7 +507,7 @@ class ClusterParticles(object):
     def set_field(self, ptype, name, value, units=None, add=False,
                   passive_scalar=False):
         """
-        Add or update a particle field using a YTArray.
+        Add or update a particle field using a unyt_array.
         The array will be checked to make sure that it
         has the appropriate size.
 
@@ -468,7 +517,7 @@ class ClusterParticles(object):
             The particle type of the field to add or update.
         name : string
             The name of the field to add or update.
-        value : YTArray
+        value : unyt_array
             The particle field itself--an array with the same 
             shape as the number of particles.
         units : string, optional
@@ -478,9 +527,12 @@ class ClusterParticles(object):
             If True and the field already exists, the values
             in the array will be added to the already existing
             field array.
+        passive_scalar : boolean, optional
+            If set, the field to be added is a passive scalar.
+            Default: False
         """
-        if not isinstance(value, YTArray):
-            value = YTArray(value, "dimensionless")
+        if not isinstance(value, unyt_array):
+            value = unyt_array(value, "dimensionless")
         num_particles = self.num_particles[ptype]
         exists = (ptype, name) in self.fields
         if value.shape[0] == num_particles:
@@ -515,7 +567,7 @@ class ClusterParticles(object):
 
     def to_yt_dataset(self, box_size, ptypes=None):
         """
-        Create an in-memory yt dataset for the particles. 
+        Create an in-memory yt dataset for the particles.
 
         Parameters
         ----------
@@ -640,6 +692,18 @@ def combine_three_clusters(particles1, particles2, particles3,
 
 
 def resample_one_cluster(particles, hse, center, velocity):
+    """
+    Resample radial profiles onto a single cluster's particle 
+    distribution.
+
+    Parameters
+    ----------
+
+    particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+    hse : 
+    center : array_like
+    velocity : array_like
+    """
     center = ensure_ytarray(center, "kpc")
     velocity = ensure_ytarray(velocity, "kpc/Myr")
     r = ((particles["gas", "particle_position"]-center)**2).sum(axis=1).d
@@ -648,11 +712,12 @@ def resample_one_cluster(particles, hse, center, velocity):
     dens = get_density(r)
     e_arr = 1.5 * hse["pressure"] / hse["density"]
     get_energy = InterpolatedUnivariateSpline(hse["radius"], e_arr)
-    particles["gas", "thermal_energy"] = YTArray(get_energy(r), "kpc**2/Myr**2")
+    particles["gas", "thermal_energy"] = unyt_array(get_energy(r), 
+                                                    "kpc**2/Myr**2")
     vol = particles["gas", "particle_mass"] / particles["gas", "density"]
-    particles["gas", "particle_mass"] = YTArray(dens*vol.d, "Msun")
+    particles["gas", "particle_mass"] = unyt_array(dens*vol.d, "Msun")
     particles["gas", "particle_velocity"][:,:] = velocity
-    particles["gas", "density"] = YTArray(dens, "Msun/kpc**3")
+    particles["gas", "density"] = unyt_array(dens, "Msun/kpc**3")
     return particles
 
 

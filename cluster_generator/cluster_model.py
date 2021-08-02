@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from yt import YTArray
+from unyt import unyt_array
 import h5py
 import os
 import numpy as np
@@ -26,13 +26,13 @@ class ClusterModel(metaclass=RegisteredClusterModel):
 
     @classmethod
     def from_arrays(cls, model_type, fields, parameters=None):
-        return equilibrium_model_registry[model_type](fields["radius"].size, 
-                                                      fields, parameters=parameters)
+        return equilibrium_model_registry[model_type](
+            fields["radius"].size, fields, parameters=parameters)
 
     @classmethod
     def from_h5_file(cls, filename, r_min=None, r_max=None):
         r"""
-        Generate an equilibrium model from an HDF5 file. 
+        Generate an equilibrium model from an HDF5 file.
 
         Parameters
         ----------
@@ -44,32 +44,31 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         >>> from cluster_generator import ClusterModel
         >>> hse_model = ClusterModel.from_h5_file("hse_model.h5")
         """
-        f = h5py.File(filename, "r")
+        with h5py.File(filename, "r") as f:
+            model_type = f["model_type"][()].decode()
+            fnames = list(f['fields'].keys())
 
-        model_type = f["model_type"][()].decode()
-        fnames = list(f['fields'].keys())
-
-        parameters = {}
-        if "parameters" in f:
-            for k in f["parameters"].keys():
-                parameters[k] = f["parameters"][k][()]
-        f.close()
+            parameters = {}
+            if "parameters" in f:
+                for k in f["parameters"].keys():
+                    parameters[k] = f["parameters"][k][()]
 
         fields = OrderedDict()
         for field in fnames:
-            a = YTArray.from_hdf5(filename, dataset_name=field,
+            a = unyt_array.from_hdf5(filename, dataset_name=field,
                                   group_name="fields")
-            fields[field] = YTArray(a.d, str(a.units)).in_base("galactic")
+            fields[field] = unyt_array(a.d, str(a.units)).in_base("galactic")
         if r_min is None:
             r_min = 0.0
         if r_max is None:
             r_max = fields["radius"][-1].d*2
-        mask = np.logical_and(fields["radius"].d >= r_min, fields["radius"].d <= r_max)
+        mask = np.logical_and(fields["radius"].d >= r_min, 
+                              fields["radius"].d <= r_max)
         for field in fnames:
             fields[field] = fields[field][mask]
         num_elements = mask.sum()
 
-        return equilibrium_model_registry[model_type](num_elements, fields, 
+        return equilibrium_model_registry[model_type](num_elements, fields,
                                                       parameters=parameters)
 
     def __getitem__(self, key):
@@ -81,9 +80,12 @@ class ClusterModel(metaclass=RegisteredClusterModel):
     def keys(self):
         return self.fields.keys()
 
-    def write_model_to_ascii(self, output_filename, in_cgs=False, overwrite=False):
+    def write_model_to_ascii(self, output_filename, in_cgs=False,
+                             overwrite=False):
         r"""
-        Write the equilibrium model to an HDF5 file.
+        Write the equilibrium model to an ascii text file. Uses
+        AstroPy's QTable to write the file, so that units are
+        included.
 
         Parameters
         ----------
@@ -119,7 +121,8 @@ class ClusterModel(metaclass=RegisteredClusterModel):
             Overwrite an existing file with the same name. Default False.
         """
         if os.path.exists(output_filename) and not overwrite:
-            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
+            raise IOError(f"Cannot create {output_filename}. It exists and "
+                          f"overwrite=False.")
         f = h5py.File(output_filename, "w")
         f.create_dataset("model_type", data=self._type_name)
         f.create_dataset("num_elements", data=self.num_elements)
@@ -137,16 +140,16 @@ class ClusterModel(metaclass=RegisteredClusterModel):
                 fd.in_cgs().write_hdf5(output_filename, dataset_name=field, 
                                        group_name="fields")
             else:
-                self.fields[field].write_hdf5(output_filename, dataset_name=field,
-                                              group_name="fields")
+                self.fields[field].write_hdf5(output_filename, 
+                    dataset_name=field, group_name="fields")
 
     def set_field(self, name, value):
         r"""
-        Set a field with name *name* to value *value*, which is a YTArray.
+        Set a field with name *name* to value *value*, which is an unyt_array.
         The array will be checked to make sure that it has the appropriate size.
         """
-        if not isinstance(value, YTArray):
-            raise TypeError("value needs to be a YTArray")
+        if not isinstance(value, unyt_array):
+            raise TypeError("value needs to be an unyt_array")
         if value.size == self.num_elements:
             if name in self.fields:
                 mylog.warning("Overwriting field %s." % name)

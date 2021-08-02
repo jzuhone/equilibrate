@@ -1,5 +1,5 @@
 import numpy as np
-from yt import YTArray, get_pbar
+from tqdm.auto import tqdm
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     quad, generate_particle_radii, mylog
@@ -9,6 +9,7 @@ from cluster_generator.cluster_particles import \
 from cluster_generator.hydrostatic import HydrostaticEquilibrium
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
+from unyt import unyt_array
 
 
 class VirialEquilibrium(ClusterModel):
@@ -82,16 +83,18 @@ class VirialEquilibrium(ClusterModel):
         density_spline = InterpolatedUnivariateSpline(self.ee, pden)
         g = np.zeros(self.num_elements)
         dgdp = lambda t, e: 2*density_spline(e-t*t, 1)
-        pbar = get_pbar("Computing particle DF", self.num_elements)
+        pbar = tqdm(leave=True, total=self.num_elements, 
+                    desc="Computing particle DF ")
         for i in range(self.num_elements):
             g[i] = quad(dgdp, 0., np.sqrt(self.ee[i]), epsabs=1.49e-05,
                         epsrel=1.49e-05, args=(self.ee[i]))[0]
-            pbar.update(i)
-        pbar.finish()
+            pbar.update()
+        pbar.close()
         g_spline = InterpolatedUnivariateSpline(self.ee, g)
         ff = g_spline(self.ee, 1)/(np.sqrt(8.)*np.pi**2)
         self.f = InterpolatedUnivariateSpline(self.ee, ff)
-        self.fields["distribution_function"] = YTArray(ff[::-1], "Msun*Myr**3/kpc**6")
+        self.fields["distribution_function"] = unyt_array(ff[::-1], 
+                                                          "Msun*Myr**3/kpc**6")
 
     @property
     def ee(self):
@@ -180,9 +183,9 @@ class VirialEquilibrium(ClusterModel):
 
         fields = OrderedDict()
 
-        fields[key, "particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
-                                                    radius*np.sin(theta)*np.sin(phi),
-                                                    radius*np.cos(theta)], "kpc").T
+        fields[key, "particle_position"] = unyt_array(
+            [radius*np.sin(theta)*np.cos(phi), radius*np.sin(theta)*np.sin(phi),
+             radius*np.cos(theta)], "kpc").T
 
         mylog.info("Compute particle velocities.")
 
@@ -202,16 +205,19 @@ class VirialEquilibrium(ClusterModel):
         theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
         phi = 2.*np.pi*np.random.uniform(size=num_particles)
 
-        fields[key, "particle_velocity"] = YTArray([velocity*np.sin(theta)*np.cos(phi),
-                                                    velocity*np.sin(theta)*np.sin(phi),
-                                                    velocity*np.cos(theta)], "kpc/Myr").T
+        fields[key, "particle_velocity"] = unyt_array(
+            [velocity*np.sin(theta)*np.cos(phi),
+             velocity*np.sin(theta)*np.sin(phi),
+             velocity*np.cos(theta)], "kpc/Myr").T
 
-        fields[key, "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
+        fields[key, "particle_mass"] = unyt_array(
+            [mtot/num_particles]*num_particles, "Msun")
         if compute_potential:
             if sub_sample > 1:
                 phi = -np.tile(psi, sub_sample)
             else:
                 phi = -psi
-            fields[key, "particle_potential"] = -YTArray(phi, "kpc**2/Myr**2")
+            fields[key, "particle_potential"] = -unyt_array(
+                phi, "kpc**2/Myr**2")
 
         return ClusterParticles(key, fields)

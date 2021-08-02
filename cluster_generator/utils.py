@@ -1,9 +1,10 @@
 import numpy as np
 from scipy.integrate import quad
-from yt import YTArray, YTQuantity
-import yt.utilities.physical_constants as pc
 import logging
 from more_itertools import always_iterable
+from unyt import unyt_array, unyt_quantity
+from unyt import physical_constants as pc
+
 
 cgLogger = logging.getLogger("cluster_generator")
 
@@ -70,14 +71,14 @@ def generate_particle_radii(r, m, num_particles, r_max=None):
 
 
 def ensure_ytquantity(x, units):
-    if not isinstance(x, YTQuantity):
-        x = YTQuantity(x, units)
+    if not isinstance(x, unyt_quantity):
+        x = unyt_quantity(x, units)
     return x.to(units)
 
 
 def ensure_ytarray(arr, units):
-    if not isinstance(arr, YTArray):
-        arr = YTArray(arr, units)
+    if not isinstance(arr, unyt_array):
+        arr = unyt_array(arr, units)
     return arr.to(units)
 
 

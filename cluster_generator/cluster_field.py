@@ -1,17 +1,17 @@
 import numpy as np
-from yt.units.yt_array import YTArray
 from cluster_generator.utils import mylog
 import os
 from cluster_generator.cluster_model import ClusterModel
+from unyt import unyt_array
 
 
 def parse_value(value, default_units):
-    if isinstance(value, YTArray):
-        val = YTArray(value.v, value.units).in_units(default_units)
+    if isinstance(value, unyt_array):
+        val = unyt_array(value.v, value.units).in_units(default_units)
     elif isinstance(value, tuple):
-        val = YTArray(value[0], value[1]).in_units(default_units)
+        val = unyt_array(value[0], value[1]).in_units(default_units)
     else:
-        val = YTArray(value, default_units)
+        val = unyt_array(value, default_units)
     return val
 
 
@@ -166,10 +166,10 @@ class ClusterField:
 
     def __getitem__(self, item):
         if item in "xyz":
-            return YTArray(getattr(self, item), "kpc")
+            return unyt_array(getattr(self, item), "kpc")
         elif item in self.comps:
             comp = f"g{item[-1]}"
-            return YTArray(getattr(self, comp), self.units)
+            return unyt_array(getattr(self, comp), self.units)
         else:
             raise KeyError
 
@@ -205,13 +205,15 @@ class ClusterField:
         if length_unit is None:
             length_unit = "kpc"
         if os.path.exists(filename) and not overwrite:
-            raise IOError(f"Cannot create {filename}. It exists and overwrite=False.")
+            raise IOError(f"Cannot create {filename}. "
+                          f"It exists and overwrite=False.")
         all_comps = ["x", "y", "z"] + self.comps
         for field in all_comps:
             if in_cgs:
                 self[field].in_cgs().write_hdf5(filename, dataset_name=field)
             elif length_unit is not None and field in "xyz":
-                self[field].to(length_unit).write_hdf5(filename, dataset_name=field)
+                self[field].to(length_unit).write_hdf5(filename, 
+                                                       dataset_name=field)
             elif field_unit is not None:
                 if self.vector_potential:
                     units = f"{length_unit}*{field_unit}"
@@ -253,8 +255,8 @@ class ClusterField:
                                            self[self._name+"_"+ax], 
                                            bounds_error=False, fill_value=0.0)
             v[:,i] = func(cluster_particles[ptype, "particle_position"].d)
-        cluster_particles.set_field(ptype, self._name, YTArray(v, self.units), 
-                                    units=units)
+        cluster_particles.set_field(ptype, self._name, 
+                                    unyt_array(v, self.units), units=units)
 
 
 class GaussianRandomField(ClusterField):
@@ -437,10 +439,10 @@ class RadialRandomMagneticField(GaussianRandomField):
             r1 = profile1["radius"].to_value("kpc")
             B1 = profile1["magnetic_field_strength"]
         elif isinstance(profile1, str):
-            r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
-                                   group_name="fields").to('kpc').d
-            B1 = YTArray.from_hdf5(profile1, dataset_name="magnetic_field_strength",
-                                   group_name="fields")
+            r1 = unyt_array.from_hdf5(profile1, dataset_name="radius",
+                                      group_name="fields").to('kpc').d
+            B1 = unyt_array.from_hdf5(profile1,
+                dataset_name="magnetic_field_strength", group_name="fields")
         else:
             r1, B1 = profile1
         if profile2 is not None:
@@ -448,10 +450,10 @@ class RadialRandomMagneticField(GaussianRandomField):
                 r2 = profile2["radius"].to_value("kpc")
                 B2 = profile2["magnetic_field_strength"]
             elif isinstance(profile2, str):
-                r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
-                                       group_name="fields").to('kpc').d
-                B2 = YTArray.from_hdf5(profile2, dataset_name="magnetic_field_strength",
-                                       group_name="fields")
+                r2 = unyt_array.from_hdf5(profile2, dataset_name="radius",
+                                          group_name="fields").to('kpc').d
+                B2 = unyt_array.from_hdf5(profile2,
+                    dataset_name="magnetic_field_strength", group_name="fields")
             else:
                 r2, B2 = profile2
         else:
@@ -462,10 +464,10 @@ class RadialRandomMagneticField(GaussianRandomField):
                 r3 = profile3["radius"].to_value("kpc")
                 B3 = profile3["magnetic_field_strength"]
             elif isinstance(profile3, str):
-                r3 = YTArray.from_hdf5(profile3, dataset_name="radius",
-                                       group_name="fields").to('kpc').d
-                B3 = YTArray.from_hdf5(profile3, dataset_name="magnetic_field_strength",
-                                       group_name="fields")
+                r3 = unyt_array.from_hdf5(profile3, dataset_name="radius",
+                                          group_name="fields").to('kpc').d
+                B3 = unyt_array.from_hdf5(profile3,
+                    dataset_name="magnetic_field_strength", group_name="fields")
             else:
                 r3, B3 = profile3
         else:
@@ -495,7 +497,7 @@ class RandomVelocityField(GaussianRandomField):
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  V_rms, padding=0.1, alpha=-11./3., divergence_clean=False,
                  prng=None):
-        super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims, 
+        super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims,
             l_min, l_max, padding=padding, g_rms=V_rms, alpha=alpha, prng=prng,
             divergence_clean=divergence_clean)
 
@@ -512,10 +514,10 @@ class RadialRandomVelocityField(GaussianRandomField):
             r1 = profile1["radius"].to_value("kpc")
             V1 = profile1["velocity_dispersion"]
         elif isinstance(profile1, str):
-            r1 = YTArray.from_hdf5(profile1, dataset_name="radius",
-                                   group_name="fields").d
-            V1 = YTArray.from_hdf5(profile1, dataset_name="velocity_dispersion",
-                                   group_name="fields")
+            r1 = unyt_array.from_hdf5(profile1, dataset_name="radius",
+                                      group_name="fields").d
+            V1 = unyt_array.from_hdf5(profile1,
+                dataset_name="velocity_dispersion", group_name="fields")
         else:
             r1, V1 = profile1
         if profile2 is not None:
@@ -523,10 +525,10 @@ class RadialRandomVelocityField(GaussianRandomField):
                 r2 = profile2["radius"].to_value("kpc")
                 V2 = profile2["velocity_dispersion"]
             elif isinstance(profile2, str):
-                r2 = YTArray.from_hdf5(profile2, dataset_name="radius",
-                                       group_name="fields").d
-                V2 = YTArray.from_hdf5(profile2, dataset_name="velocity_dispersion",
-                                       group_name="fields")
+                r2 = unyt_array.from_hdf5(profile2, dataset_name="radius",
+                                          group_name="fields").d
+                V2 = unyt_array.from_hdf5(profile2,
+                    dataset_name="velocity_dispersion", group_name="fields")
             else:
                 r2, V2 = profile2
         else:
@@ -537,10 +539,10 @@ class RadialRandomVelocityField(GaussianRandomField):
                 r3 = profile3["radius"].to_value("kpc")
                 V3 = profile3["velocity_dispersion"]
             elif isinstance(profile3, str):
-                r3 = YTArray.from_hdf5(profile3, dataset_name="radius",
-                                       group_name="fields").to('kpc').d
-                V3 = YTArray.from_hdf5(profile3, dataset_name="velocity_dispersion",
-                                       group_name="fields")
+                r3 = unyt_array.from_hdf5(profile3, dataset_name="radius",
+                                          group_name="fields").to('kpc').d
+                V3 = unyt_array.from_hdf5(profile3,
+                    dataset_name="velocity_dispersion", group_name="fields")
             else:
                 r3, V3 = profile3
         else:

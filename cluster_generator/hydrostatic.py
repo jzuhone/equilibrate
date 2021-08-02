@@ -1,14 +1,16 @@
 import numpy as np
 from collections import OrderedDict
-from yt import YTArray, YTQuantity
 from scipy.integrate import cumtrapz, quad
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     integrate, mylog, integrate_mass, \
-    mp, G, generate_particle_radii, mu, mue
+    mp, G, generate_particle_radii, mu, mue, \
+    ensure_ytquantity
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import \
     ClusterParticles
+from unyt import unyt_array
+
 
 tt = 2.0/3.0
 mtt = -tt
@@ -24,10 +26,10 @@ class HydrostaticEquilibrium(ClusterModel):
 
     _type_name = "hydrostatic"
 
-    default_fields = ["density","temperature","pressure","total_density",
-                      "gravitational_potential","gravitational_field",
-                      "total_mass","gas_mass","dark_matter_mass",
-                      "dark_matter_density","stellar_density","stellar_mass"]
+    default_fields = ["density", "temperature", "pressure", "total_density",
+                      "gravitational_potential", "gravitational_field",
+                      "total_mass", "gas_mass", "dark_matter_mass",
+                      "dark_matter_density", "stellar_density", "stellar_mass"]
 
     @classmethod
     def _from_scratch(cls, fields, stellar_density=None, parameters=None):
@@ -36,23 +38,23 @@ class HydrostaticEquilibrium(ClusterModel):
         tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
         gpot_profile = lambda r: tdens_func(r)*r
         gpot1 = fields["total_mass"]/fields["radius"]
-        gpot2 = YTArray(4.*np.pi*integrate(gpot_profile, rr), "Msun/kpc")
+        gpot2 = unyt_array(4.*np.pi*integrate(gpot_profile, rr), "Msun/kpc")
         fields["gravitational_potential"] = -G*(gpot1 + gpot2)
         fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
         if "density" in fields and "gas_mass" not in fields:
             mylog.info("Integrating gas mass profile.")
             m0 = fields["density"].d[0]*rr[0]**3/3.
-            fields["gas_mass"] = YTArray(
+            fields["gas_mass"] = unyt_array(
                 4.0*np.pi*cumtrapz(fields["density"]*rr*rr,
                                    x=rr, initial=0.0)+m0, "Msun")
 
         if stellar_density is not None:
-            fields["stellar_density"] = YTArray(stellar_density(rr),
-                                                "Msun/kpc**3")
+            fields["stellar_density"] = unyt_array(stellar_density(rr),
+                                                   "Msun/kpc**3")
             mylog.info("Integrating stellar mass profile.")
-            fields["stellar_mass"] = YTArray(integrate_mass(stellar_density, rr),
-                                             "Msun")
+            fields["stellar_mass"] = unyt_array(
+                integrate_mass(stellar_density, rr), "Msun")
 
         mdm = fields["total_mass"].copy()
         ddm = fields["total_density"].copy()
@@ -109,20 +111,21 @@ class HydrostaticEquilibrium(ClusterModel):
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
                          endpoint=True)
         fields = OrderedDict()
-        fields["radius"] = YTArray(rr, "kpc")
-        fields["density"] = YTArray(density(rr), "Msun/kpc**3")
-        fields["temperature"] = YTArray(temperature(rr), "keV")
+        fields["radius"] = unyt_array(rr, "kpc")
+        fields["density"] = unyt_array(density(rr), "Msun/kpc**3")
+        fields["temperature"] = unyt_array(temperature(rr), "keV")
         fields["pressure"] = fields["density"]*fields["temperature"]
         fields["pressure"] /= mu*mp
         fields["pressure"].convert_to_units("Msun/(Myr**2*kpc)")
         pressure_spline = InterpolatedUnivariateSpline(rr, fields["pressure"].d)
-        dPdr = YTArray(pressure_spline(rr, 1), "Msun/(Myr**2*kpc**2)")
+        dPdr = unyt_array(pressure_spline(rr, 1), "Msun/(Myr**2*kpc**2)")
         fields["gravitational_field"] = dPdr/fields["density"]
         fields["gravitational_field"].convert_to_units("kpc/Myr**2")
-        fields["gas_mass"] = YTArray(integrate_mass(density, rr), "Msun")
+        fields["gas_mass"] = unyt_array(integrate_mass(density, rr), "Msun")
         fields["total_mass"] = -fields["radius"]**2*fields["gravitational_field"]/G
-        total_mass_spline = InterpolatedUnivariateSpline(rr, fields["total_mass"].v)
-        dMdr = YTArray(total_mass_spline(rr, nu=1), "Msun/kpc")
+        total_mass_spline = InterpolatedUnivariateSpline(rr,
+                                                         fields["total_mass"].v)
+        dMdr = unyt_array(total_mass_spline(rr, nu=1), "Msun/kpc")
         fields["total_density"] = dMdr/(4.*np.pi*fields["radius"]**2)
         return cls._from_scratch(fields, stellar_density=stellar_density,
                                  parameters=parameters)
@@ -157,12 +160,13 @@ class HydrostaticEquilibrium(ClusterModel):
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
                          endpoint=True)
         fields = OrderedDict()
-        fields["radius"] = YTArray(rr, "kpc")
-        fields["density"] = YTArray(density(rr), "Msun/kpc**3")
-        fields["total_density"] = YTArray(total_density(rr), "Msun/kpc**3")
+        fields["radius"] = unyt_array(rr, "kpc")
+        fields["density"] = unyt_array(density(rr), "Msun/kpc**3")
+        fields["total_density"] = unyt_array(total_density(rr), "Msun/kpc**3")
         mylog.info("Integrating total mass profile.")
-        fields["total_mass"] = YTArray(integrate_mass(total_density, rr), "Msun")
-        fields["gas_mass"] = YTArray(integrate_mass(density, rr), "Msun")
+        fields["total_mass"] = unyt_array(integrate_mass(total_density, rr),
+                                          "Msun")
+        fields["gas_mass"] = unyt_array(integrate_mass(density, rr), "Msun")
         fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
         fields["gravitational_field"].convert_to_units("kpc/Myr**2")
         g = fields["gravitational_field"].in_units("kpc/Myr**2").v
@@ -172,7 +176,7 @@ class HydrostaticEquilibrium(ClusterModel):
         P = -integrate(dPdr_int, rr)
         dPdr_int2 = lambda r: density(r)*g[-1]*(rr[-1]/r)**2
         P -= quad(dPdr_int2, rr[-1], np.inf, limit=100)[0]
-        fields["pressure"] = YTArray(P, "Msun/kpc/Myr**2")
+        fields["pressure"] = unyt_array(P, "Msun/kpc/Myr**2")
         fields["temperature"] = fields["pressure"]*mu*mp/fields["density"]
         fields["temperature"].convert_to_units("keV")
 
@@ -185,10 +189,11 @@ class HydrostaticEquilibrium(ClusterModel):
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
                          endpoint=True)
         fields = OrderedDict()
-        fields["radius"] = YTArray(rr, "kpc")
-        fields["total_density"] = YTArray(total_density(rr), "Msun/kpc**3")
+        fields["radius"] = unyt_array(rr, "kpc")
+        fields["total_density"] = unyt_array(total_density(rr), "Msun/kpc**3")
         mylog.info("Integrating total mass profile.")
-        fields["total_mass"] = YTArray(integrate_mass(total_density, rr), "Msun")
+        fields["total_mass"] = unyt_array(integrate_mass(total_density, rr), 
+                                          "Msun")
         fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
         fields["gravitational_field"].convert_to_units("kpc/Myr**2")
 
@@ -203,15 +208,16 @@ class HydrostaticEquilibrium(ClusterModel):
                          endpoint=True)
         fields = OrderedDict()
         mylog.info("Computing the profiles from density and entropy.")
-        fields["radius"] = YTArray(rr, "kpc")
-        fields["total_density"] = YTArray(total_density(rr), "Msun/kpc**3")
+        fields["radius"] = unyt_array(rr, "kpc")
+        fields["total_density"] = unyt_array(total_density(rr), "Msun/kpc**3")
         mylog.info("Integrating total mass profile.")
-        fields["total_mass"] = YTArray(integrate_mass(total_density, rr), "Msun")
+        fields["total_mass"] = unyt_array(integrate_mass(total_density, rr), 
+                                          "Msun")
         fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
         fields["gravitational_field"].convert_to_units("kpc/Myr**2")
         g = fields["gravitational_field"].d
         g_r = InterpolatedUnivariateSpline(rr, g)
-        K = YTArray(entropy(rr), "keV*cm**2").in_base("galactic")
+        K = unyt_array(entropy(rr), "keV*cm**2").in_base("galactic")
         K *= (mp*mue)**-ft
         Kr = InterpolatedUnivariateSpline(rr, K.d)
         integrand = lambda r: Kr(r)**mtf*g_r(r)
@@ -227,10 +233,10 @@ class HydrostaticEquilibrium(ClusterModel):
         x = fgas * mtval / mgval
         P *= x
         rho *= x
-        fields["pressure"] = YTArray(P, "Msun/kpc/Myr**2")
-        fields["density"] = YTArray(rho, "Msun/kpc**3")
+        fields["pressure"] = unyt_array(P, "Msun/kpc/Myr**2")
+        fields["density"] = unyt_array(rho, "Msun/kpc**3")
         density = InterpolatedUnivariateSpline(rr, rho)
-        fields["gas_mass"] = YTArray(integrate_mass(density, rr), "Msun")
+        fields["gas_mass"] = unyt_array(integrate_mass(density, rr), "Msun")
         fields["temperature"] = fields["pressure"]*mu*mp/fields["density"]
         fields["temperature"].convert_to_units("keV")
         return cls._from_scratch(fields, stellar_density=stellar_density,
@@ -241,8 +247,8 @@ class HydrostaticEquilibrium(ClusterModel):
         Find the value of a *field* in the profiles
         at radius *r*.
         """
-        return YTArray(np.interp(r, self["radius"], self[field]),
-                       self[field].units)
+        return unyt_array(np.interp(r, self["radius"], self[field]),
+                          self[field].units)
 
     def check_model(self):
         r"""
@@ -255,8 +261,9 @@ class HydrostaticEquilibrium(ClusterModel):
             equilibrium as a function of radius.
         """
         rr = self.fields["radius"].v
-        pressure_spline = InterpolatedUnivariateSpline(rr, self.fields["pressure"].v)
-        dPdx = YTArray(pressure_spline(rr, 1), "Msun/(Myr**2*kpc**2)")
+        pressure_spline = InterpolatedUnivariateSpline(
+            rr, self.fields["pressure"].v)
+        dPdx = unyt_array(pressure_spline(rr, 1), "Msun/(Myr**2*kpc**2)")
         rhog = self.fields["density"]*self.fields["gravitational_field"]
         chk = dPdx - rhog
         chk /= rhog
@@ -306,10 +313,7 @@ class HydrostaticEquilibrium(ClusterModel):
             p_B = B^2/(8*pi), otherwise p_B = B^2/2.
             Default: True
         """
-        if not hasattr(B0, "units"):
-            B0 = YTQuantity(B0, "gauss")
-        else:
-            B0.convert_to_units("gauss")
+        B0 = ensure_ytquantity(B0, "gauss")
         B = B0*(self["density"]/self["density"][0])**eta
         if not gaussian:
             B /= np.sqrt(4.0*np.pi)
@@ -340,7 +344,8 @@ class HydrostaticEquilibrium(ClusterModel):
 
         radius_sub, mtot = generate_particle_radii(self["radius"].d,
                                                    self["gas_mass"].d,
-                                                   num_particles_sub, r_max=r_max)
+                                                   num_particles_sub, 
+                                                   r_max=r_max)
 
         if sub_sample > 1:
             radius = np.tile(radius_sub, sub_sample)[:num_particles]
@@ -352,9 +357,9 @@ class HydrostaticEquilibrium(ClusterModel):
 
         fields = OrderedDict()
 
-        fields["gas", "particle_position"] = YTArray([radius*np.sin(theta)*np.cos(phi),
-                                                      radius*np.sin(theta)*np.sin(phi),
-                                                      radius*np.cos(theta)], "kpc").T
+        fields["gas", "particle_position"] = unyt_array(
+            [radius*np.sin(theta)*np.cos(phi), radius*np.sin(theta)*np.sin(phi),
+             radius*np.cos(theta)], "kpc").T
 
         mylog.info("Compute particle thermal energies, densities, and masses.")
 
@@ -366,22 +371,25 @@ class HydrostaticEquilibrium(ClusterModel):
         else:
             energy = get_energy(radius)
 
-        fields["gas", "thermal_energy"] = YTArray(energy, "kpc**2/Myr**2")
-        fields["gas", "particle_mass"] = YTArray([mtot/num_particles]*num_particles, "Msun")
+        fields["gas", "thermal_energy"] = unyt_array(energy, "kpc**2/Myr**2")
+        fields["gas", "particle_mass"] = unyt_array(
+            [mtot/num_particles]*num_particles, "Msun")
 
         get_density = InterpolatedUnivariateSpline(self.fields["radius"], 
                                                    self.fields["density"])
 
         if sub_sample > 1:
-            density = np.tile(get_density(radius_sub), sub_sample)[:num_particles]
+            density = np.tile(get_density(radius_sub), 
+                              sub_sample)[:num_particles]
         else:
             density = get_density(radius)
 
-        fields["gas", "density"] = YTArray(density, "Msun/kpc**3")
+        fields["gas", "density"] = unyt_array(density, "Msun/kpc**3")
 
         mylog.info("Set particle velocities to zero.")
 
-        fields["gas", "particle_velocity"] = YTArray(np.zeros((num_particles, 3)), "kpc/Myr")
+        fields["gas", "particle_velocity"] = unyt_array(
+            np.zeros((num_particles, 3)), "kpc/Myr")
 
         return ClusterParticles("gas", fields)
 
