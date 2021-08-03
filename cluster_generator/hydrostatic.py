@@ -64,8 +64,8 @@ class HydrostaticEquilibrium(ClusterModel):
         if "stellar_mass" in fields:
             mdm -= fields["stellar_mass"]
             ddm -= fields["stellar_density"]
-        mdm[ddm.v < 0.0][:] = mdm.max()
-        ddm[ddm.v < 0.0][:] = 0.0
+        mdm[ddm.v < 0.0] = mdm.max()
+        ddm[ddm.v < 0.0] = 0.0
 
         if ddm.sum() < 0.0 or mdm.sum() < 0.0:
             mylog.warning("The total dark matter mass is either zero or negative!!")
