@@ -33,7 +33,8 @@ class ClusterICs:
             self.tot_np = num_particles
         self._determine_num_particles()
         self.particle_files = [None]*3
-        self.particle_files[:num_halos] = ensure_list(particle_files)
+        if particle_files is not None:
+            self.particle_files[:num_halos] = particle_files[:]
 
     _profiles = None
 
