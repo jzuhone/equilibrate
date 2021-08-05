@@ -615,6 +615,8 @@ def _sample_clusters(particles, hses, center, velocity,
         s = np.zeros((num_halos, num_scalars, particles.num_particles["gas"]))
     for i in range(num_halos):
         hse = hses[i]
+        if "density" not in hse:
+            continue
         get_density = InterpolatedUnivariateSpline(hse["radius"], hse["density"])
         d[i,:] = get_density(r[i,:])
         e_arr = 1.5*hse["pressure"]/hse["density"]
@@ -648,18 +650,23 @@ def combine_two_clusters(particles1, particles2, hse1, hse2,
     center2 = ensure_ytarray(center2, "kpc")
     velocity1 = ensure_ytarray(velocity1, "kpc/Myr")
     velocity2 = ensure_ytarray(velocity2, "kpc/Myr")
-    particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
-    particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
-    ptypes = ["dm"]
-    if "star" in particles1.particle_types:
-        ptypes.append("star")
-    if "black_hole" in particles1.particle_types:
-        ptypes.append("black_hole")
-    particles1.add_offsets(center1, velocity1, ptypes=ptypes)
-    particles2.add_offsets(center2, velocity2, ptypes=ptypes)
+    if "gas" in particles1.particle_types:
+        particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
+    if "gas" in particles2.particle_types:
+        particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
+    ptypes1 = particles1.particle_types.copy()
+    ptypes2 = particles2.particle_types.copy()
+    if 'gas' in ptypes1:
+        ptypes1.remove('gas')
+    if 'gas' in ptypes2:
+        ptypes2.remove('gas')
+    particles1.add_offsets(center1, velocity1, ptypes=ptypes1)
+    particles2.add_offsets(center2, velocity2, ptypes=ptypes2)
     particles = particles1+particles2
-    particles = _sample_clusters(particles, [hse1, hse2], 
-                                 [center1, center2], [velocity1, velocity2])
+    if "gas" in particles.particle_types:
+        particles = _sample_clusters(particles, [hse1, hse2], 
+                                     [center1, center2], 
+                                     [velocity1, velocity2])
     return particles
 
 
@@ -673,21 +680,29 @@ def combine_three_clusters(particles1, particles2, particles3,
     velocity1 = ensure_ytarray(velocity1, "kpc/Myr")
     velocity2 = ensure_ytarray(velocity2, "kpc/Myr")
     velocity3 = ensure_ytarray(velocity3, "kpc/Myr")
-    particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
-    particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
-    particles3.add_offsets(center3, [0.0]*3, ptypes=["gas"])
-    ptypes = ["dm"]
-    if "star" in particles1.particle_types:
-        ptypes.append("star")
-    if "black_hole" in particles1.particle_types:
-        ptypes.append("black_hole")
-    particles1.add_offsets(center1, velocity1, ptypes=ptypes)
-    particles2.add_offsets(center2, velocity2, ptypes=ptypes)
-    particles3.add_offsets(center3, velocity3, ptypes=ptypes)
+    if "gas" in particles1.particle_types:
+        particles1.add_offsets(center1, [0.0]*3, ptypes=["gas"])
+    if "gas" in particles2.particle_types:
+        particles2.add_offsets(center2, [0.0]*3, ptypes=["gas"])
+    if "gas" in particles3.particle_types:
+        particles3.add_offsets(center3, [0.0]*3, ptypes=["gas"])
+    ptypes1 = particles1.particle_types.copy()
+    ptypes2 = particles2.particle_types.copy()
+    ptypes3 = particles3.particle_types.copy()
+    if 'gas' in ptypes1:
+        ptypes1.remove('gas')
+    if 'gas' in ptypes2:
+        ptypes2.remove('gas')
+    if 'gas' in ptypes3:
+        ptypes3.remove('gas')
+    particles1.add_offsets(center1, velocity1, ptypes=ptypes1)
+    particles2.add_offsets(center2, velocity2, ptypes=ptypes2)
+    particles3.add_offsets(center3, velocity3, ptypes=ptypes3)
     particles = particles1+particles2+particles3
-    particles = _sample_clusters(particles, [hse1, hse2, hse3],
-                                 [center1, center2, center3],
-                                 [velocity1, velocity2, velocity3])
+    if "gas" in particles.particle_types:
+        particles = _sample_clusters(particles, [hse1, hse2, hse3],
+                                     [center1, center2, center3],
+                                     [velocity1, velocity2, velocity3])
     return particles
 
 
@@ -704,6 +719,8 @@ def resample_one_cluster(particles, hse, center, velocity):
     center : array_like
     velocity : array_like
     """
+    if "gas" not in particles.particle_types:
+        return particles
     center = ensure_ytarray(center, "kpc")
     velocity = ensure_ytarray(velocity, "kpc/Myr")
     r = ((particles["gas", "particle_position"]-center)**2).sum(axis=1).d
