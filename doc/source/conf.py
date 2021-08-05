@@ -28,6 +28,13 @@ author = 'John ZuHone'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.autosummary',
+    'nbsphinx',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -52,3 +59,14 @@ html_theme_path = [sphinx_theme.get_html_theme_path()]
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {'https://docs.python.org/3/': None,
+                       'https://numpy.org/doc/stable/': None,
+                       "https://matplotlib.org/stable/": None,
+                       'https://yt-project.org/doc/': None,
+                       'https://docs.astropy.org/en/stable': None,
+                       }
+
+napoleon_use_param = True
+napoleon_preprocess_types = True
