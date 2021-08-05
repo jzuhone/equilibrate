@@ -3,83 +3,36 @@ from tqdm.auto import tqdm
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     quad, generate_particle_radii, mylog
-from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import \
     ClusterParticles
-from cluster_generator.hydrostatic import HydrostaticEquilibrium
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
 from unyt import unyt_array
 
 
-class VirialEquilibrium(ClusterModel):
+class VirialEquilibrium:
 
-    _type_name = "virial"
-
-    @classmethod
-    def from_scratch(cls, rmin, rmax, total_density, ptype='dark_matter',
-                     num_points=1000, stellar_density=None):
-        r"""
-        Generate a virial equilibrium model for a spherically symmetric
-        dark matter / stellar halo from a total density profile,
-        assuming no gas is present.
-
-        Parameters
-        ----------
-        rmin : float
-            The minimum radius of the halo profile.
-        rmax : float
-            The maximum radius of the halo profile.
-        total_profile : :class:`~cluster_generator.radial_profiles.RadialProfile`
-            The total density profile of the halo.
-        ptype : string, optional
-            The type of the particles which can be generated from this 
-            object, either "dark_matter" or "stellar". Default: "dark_matter"
-        num_points : integer, optional
-            The number of points along the radial profile of the halo.
-            Default: 1000
-        stellar_profile : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
-            If set, this profile will serve as the stellar density profile.
-            Default: None
-        """
-        hse = HydrostaticEquilibrium.no_gas(rmin, rmax, total_density,
-                                            stellar_density=stellar_density,
-                                            num_points=num_points)
-        return cls.from_hse_model(hse, ptype=ptype)
-
-    @classmethod
-    def from_hse_model(cls, hse_model, ptype='dark_matter'):
-        r"""
-        Generate a virial equilibrium model from a hydrostatic 
-        equilibrium model.
-
-        Parameters
-        ----------
-        hse_model : :class:`~cluster_generator.hydrostatic.HydrostaticEquilibrium`
-            The hydrostatic equilibrium model which will be used to
-            construct the virial equilibrium model.
-        ptype : string, optional
-            The type of the particles which can be generated from this
-            object, either "dark_matter" or "stellar". Default: "dark_matter"
-        """
-        keys = ["radius", "%s_density" % ptype, "%s_mass" % ptype,
-                "total_density", "total_mass", "gravitational_potential",
-                "gravitational_field"]
-        fields = OrderedDict([(field, hse_model[field]) for field in keys])
-        parameters = {"ptype": ptype}
-        return cls(hse_model.num_elements, fields, parameters=parameters)
-
-    def __init__(self, num_elements, fields, parameters=None):
-        super(VirialEquilibrium, self).__init__(num_elements, fields,
-                                                parameters=parameters)
+    def __init__(self, num_elements, fields, ptype='dark_matter'):
+        self.num_elements = num_elements
+        self.fields = fields
+        self.ptype = ptype
         if "distribution_function" not in self.fields:
             self._generate_df()
         else:
             f = self["distribution_function"].d[::-1]
             self.f = InterpolatedUnivariateSpline(self.ee, f)
 
+    def __getitem__(self, key):
+        return self.fields[key]
+
+    def __contains__(self, key):
+        return key in self.fields
+
+    def keys(self):
+        return self.fields.keys()
+
     def _generate_df(self):
-        pden = self["%s_density" % self.parameters['ptype']][::-1]
+        pden = self[f"{self.ptype}_density"][::-1]
         density_spline = InterpolatedUnivariateSpline(self.ee, pden)
         g = np.zeros(self.num_elements)
         dgdp = lambda t, e: 2*density_spline(e-t*t, 1)
@@ -96,6 +49,26 @@ class VirialEquilibrium(ClusterModel):
         self.fields["distribution_function"] = unyt_array(ff[::-1], 
                                                           "Msun*Myr**3/kpc**6")
 
+    @classmethod
+    def from_model(cls, model, ptype='dark_matter'):
+        r"""
+        Generate a virial equilibrium model from a 
+
+        Parameters
+        ----------
+        model : :class:`~cluster_generator.hydrostatic.ClusterModel`
+            The cluster model which will be used to
+            construct the virial equilibrium.
+        ptype : string, optional
+            The type of the particles which can be generated from this
+            object, either "dark_matter" or "stellar". Default: "dark_matter"
+        """
+        keys = ["radius", f"{ptype}_density", f"{ptype}_mass",
+                "total_density", "total_mass", "gravitational_potential",
+                "gravitational_field"]
+        fields = OrderedDict([(field, model[field]) for field in keys])
+        return cls(model.num_elements, fields, ptype=ptype)
+
     @property
     def ee(self):
         return -self["gravitational_potential"].d[::-1]
@@ -104,7 +77,7 @@ class VirialEquilibrium(ClusterModel):
     def ff(self):
         return self["distribution_function"].d[::-1]
 
-    def check_model(self):
+    def check_virial(self):
         r"""
         Computes the radial density profile for the collisionless 
         particles computed from integrating over the distribution 
@@ -122,7 +95,7 @@ class VirialEquilibrium(ClusterModel):
         """
         n = self.num_elements
         rho = np.zeros(n)
-        pden = self["%s_density" % self.parameters['ptype']].d
+        pden = self[f"{ptype}_density"].d
         rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
         for i, e in enumerate(self.ee):
             rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e,))[0]
@@ -161,10 +134,9 @@ class VirialEquilibrium(ClusterModel):
         from cluster_generator.utils import parse_prng
 
         num_particles_sub = num_particles // sub_sample
-        ptype = self.parameters["ptype"]
-        key = {"dark_matter": "dm",  "stellar": "star"}[ptype]
-        density = "%s_density" % ptype
-        mass = "%s_mass" % ptype
+        key = {"dark_matter": "dm",  "stellar": "star"}[self.ptype]
+        density = f"{self.ptype}_density"
+        mass = f"{self.ptype}_mass"
         energy_spline = InterpolatedUnivariateSpline(self["radius"].d, self.ee[::-1])
 
         prng = parse_prng(prng)

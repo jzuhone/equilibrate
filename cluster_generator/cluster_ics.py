@@ -132,11 +132,11 @@ class ClusterICs:
         for i, hf in enumerate(self.hse_files):
             if regenerate_particles or self.particle_files[i] is None:
                 hse = ClusterModel.from_h5_file(hf)
-                vird = VirialEquilibrium.from_hse_model(hse, ptype="dark_matter")
+                vird = VirialEquilibrium.from_model(hse, ptype="dark_matter")
                 p = vird.generate_particles(
                     self.num_particles["dm"][i], r_max=self.r_max, prng=prng)
                 if self.num_particles["star"][i] > 0:
-                    virs = VirialEquilibrium.from_hse_model(hse, ptype="stellar")
+                    virs = VirialEquilibrium.from_model(hse, ptype="stellar")
                     sp = virs.generate_particles(
                         self.num_particles["star"][i], r_max=self.r_max,
                         prng=prng)

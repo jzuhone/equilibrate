@@ -4,10 +4,6 @@ from cluster_generator.cluster_ics import \
     ClusterICs, compute_centers_for_binary
 from cluster_generator.cluster_particles import \
     ClusterParticles
-from cluster_generator.hydrostatic import \
-    HydrostaticEquilibrium
-from cluster_generator.virial import \
-    VirialEquilibrium
 from cluster_generator.cluster_field import \
     RandomMagneticField, \
     RadialRandomMagneticField, \
