@@ -597,15 +597,17 @@ def walker_entropy_profile(r_200, A, B, K_scale, alpha=1.1):
 
 def rescale_profile_by_mass(profile, mass, radius):
     """
-    Rescale a density profile by a total mass
-    within some radius.
+    Rescale a density ``profile`` by a total ``mass``
+    within some ``radius``.
 
     Parameters
     ----------
+    profile : ``RadialProfile`` object
+        The profile object to rescale.
     mass : float
         The mass of the object in Msun.
     radius : float
-        The radius that the *mass* corresponds to in kpc.
+        The radius that the ``mass`` corresponds to in kpc.
 
     Examples
     --------
@@ -634,12 +636,12 @@ def find_overdensity_radius(m, delta, z=0.0, cosmo=None):
     Parameters
     ----------
     m : float
-        The enclosed mass. 
+        The enclosed mass.
     delta : float
         The overdensity to compute the radius for.
     z : float, optional
         The redshift of the halo formation. Default: 0.0
-    cosmo : yt Cosmology object
+    cosmo : yt ``Cosmology`` object
         The cosmology to be used when computing the critical
         density. If not supplied, a default one from yt will 
         be used.
@@ -664,7 +666,7 @@ def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
         The overdensity to compute the mass and radius for.
     z : float, optional
         The redshift of the halo formation. Default: 0.0
-    cosmo : yt Cosmology object
+    cosmo : yt ``Cosmology`` object
         The cosmology to be used when computing the critical
         density. If not supplied, a default one from yt will 
         be used.

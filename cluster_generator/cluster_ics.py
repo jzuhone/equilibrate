@@ -163,13 +163,16 @@ class ClusterICs:
                                          key='particle_file3')
         if self.tot_np.get("dm", 0) > 0:
             out["num_dm_particles"] = self.tot_np["dm"]
-            out.yaml_add_eol_comment("number of DM particles", key='num_dm_particles')
+            out.yaml_add_eol_comment("number of DM particles", 
+                                     key='num_dm_particles')
         if self.tot_np.get("gas", 0) > 0:
             out["num_gas_particles"] = self.tot_np["gas"]
-            out.yaml_add_eol_comment("number of gas particles", key='num_gas_particles')
+            out.yaml_add_eol_comment("number of gas particles", 
+                                     key='num_gas_particles')
         if self.tot_np.get("star", 0) > 0:
             out["num_star_particles"] = self.tot_np["star"]
-            out.yaml_add_eol_comment("number of star particles", key='num_star_particles')
+            out.yaml_add_eol_comment("number of star particles", 
+                                     key='num_star_particles')
         if self.mag_file is not None:
             out["mag_file"] = self.mag_file
             out.yaml_add_eol_comment("3D magnetic field file", key='mag_file')
@@ -181,7 +184,7 @@ class ClusterICs:
     def from_file(cls, filename):
         r"""
         Read the initial conditions information
-        from a YAML-formatted *filename*.
+        from a YAML-formatted `filename`.
         """
         from ruamel.yaml import YAML
         yaml = YAML()
@@ -191,20 +194,21 @@ class ClusterICs:
         num_halos = params["num_halos"]
         hse_files = [params[f"profile{i}"] for i in range(1, num_halos+1)]
         center = [np.array(params[f"center{i}"]) for i in range(1, num_halos+1)]
-        velocity = [np.array(params[f"velocity{i}"]) for i in range(1, num_halos+1)]
+        velocity = [np.array(params[f"velocity{i}"]) 
+                    for i in range(1, num_halos+1)]
         num_particles = {k: params.get(f"num_{k}_particles", 0)
                          for k in ["gas", "dm", "star"]}
         mag_file = params.get("mag_file", None)
         particle_files = [params.get(f"particle_file{i}", None)
                           for i in range(1, num_halos+1)]
-        return cls(basename, num_halos, hse_files, center, velocity, 
+        return cls(basename, num_halos, hse_files, center, velocity,
                    num_particles=num_particles, mag_file=mag_file,
                    particle_files=particle_files)
 
     def setup_gamer_ics(self, regenerate_particles=False):
         r"""
 
-        Generate the "Input_TestProb" lines needed for use 
+        Generate the "Input_TestProb" lines needed for use
         with the ClusterMerger setup in GAMER.
 
         Parameters
@@ -231,7 +235,8 @@ class ClusterICs:
         for line in outlines:
             print(line)
         num_particles = sum([self.tot_np[key] for key in ["dm", "star"]])
-        mylog.info(f"In the Input__Parameter file, set PAR__NPAR = {num_particles}.")
+        mylog.info(f"In the Input__Parameter file, "
+                   f"set PAR__NPAR = {num_particles}.")
         if self.mag_file is not None:
             mylog.info(f"Rename the file '{self.mag_file}' to 'B_IC' "
                        f"and place it in the same directory as the "
@@ -330,8 +335,8 @@ class ClusterICs:
 
     def setup_athena_ics(self):
         mylog.info("Add the following lines to athinput.cluster3d: ")
-        
+
     def make_gizmo_funcs(self):
         pass
-        
+
 

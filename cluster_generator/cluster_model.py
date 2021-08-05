@@ -84,7 +84,7 @@ class ClusterModel(metaclass=RegisteredClusterModel):
                              overwrite=False):
         r"""
         Write the equilibrium model to an ascii text file. Uses
-        AstroPy's QTable to write the file, so that units are
+        AstroPy's `QTable` to write the file, so that units are
         included.
 
         Parameters
@@ -145,7 +145,7 @@ class ClusterModel(metaclass=RegisteredClusterModel):
 
     def set_field(self, name, value):
         r"""
-        Set a field with name *name* to value *value*, which is an unyt_array.
+        Set a field with name `name` to value `value`, which is an `unyt_array`.
         The array will be checked to make sure that it has the appropriate size.
         """
         if not isinstance(value, unyt_array):
@@ -155,5 +155,5 @@ class ClusterModel(metaclass=RegisteredClusterModel):
                 mylog.warning("Overwriting field %s." % name)
             self.fields[name] = value
         else:
-            raise ValueError("The length of the array needs to be %d elements!"
-                             % self.num_elements)
+            raise ValueError(f"The length of the array needs to be "
+                             f"{self.num_elements} elements!")
