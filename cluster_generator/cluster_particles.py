@@ -327,7 +327,6 @@ class ClusterParticles(object):
         for field in self.field_names["dm"]:
             fd = uconcatenate([self.fields[ptype, field] for ptype in ptypes], axis=0)
             if hasattr(fd, "units"):
-                print(field, fd.units)
                 fd.convert_to_cgs()
             f.create_dataset(field, data=np.asarray(fd))
         fd = np.concatenate([(i+1)*np.ones(nparts[i]) for i, ptype in enumerate(ptypes)])

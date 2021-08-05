@@ -176,6 +176,8 @@ class ClusterICs:
         if self.mag_file is not None:
             out["mag_file"] = self.mag_file
             out.yaml_add_eol_comment("3D magnetic field file", key='mag_file')
+        out["r_max"] = self.r_max
+        out.yaml_add_eol_comment("Maximum radius of particles", key='r_max')
         yaml = YAML()
         with open(filename, "w") as f:
             yaml.dump(out, f)
@@ -201,9 +203,10 @@ class ClusterICs:
         mag_file = params.get("mag_file", None)
         particle_files = [params.get(f"particle_file{i}", None)
                           for i in range(1, num_halos+1)]
+        r_max = params.get("r_max", 10000.0)
         return cls(basename, num_halos, hse_files, center, velocity,
                    num_particles=num_particles, mag_file=mag_file,
-                   particle_files=particle_files)
+                   particle_files=particle_files, r_max=r_max)
 
     def setup_gamer_ics(self, regenerate_particles=False):
         r"""
