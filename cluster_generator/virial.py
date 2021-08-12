@@ -165,8 +165,8 @@ class VirialEquilibrium(ClusterModel):
         mass = "%s_mass" % ptype
         energy_spline = InterpolatedUnivariateSpline(self["radius"].d, self.ee[::-1])
 
-        mylog.info("We will be assigning %d particles." % num_particles)
-        mylog.info("Compute particle positions.")
+        mylog.info(f"We will be assigning {num_particles} {ptype} particles.")
+        mylog.info(f"Compute {ptype} particle positions.")
 
         nonzero = self[density] > 0.0
         radius_sub, mtot = generate_particle_radii(self["radius"].d[nonzero],
@@ -187,7 +187,7 @@ class VirialEquilibrium(ClusterModel):
             [radius*np.sin(theta)*np.cos(phi), radius*np.sin(theta)*np.sin(phi),
              radius*np.cos(theta)], "kpc").T
 
-        mylog.info("Compute particle velocities.")
+        mylog.info(f"Compute {ptype} particle velocities.")
 
         psi = energy_spline(radius_sub)
         vesc = 2.*psi
