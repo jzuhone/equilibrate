@@ -69,17 +69,20 @@ class ClusterICs:
         self.num_particles = defaultdict(list)
         for i in range(self.num_halos):
             if self.tot_np.get("dm", 0) > 0:
-                ndp = int(self.tot_np["dm"]*dm_masses[i]/tot_dm_mass)
+                ndp = np.rint(self.tot_np["dm"]*dm_masses[i]/tot_dm_mass,
+                              dtype='int')
             else:
                 ndp = 0
             self.num_particles["dm"].append(ndp)
             if self.tot_np.get("gas", 0) > 0:
-                ngp = int(self.tot_np["gas"]*gas_masses[i]/tot_gas_mass)
+                ngp = np.rint(self.tot_np["gas"]*gas_masses[i]/tot_gas_mass,
+                              dtype='int')
             else:
                 ngp = 0
             self.num_particles["gas"].append(ngp)
             if self.tot_np.get("star", 0) > 0:
-                nsp = int(self.tot_np["star"]*star_masses[i]/tot_star_mass)
+                nsp = np.rint(self.tot_np["star"]*star_masses[i]/tot_star_mass,
+                              dtype='int')
             else:
                 nsp = 0
             self.num_particles["star"].append(nsp)
@@ -208,44 +211,6 @@ class ClusterICs:
                    num_particles=num_particles, mag_file=mag_file,
                    particle_files=particle_files, r_max=r_max)
 
-    def setup_gamer_ics(self, regenerate_particles=False):
-        r"""
-
-        Generate the "Input_TestProb" lines needed for use
-        with the ClusterMerger setup in GAMER.
-
-        Parameters
-        ----------
-        """
-        parts = self._generate_particles(
-            regenerate_particles=regenerate_particles)
-        outlines = [
-            f"Merger_Coll_NumHalos\t\t{self.num_halos}\t# number of halos"
-        ]
-        for i in range(self.num_halos):
-            particle_file = f"{self.basename}_gamerp_{i+1}.h5"
-            parts[i].write_gamer_input(particle_file)
-            vel = self.velocity[i].to_value("km/s")
-            outlines += [
-                f"Merger_File_Prof{i+1}\t\t{self.hse_files[i]}\t# profile table of cluster {i+1}",
-                f"Merger_File_Par{i+1}\t\t{particle_file}\t# particle file of cluster {i+1}",
-                f"Merger_Coll_PosX{i+1}\t\t{self.center[i][0].v}\t# X-center of cluster {i+1} in kpc",
-                f"Merger_Coll_PosY{i+1}\t\t{self.center[i][1].v}\t# Y-center of cluster {i+1} in kpc",
-                f"Merger_Coll_VelX{i+1}\t\t{vel[0]}\t# X-velocity of cluster {i+1} in km/s",
-                f"Merger_Coll_VelY{i+1}\t\t{vel[1]}\t# Y-velocity of cluster {i+1} in km/s"
-            ]
-        mylog.info("Write the following lines to Input__TestProblem: ")
-        for line in outlines:
-            print(line)
-        num_particles = sum([self.tot_np[key] for key in ["dm", "star"]])
-        mylog.info(f"In the Input__Parameter file, "
-                   f"set PAR__NPAR = {num_particles}.")
-        if self.mag_file is not None:
-            mylog.info(f"Rename the file '{self.mag_file}' to 'B_IC' "
-                       f"and place it in the same directory as the "
-                       f"Input__* files, and set OPT__INIT_BFIELD_BYFILE "
-                       f"to 1 in Input__Parameter")
-
     def setup_particle_ics(self, regenerate_particles=False):
         r"""
         From a set of cluster models and their relative positions and
@@ -312,7 +277,65 @@ class ClusterICs:
                                                 passive_scalars=passive_scalars)
         return new_parts
 
+    def setup_gamer_ics(self, regenerate_particles=False):
+        r"""
+
+        Generate the "Input_TestProb" lines needed for use
+        with the ClusterMerger setup in GAMER. If the particles
+        (dark matter and potentially star) have not been 
+        created yet, they will be created at this step. 
+
+        Parameters
+        ----------
+        regenerate_particles : boolean, optional
+            If particle files have already been created and this
+            flag is set to True, the particles will be
+            re-created. Default: False
+        """
+        parts = self._generate_particles(
+            regenerate_particles=regenerate_particles)
+        outlines = [
+            f"Merger_Coll_NumHalos\t\t{self.num_halos}\t# number of halos"
+        ]
+        for i in range(self.num_halos):
+            particle_file = f"{self.basename}_gamerp_{i+1}.h5"
+            parts[i].write_gamer_input(particle_file)
+            vel = self.velocity[i].to_value("km/s")
+            outlines += [
+                f"Merger_File_Prof{i+1}\t\t{self.hse_files[i]}\t# profile table of cluster {i+1}",
+                f"Merger_File_Par{i+1}\t\t{particle_file}\t# particle file of cluster {i+1}",
+                f"Merger_Coll_PosX{i+1}\t\t{self.center[i][0].v}\t# X-center of cluster {i+1} in kpc",
+                f"Merger_Coll_PosY{i+1}\t\t{self.center[i][1].v}\t# Y-center of cluster {i+1} in kpc",
+                f"Merger_Coll_VelX{i+1}\t\t{vel[0]}\t# X-velocity of cluster {i+1} in km/s",
+                f"Merger_Coll_VelY{i+1}\t\t{vel[1]}\t# Y-velocity of cluster {i+1} in km/s"
+            ]
+        mylog.info("Write the following lines to Input__TestProblem: ")
+        for line in outlines:
+            print(line)
+        num_particles = sum([self.tot_np[key] for key in ["dm", "star"]])
+        mylog.info(f"In the Input__Parameter file, "
+                   f"set PAR__NPAR = {num_particles}.")
+        if self.mag_file is not None:
+            mylog.info(f"Rename the file '{self.mag_file}' to 'B_IC' "
+                       f"and place it in the same directory as the "
+                       f"Input__* files, and set OPT__INIT_BFIELD_BYFILE "
+                       f"to 1 in Input__Parameter")
+
     def setup_flash_ics(self, use_particles=True, regenerate_particles=False):
+        r"""
+
+        Generate the "flash.par" lines needed for use
+        with the GalaxyClusterMerger setup in FLASH. If the particles
+        (dark matter and potentially star) have not been 
+        created yet, they will be created at this step. 
+
+        Parameters
+        ----------
+        regenerate_particles : boolean, optional
+            If particle files have already been created and this
+            flag is set to True, the particles will be
+            re-created. Default: False
+        """
         if use_particles:
             self._generate_particles(
                 regenerate_particles=regenerate_particles)
