@@ -550,5 +550,7 @@ class RadialRandomVelocityField(GaussianRandomField):
             V3 = None
         super(RadialRandomVelocityField, self).__init__(left_edge, right_edge, 
             ddims, l_min, l_max, padding=padding, alpha=alpha, ctr1=ctr1, 
-            ctr2=ctr2, r1=r1, r2=r2, r3=r3, g1=V1, g2=V2, g3=V3, 
+            ctr2=ctr2, ctr3=ctr3, r1=r1, r2=r2, r3=r3, g1=V1, g2=V2, g3=V3, 
             divergence_clean=divergence_clean, prng=prng)
+
+
