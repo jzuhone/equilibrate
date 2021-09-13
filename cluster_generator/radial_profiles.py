@@ -133,39 +133,6 @@ def beta_model_profile(rho_c, r_c, beta):
     return RadialProfile(p)
 
 
-def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta,
-                              epsilon, gamma=None):
-    """
-    A modified beta-model density profile for galaxy
-    clusters from Vikhlinin, A., Kravtsov, A., Forman, W.,
-    et al. 2006, ApJ, 640, 691.
-
-    Parameters
-    ----------
-    rho_0 : float
-        The scale density in Msun/kpc**3.
-    r_c : float
-        The core radius in kpc.
-    r_s : float
-        The scale radius in kpc.
-    alpha : float
-        The inner logarithmic slope parameter.
-    beta : float
-        The middle logarithmic slope parameter.
-    epsilon : float
-        The outer logarithmic slope parameter.
-    gamma : float
-        This parameter controls the width of the outer
-        transition. If None, it will be gamma = 3 by default.
-    """
-    if gamma is None:
-        gamma = 3.0
-    profile = lambda r: rho_0*(r/r_c)**(-0.5*alpha) * \
-        (1.+(r/r_c)**2)**(-1.5*beta+0.25*alpha) * \
-        (1.+(r/r_s)**gamma)**(-0.5*epsilon/gamma)
-    return RadialProfile(profile)
-
-
 def hernquist_density_profile(M_0, a):
     """
     A Hernquist density profile (Hernquist, L. 1990,
@@ -504,6 +471,39 @@ def am06_density_profile(rho_0, a, a_c, c, n):
     beta = 1.-n*(1.-a/a_c)/(c-a/a_c)
     p = lambda r: rho_0*(1.+r/a_c)*(1.+r/a_c/c)**alpha*(1.+r/a)**beta
     return RadialProfile(p)
+
+
+def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta,
+                              epsilon, gamma=None):
+    """
+    A modified beta-model density profile for galaxy
+    clusters from Vikhlinin, A., Kravtsov, A., Forman, W.,
+    et al. 2006, ApJ, 640, 691.
+
+    Parameters
+    ----------
+    rho_0 : float
+        The scale density in Msun/kpc**3.
+    r_c : float
+        The core radius in kpc.
+    r_s : float
+        The scale radius in kpc.
+    alpha : float
+        The inner logarithmic slope parameter.
+    beta : float
+        The middle logarithmic slope parameter.
+    epsilon : float
+        The outer logarithmic slope parameter.
+    gamma : float
+        This parameter controls the width of the outer
+        transition. If None, it will be gamma = 3 by default.
+    """
+    if gamma is None:
+        gamma = 3.0
+    profile = lambda r: rho_0*(r/r_c)**(-0.5*alpha) * \
+                        (1.+(r/r_c)**2)**(-1.5*beta+0.25*alpha) * \
+                        (1.+(r/r_s)**gamma)**(-0.5*epsilon/gamma)
+    return RadialProfile(profile)
 
 
 def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min,
