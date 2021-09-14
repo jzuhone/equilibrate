@@ -69,20 +69,20 @@ class ClusterICs:
         self.num_particles = defaultdict(list)
         for i in range(self.num_halos):
             if self.tot_np.get("dm", 0) > 0:
-                ndp = np.rint(self.tot_np["dm"]*dm_masses[i]/tot_dm_mass,
-                              dtype='int')
+                ndp = np.rint(
+                    self.tot_np["dm"]*dm_masses[i]/tot_dm_mass).astype("int")
             else:
                 ndp = 0
             self.num_particles["dm"].append(ndp)
             if self.tot_np.get("gas", 0) > 0:
-                ngp = np.rint(self.tot_np["gas"]*gas_masses[i]/tot_gas_mass,
-                              dtype='int')
+                ngp = np.rint(
+                    self.tot_np["gas"]*gas_masses[i]/tot_gas_mass).astype("int")
             else:
                 ngp = 0
             self.num_particles["gas"].append(ngp)
             if self.tot_np.get("star", 0) > 0:
-                nsp = np.rint(self.tot_np["star"]*star_masses[i]/tot_star_mass,
-                              dtype='int')
+                nsp = np.rint(
+                    self.tot_np["star"]*star_masses[i]/tot_star_mass).astype("int")
             else:
                 nsp = 0
             self.num_particles["star"].append(nsp)
@@ -292,6 +292,7 @@ class ClusterICs:
             flag is set to True, the particles will be
             re-created. Default: False
         """
+        hses = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
         parts = self._generate_particles(
             regenerate_particles=regenerate_particles)
         outlines = [
@@ -300,9 +301,12 @@ class ClusterICs:
         for i in range(self.num_halos):
             particle_file = f"{self.basename}_gamerp_{i+1}.h5"
             parts[i].write_gamer_input(particle_file)
+            hse_file_gamer = self.hse_files[i].replace(".h5", "_gamer.h5")
+            hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
+                                      in_cgs=True)
             vel = self.velocity[i].to_value("km/s")
             outlines += [
-                f"Merger_File_Prof{i+1}\t\t{self.hse_files[i]}\t# profile table of cluster {i+1}",
+                f"Merger_File_Prof{i+1}\t\t{hse_file_gamer}\t# profile table of cluster {i+1}",
                 f"Merger_File_Par{i+1}\t\t{particle_file}\t# particle file of cluster {i+1}",
                 f"Merger_Coll_PosX{i+1}\t\t{self.center[i][0].v}\t# X-center of cluster {i+1} in kpc",
                 f"Merger_Coll_PosY{i+1}\t\t{self.center[i][1].v}\t# Y-center of cluster {i+1} in kpc",
@@ -312,7 +316,7 @@ class ClusterICs:
         mylog.info("Write the following lines to Input__TestProblem: ")
         for line in outlines:
             print(line)
-        num_particles = sum([self.tot_np[key] for key in ["dm", "star"]])
+        num_particles = sum([self.tot_np[key] for key in self.tot_np])
         mylog.info(f"In the Input__Parameter file, "
                    f"set PAR__NPAR = {num_particles}.")
         if self.mag_file is not None:
