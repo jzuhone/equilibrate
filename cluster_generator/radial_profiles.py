@@ -117,6 +117,27 @@ def constant_profile(const):
     return RadialProfile(p)
 
 
+def power_law_profile(A, r_s, alpha):
+    """
+    A profile which is a power-law with radius, scaled
+    so that it has a certain value ``A`` at a scale 
+    radius ``r_s``. Can be used as a density, temperature,
+    mass, or entropy profile (or whatever else one may
+    need).
+
+    Parameters
+    ----------
+    A : float
+        Scale value of the profile at r = r_s.
+    r_s : float
+        Scale radius in kpc.
+    alpha : float
+        Power-law index of the profile.
+    """
+    p = lambda r: A*(r/r_s)**alpha
+    return RadialProfile(p)
+
+
 def beta_model_profile(rho_c, r_c, beta):
     """
     A beta-model density profile (Cavaliere A., 
