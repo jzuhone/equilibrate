@@ -7,6 +7,22 @@ To set up a cluster model in spherical hydrostatic and/or virial equilibrium,
 one needs models for various quantities as a function of radius. 
 :class:`~cluster_generator.radial_profiles.RadialProfile` objects 
 
+General Profiles
+================
+
+Constant Profile
+++++++++++++++++
+
+.. math::
+
+    p(r) = K
+
+Power-Law Profile
++++++++++++++++++
+
+.. math::
+
+    p(r) = A\left(\frac{r}{r_s}\right)^\alpha
 
 Density and Mass Profiles
 =========================
@@ -126,6 +142,9 @@ Ascasibar & Markevitch 2006 Temperature Profile
 
 Entropy Profiles
 ================
+
+Baseline Entropy Profile
+++++++++++++++++++++++++
 
 .. math::
 

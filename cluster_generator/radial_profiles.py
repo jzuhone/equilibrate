@@ -39,8 +39,10 @@ class RadialProfile:
 
         Parameters
         ----------
-        r_core : float 
-            The core radius in kpc. 
+        r_core : float
+            The core radius in kpc.
+        alpha : float
+            The power-low index inside the exponential.
         """
         def _core(r):
             x = r/r_core
@@ -56,9 +58,9 @@ class RadialProfile:
 
         Parameters
         ----------
-        r : NumPy array
+        r : array-like
             Array of radii in kpc.
-        f_r : NumPy array
+        f_r : array-like
             Array of profile values in the appropriate units.
         """
         from scipy.interpolate import InterpolatedUnivariateSpline
@@ -324,9 +326,23 @@ def snfw_mass_profile(M, a):
     return RadialProfile(_snfw)
 
 
-def snfw_total_mass(Mr, r, a):
+def snfw_total_mass(mass, radius, a):
+    """
+    Find the total mass parameter for the super-NFW
+    model by inputting a reference mass and radius 
+    (say, M200c and R200c), along with the scale radius.
+
+    Parameters
+    ----------
+    mass : float
+        The input mass in Msun.
+    radius : float
+        The input radius that the input ``mass`` corresponds to in kpc.
+    a : float
+        The scale radius in kpc.
+    """
     mp = snfw_mass_profile(1.0, a)
-    return Mr/mp(r)
+    return mass/mp(radius)
 
 
 def cored_snfw_density_profile(M, a, r_c):
@@ -605,9 +621,9 @@ def rescale_profile_by_mass(profile, mass, radius):
     profile : ``RadialProfile`` object
         The profile object to rescale.
     mass : float
-        The mass of the object in Msun.
+        The input mass in Msun.
     radius : float
-        The radius that the ``mass`` corresponds to in kpc.
+        The input radius that the input ``mass`` corresponds to in kpc.
 
     Examples
     --------
