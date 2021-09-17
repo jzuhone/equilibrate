@@ -1,7 +1,7 @@
 from cluster_generator.cluster_model import \
     ClusterModel
 from cluster_generator.cluster_ics import \
-    ClusterICs
+    ClusterICs, compute_centers_for_binary
 from cluster_generator.cluster_particles import \
     ClusterParticles
 from cluster_generator.hydrostatic import \

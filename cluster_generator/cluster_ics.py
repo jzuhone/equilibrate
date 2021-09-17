@@ -13,6 +13,44 @@ import numpy as np
 from ruamel.yaml import YAML
 
 
+def compute_centers_for_binary(center, d, b, a=0.0):
+    """
+    Given a common center and distance parameters, calculate the
+    central positions of two clusters.
+
+    First, the separation along the x-direction is determined
+    by:
+
+    sep_x = sqrt(d**2-b**2-a**2)
+
+    where d is the distance between the two clusters, b is the
+    impact parameter in the y-direction, and a is the impact 
+    parameter in the z-direction. So the resulting centers are
+    calculated as:
+
+    center1 = [center-0.5*sep_x, center-0.5*b, center-0.5*a]
+    center2 = [center+0.5*sep_x, center+0.5*b, center+0.5*a]
+
+    Parameters
+    ----------
+    center : array-like
+        The center from which the distance parameters for
+        the two clusters will be calculated.
+    d : float
+        The distance between the two clusters.
+    b : float
+        The impact parameter in the y-direction, in kpc.
+    a : float, optional
+        The impact parameter in the z-direction, in kpc.
+        Default: 0.0
+    """
+    d = np.sqrt(d*d-b*b-a*a)
+    diff = np.array([d, b, a])
+    center1 = center - 0.5*diff
+    center2 = center + 0.5*diff
+    return center1, center2
+
+
 class ClusterICs:
     def __init__(self, basename, num_halos, hse_files, center,
                  velocity, num_particles=None, mag_file=None, 
@@ -283,7 +321,9 @@ class ClusterICs:
         Generate the "Input_TestProb" lines needed for use
         with the ClusterMerger setup in GAMER. If the particles
         (dark matter and potentially star) have not been 
-        created yet, they will be created at this step. 
+        created yet, they will be created at this step. New profile 
+        files will also be created which have all fields in CGS units
+        for reading into GAMER.
 
         Parameters
         ----------
