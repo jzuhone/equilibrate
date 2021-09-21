@@ -71,6 +71,15 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         return equilibrium_model_registry[model_type](num_elements, fields,
                                                       parameters=parameters)
 
+    def set_rmax(self, r_max):
+        mask = self.fields["radius"].d <= r_max
+        fields = {}
+        for field in self.fields:
+            fields[field] = self.fields[field][mask]
+        num_elements = mask.sum()
+        return equilibrium_model_registry[self._type_name](
+            num_elements, fields, parameters=self.parameters)
+
     def __getitem__(self, key):
         return self.fields[key]
 
