@@ -116,7 +116,8 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         t.meta['comments'] = f"unit_system={'cgs' if in_cgs else 'galactic'}"
         t.write(output_filename, overwrite=overwrite)
 
-    def write_model_to_h5(self, output_filename, in_cgs=False, overwrite=False):
+    def write_model_to_h5(self, output_filename, in_cgs=False, r_min=None,
+                          r_max=None, overwrite=False):
         r"""
         Write the equilibrium model to an HDF5 file.
 
@@ -140,17 +141,22 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         for k, v in self.parameters.items():
             g.create_dataset(k, data=v)
         f.close()
+        if r_min is None:
+            r_min = 0.0
+        if r_max is None:
+            r_max = self.fields["radius"][-1].d*2
+        mask = np.logical_and(self.fields["radius"].d >= r_min,
+                              self.fields["radius"].d <= r_max)
         for field in list(self.fields.keys()):
             if in_cgs:
                 if field == "temperature":
-                    fd = self.fields[field].to_equivalent("K", "thermal")
+                    fd = self.fields[field][mask].to_equivalent("K", "thermal")
                 else:
-                    fd = self.fields[field]
-                fd.in_cgs().write_hdf5(output_filename, dataset_name=field, 
-                                       group_name="fields")
+                    fd = self.fields[field][mask].to_cgs()
             else:
-                self.fields[field].write_hdf5(output_filename, 
-                    dataset_name=field, group_name="fields")
+                fd = self.fields[field][mask]
+            fd.write_hdf5(output_filename, dataset_name=field,
+                          group_name="fields")
 
     def set_field(self, name, value):
         r"""

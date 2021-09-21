@@ -38,7 +38,7 @@ def setup_gamer_ics(ics, regenerate_particles=False, r_max=None):
             hse = hses[i].set_rmax(r_max)
         hse_file_gamer = ics.hse_files[i].replace(".h5", "_gamer.h5")
         hse.write_model_to_h5(hse_file_gamer, overwrite=True,
-                              in_cgs=True)
+                              in_cgs=True, r_max=ics.r_max)
         vel = ics.velocity[i].to_value("km/s")
         outlines += [
             f"Merger_File_Prof{i+1}\t\t{hse_file_gamer}\t# profile table of cluster {i+1}",
