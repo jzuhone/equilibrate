@@ -54,7 +54,7 @@ def compute_centers_for_binary(center, d, b, a=0.0):
 class ClusterICs:
     def __init__(self, basename, num_halos, hse_files, center,
                  velocity, num_particles=None, mag_file=None, 
-                 particle_files=None, r_max=10000.0):
+                 particle_files=None, r_max=20000.0):
         self.basename = basename
         self.num_halos = num_halos
         self.hse_files = ensure_list(hse_files)
@@ -244,7 +244,7 @@ class ClusterICs:
         mag_file = params.get("mag_file", None)
         particle_files = [params.get(f"particle_file{i}", None)
                           for i in range(1, num_halos+1)]
-        r_max = params.get("r_max", 10000.0)
+        r_max = params.get("r_max", 20000.0)
         return cls(basename, num_halos, hse_files, center, velocity,
                    num_particles=num_particles, mag_file=mag_file,
                    particle_files=particle_files, r_max=r_max)
