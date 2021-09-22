@@ -1,4 +1,4 @@
-from cluster_generator.utils import mylog, ensure_ytarray, ensure_list
+from cluster_generator.utils import ensure_ytarray, ensure_list
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.virial import VirialEquilibrium
 from cluster_generator.cluster_particles import \

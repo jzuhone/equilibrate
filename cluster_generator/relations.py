@@ -6,7 +6,7 @@ from .utils import mue
 def f_gas(M500, hubble=0.7):
     """
     The relationship between M500 and f_gas = Mgas/Mtot
-    within r500 from Vikhlinin, A., et al. 2009, ApJ, 
+    within r500 from Vikhlinin, A., et al. 2009, ApJ,
     692, 1033 (https://ui.adsabs.harvard.edu/abs/2009ApJ...692.1033V/).
 
     Parameters

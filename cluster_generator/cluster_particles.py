@@ -46,7 +46,7 @@ ptype_map = OrderedDict([("PartType0", "gas"),
 rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
 
-class ClusterParticles(object):
+class ClusterParticles:
     def __init__(self, particle_types, fields, box_size=None):
         self.particle_types = ensure_list(particle_types)
         self.fields = fields

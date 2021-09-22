@@ -2,7 +2,7 @@ from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.utils import mylog
 
 
-def setup_gamer_ics(ics, regenerate_particles=False, r_max=None):
+def setup_gamer_ics(ics, regenerate_particles=False):
     r"""
 
     Generate the "Input_TestProb" lines needed for use
@@ -32,13 +32,9 @@ def setup_gamer_ics(ics, regenerate_particles=False, r_max=None):
     for i in range(ics.num_halos):
         particle_file = f"{ics.basename}_gamerp_{i+1}.h5"
         parts[i].write_gamer_input(particle_file)
-        if r_max is None:
-            hse = hses[i]
-        else:
-            hse = hses[i].set_rmax(r_max)
         hse_file_gamer = ics.hse_files[i].replace(".h5", "_gamer.h5")
-        hse.write_model_to_h5(hse_file_gamer, overwrite=True,
-                              in_cgs=True, r_max=ics.r_max)
+        hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
+                                  in_cgs=True, r_max=ics.r_max)
         vel = ics.velocity[i].to_value("km/s")
         outlines += [
             f"Merger_File_Prof{i+1}\t\t{hse_file_gamer}\t# profile table of cluster {i+1}",
