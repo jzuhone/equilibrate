@@ -152,7 +152,7 @@ class ClusterModel(metaclass=RegisteredClusterModel):
                 if field == "temperature":
                     fd = self.fields[field][mask].to_equivalent("K", "thermal")
                 else:
-                    fd = self.fields[field][mask].to_cgs()
+                    fd = self.fields[field][mask].in_cgs()
             else:
                 fd = self.fields[field][mask]
             fd.write_hdf5(output_filename, dataset_name=field,

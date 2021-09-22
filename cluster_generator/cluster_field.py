@@ -369,30 +369,27 @@ class GaussianRandomField(ClusterField):
             if num_halos >= 1:
                 mylog.info("Scaling the fields by cluster 1.")
                 rr1 = np.sqrt((x-ctr1[0])**2 + (y-ctr1[1])**2 + (z-ctr1[2])**2)
-                if r_max is not None and rr1 > r_max:
-                    g_rms = g1[-1]**2
-                else:
-                    idxs1 = np.searchsorted(r1, rr1) - 1
-                    dr1 = (rr1-r1[idxs1])/(r1[idxs1+1]-r1[idxs1])
-                    g_rms = ((1.-dr1)*g1[idxs1] + dr1*g1[idxs1+1])**2
+                if r_max is not None:
+                    rr1[rr1 > r_max] = r_max
+                idxs1 = np.searchsorted(r1, rr1) - 1
+                dr1 = (rr1-r1[idxs1])/(r1[idxs1+1]-r1[idxs1])
+                g_rms = ((1.-dr1)*g1[idxs1] + dr1*g1[idxs1+1])**2
             if num_halos >= 2:
                 mylog.info("Scaling the fields by cluster 2.")
                 rr2 = np.sqrt((x-ctr2[0])**2 + (y-ctr2[1])**2 + (z-ctr2[2])**2)
-                if r_max is not None and rr2 > r_max:
-                    g_rms += g2[-1]**2
-                else:
-                    idxs2 = np.searchsorted(r2, rr2) - 1
-                    dr2 = (rr2-r2[idxs2])/(r2[idxs2+1]-r2[idxs2])
-                    g_rms += ((1.-dr2)*g2[idxs2] + dr2*g2[idxs2+1])**2
+                if r_max is not None:
+                    rr2[rr2 > r_max] = r_max
+                idxs2 = np.searchsorted(r2, rr2) - 1
+                dr2 = (rr2-r2[idxs2])/(r2[idxs2+1]-r2[idxs2])
+                g_rms += ((1.-dr2)*g2[idxs2] + dr2*g2[idxs2+1])**2
             if num_halos == 3:
                 mylog.info("Scaling the fields by cluster 3.")
                 rr3 = np.sqrt((x-ctr3[0])**2 + (y-ctr3[1])**2 + (z-ctr3[2])**2)
-                if r_max is not None and rr3 > r_max:
-                    g_rms += g3[-1]**2
-                else:
-                    idxs3 = np.searchsorted(r3, rr3) - 1
-                    dr3 = (rr3-r3[idxs3])/(r3[idxs3+1]-r3[idxs3])
-                    g_rms += ((1.-dr3)*g3[idxs3] + dr3*g3[idxs3+1])**2
+                if r_max is not None:
+                    rr3[rr3 > r_max] = r_max
+                idxs3 = np.searchsorted(r3, rr3) - 1
+                dr3 = (rr3-r3[idxs3])/(r3[idxs3+1]-r3[idxs3])
+                g_rms += ((1.-dr3)*g3[idxs3] + dr3*g3[idxs3+1])**2
             g_rms = np.sqrt(g_rms).in_units(self._units).d
 
         gx *= g_rms
