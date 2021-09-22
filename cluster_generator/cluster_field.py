@@ -264,7 +264,7 @@ class GaussianRandomField(ClusterField):
                  padding=0.1, alpha=-11./3., g_rms=1.0, ctr1=None,
                  ctr2=None, ctr3=None, r1=None, r2=None, r3=None, 
                  g1=None, g2=None, g3=None, vector_potential=False, 
-                 divergence_clean=False, prng=None):
+                 divergence_clean=False, prng=None, r_max=None):
 
         if prng is None:
             prng = np.random
@@ -369,21 +369,30 @@ class GaussianRandomField(ClusterField):
             if num_halos >= 1:
                 mylog.info("Scaling the fields by cluster 1.")
                 rr1 = np.sqrt((x-ctr1[0])**2 + (y-ctr1[1])**2 + (z-ctr1[2])**2)
-                idxs1 = np.searchsorted(r1, rr1) - 1
-                dr1 = (rr1-r1[idxs1])/(r1[idxs1+1]-r1[idxs1])
-                g_rms = ((1.-dr1)*g1[idxs1] + dr1*g1[idxs1+1])**2
+                if r_max is not None and rr1 > r_max:
+                    g_rms = g1[-1]**2
+                else:
+                    idxs1 = np.searchsorted(r1, rr1) - 1
+                    dr1 = (rr1-r1[idxs1])/(r1[idxs1+1]-r1[idxs1])
+                    g_rms = ((1.-dr1)*g1[idxs1] + dr1*g1[idxs1+1])**2
             if num_halos >= 2:
                 mylog.info("Scaling the fields by cluster 2.")
                 rr2 = np.sqrt((x-ctr2[0])**2 + (y-ctr2[1])**2 + (z-ctr2[2])**2)
-                idxs2 = np.searchsorted(r2, rr2) - 1
-                dr2 = (rr2-r2[idxs2])/(r2[idxs2+1]-r2[idxs2])
-                g_rms += ((1.-dr2)*g2[idxs2] + dr2*g2[idxs2+1])**2
+                if r_max is not None and rr2 > r_max:
+                    g_rms += g2[-1]**2
+                else:
+                    idxs2 = np.searchsorted(r2, rr2) - 1
+                    dr2 = (rr2-r2[idxs2])/(r2[idxs2+1]-r2[idxs2])
+                    g_rms += ((1.-dr2)*g2[idxs2] + dr2*g2[idxs2+1])**2
             if num_halos == 3:
                 mylog.info("Scaling the fields by cluster 3.")
                 rr3 = np.sqrt((x-ctr3[0])**2 + (y-ctr3[1])**2 + (z-ctr3[2])**2)
-                idxs3 = np.searchsorted(r3, rr3) - 1
-                dr3 = (rr3-r3[idxs3])/(r3[idxs3+1]-r3[idxs3])
-                g_rms += ((1.-dr3)*g3[idxs3] + dr3*g3[idxs3+1])**2
+                if r_max is not None and rr3 > r_max:
+                    g_rms += g3[-1]**2
+                else:
+                    idxs3 = np.searchsorted(r3, rr3) - 1
+                    dr3 = (rr3-r3[idxs3])/(r3[idxs3+1]-r3[idxs3])
+                    g_rms += ((1.-dr3)*g3[idxs3] + dr3*g3[idxs3+1])**2
             g_rms = np.sqrt(g_rms).in_units(self._units).d
 
         gx *= g_rms
@@ -433,8 +442,9 @@ class RadialRandomMagneticField(GaussianRandomField):
     _vector_potential = False
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 ctr1, profile1, padding=0.1, ctr2=None, profile2=None, 
-                 ctr3=None, profile3=None, alpha=-11./3., prng=None):
+                 ctr1, profile1, padding=0.1, ctr2=None, profile2=None,
+                 ctr3=None, profile3=None, alpha=-11./3., r_max=None, 
+                 prng=None):
         if isinstance(profile1, ClusterModel):
             r1 = profile1["radius"].to_value("kpc")
             B1 = profile1["magnetic_field_strength"]
@@ -476,7 +486,7 @@ class RadialRandomMagneticField(GaussianRandomField):
         super(RadialRandomMagneticField, self).__init__(
               left_edge, right_edge, ddims, l_min, l_max, padding=padding,
               alpha=alpha, ctr1=ctr1, ctr2=ctr2, ctr3=ctr3, r1=r1, r2=r2, 
-              r3=r3, g1=B1, g2=B2, g3=B3, divergence_clean=True, 
+              r3=r3, g1=B1, g2=B2, g3=B3, divergence_clean=True, r_max=r_max,
               vector_potential=self._vector_potential, prng=prng)
 
 
@@ -508,7 +518,7 @@ class RadialRandomVelocityField(GaussianRandomField):
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  ctr1, profile1, padding=0.1, ctr2=None, profile2=None,
-                 ctr3=None, profile3=None, alpha=-11./3., 
+                 ctr3=None, profile3=None, alpha=-11./3., r_max=None,
                  divergence_clean=False, prng=None):
         if isinstance(profile1, ClusterModel):
             r1 = profile1["radius"].to_value("kpc")
@@ -551,6 +561,6 @@ class RadialRandomVelocityField(GaussianRandomField):
         super(RadialRandomVelocityField, self).__init__(left_edge, right_edge, 
             ddims, l_min, l_max, padding=padding, alpha=alpha, ctr1=ctr1, 
             ctr2=ctr2, ctr3=ctr3, r1=r1, r2=r2, r3=r3, g1=V1, g2=V2, g3=V3, 
-            divergence_clean=divergence_clean, prng=prng)
+            divergence_clean=divergence_clean, r_max=r_max, prng=prng)
 
 
