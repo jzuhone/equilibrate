@@ -53,12 +53,12 @@ def compute_centers_for_binary(center, d, b, a=0.0):
 
 
 class ClusterICs:
-    def __init__(self, basename, num_halos, hse_files, center,
-                 velocity, num_particles=None, mag_file=None,
+    def __init__(self, basename, num_halos, profiles, center,
+                 velocity, num_particles=None, mag_file=None, 
                  particle_files=None, r_max=20000.0):
         self.basename = basename
         self.num_halos = num_halos
-        self.hse_files = ensure_list(hse_files)
+        self.profiles = ensure_list(profiles)
         self.center = ensure_ytarray(center, "kpc")
         self.velocity = ensure_ytarray(velocity, "kpc/Myr")
         if self.num_halos == 1:
@@ -75,30 +75,22 @@ class ClusterICs:
         if particle_files is not None:
             self.particle_files[:num_halos] = particle_files[:]
 
-    _profiles = None
-
-    @property
-    def profiles(self):
-        if self._profiles is None:
-            self._profiles = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
-        return self._profiles
-
     def _determine_num_particles(self):
         from collections import defaultdict
         dm_masses = []
         gas_masses = []
         star_masses = []
-        for hsef in self.hse_files:
-            hse = ClusterModel.from_h5_file(hsef)
-            idxs = hse["radius"] < self.r_max
-            dm_masses.append(hse["dark_matter_mass"][idxs][-1].value)
-            if "gas_mass" in hse:
-                gmass = hse["gas_mass"][idxs][-1].value
+        for pf in self.profiles:
+            p = ClusterModel.from_h5_file(pf)
+            idxs = p["radius"] < self.r_max
+            dm_masses.append(p["dark_matter_mass"][idxs][-1].value)
+            if "gas_mass" in p:
+                gmass = p["gas_mass"][idxs][-1].value
             else:
                 gmass = 0.0
             gas_masses.append(gmass)
-            if "stellar_mass" in hse:
-                smass = hse["stellar_mass"][idxs][-1].value
+            if "stellar_mass" in p:
+                smass = p["stellar_mass"][idxs][-1].value
             else:
                 smass = 0.0
             star_masses.append(smass)
@@ -129,30 +121,30 @@ class ClusterICs:
     def _generate_particles(self, regenerate_particles=False, prng=None):
         prng = parse_prng(prng)
         parts = []
-        for i, hf in enumerate(self.hse_files):
+        for i, pf in enumerate(self.profiles):
             if regenerate_particles or self.particle_files[i] is None:
-                hse = ClusterModel.from_h5_file(hf)
-                vird = VirialEquilibrium.from_model(hse, ptype="dark_matter")
-                p = vird.generate_particles(
+                p = ClusterModel.from_h5_file(pf)
+                vird = VirialEquilibrium.from_model(p, ptype="dark_matter")
+                pp = vird.generate_particles(
                     self.num_particles["dm"][i], r_max=self.r_max, prng=prng)
                 if self.num_particles["star"][i] > 0:
-                    virs = VirialEquilibrium.from_model(hse, ptype="stellar")
+                    virs = VirialEquilibrium.from_model(p, ptype="stellar")
                     sp = virs.generate_particles(
                         self.num_particles["star"][i], r_max=self.r_max,
                         prng=prng)
-                    p = p + sp
+                    pp = pp + sp
                 if self.num_particles["gas"][i] > 0:
-                    gp = hse.generate_particles(
+                    gp = p.generate_particles(
                         self.num_particles["gas"][i], r_max=self.r_max,
                         prng=prng)
-                    p = p + gp
-                parts.append(p)
+                    pp = pp + gp
+                parts.append(pp)
                 outfile = f"{self.basename}_{i}_particles.h5"
                 p.write_particles_to_h5(outfile, overwrite=True)
                 self.particle_files[i] = outfile
             else:
-                p = ClusterParticles.from_h5_file(self.particle_files[i])
-                parts.append(p)
+                pp = ClusterParticles.from_h5_file(self.particle_files[i])
+                parts.append(pp)
         return parts
 
     def to_file(self, filename, overwrite=False):
@@ -174,7 +166,7 @@ class ClusterICs:
         out.yaml_add_eol_comment("base name for ICs", key="basename")
         out["num_halos"] = self.num_halos
         out.yaml_add_eol_comment("number of halos", key='num_halos')
-        out["profile1"] = self.hse_files[0]
+        out["profile1"] = self.profiles[0]
         out.yaml_add_eol_comment("profile for cluster 1", key='profile1')
         out["center1"] = self.center[0].tolist()
         out.yaml_add_eol_comment("center for cluster 1", key='center1')
@@ -185,7 +177,7 @@ class ClusterICs:
             out.yaml_add_eol_comment("particle file for cluster 1",
                                      key='particle_file1')
         if self.num_halos > 1:
-            out["profile2"] = self.hse_files[1]
+            out["profile2"] = self.profiles[1]
             out.yaml_add_eol_comment("profile for cluster 2", key='profile2')
             out["center2"] = self.center[1].tolist()
             out.yaml_add_eol_comment("center for cluster 2", key='center2')
@@ -196,7 +188,7 @@ class ClusterICs:
                 out.yaml_add_eol_comment("particle file for cluster 2", 
                                          key='particle_file2')
         if self.num_halos == 3:
-            out["profile3"] = self.hse_files[2]
+            out["profile3"] = self.profiles[2]
             out.yaml_add_eol_comment("profile for cluster 3", key='profile3')
             out["center3"] = self.center[2].tolist()
             out.yaml_add_eol_comment("center for cluster 3", key='center3')
@@ -239,7 +231,7 @@ class ClusterICs:
             params = yaml.load(f)
         basename = params["basename"]
         num_halos = params["num_halos"]
-        hse_files = [params[f"profile{i}"] for i in range(1, num_halos+1)]
+        profiles = [params[f"profile{i}"] for i in range(1, num_halos+1)]
         center = [np.array(params[f"center{i}"]) for i in range(1, num_halos+1)]
         velocity = [np.array(params[f"velocity{i}"]) 
                     for i in range(1, num_halos+1)]
@@ -249,7 +241,7 @@ class ClusterICs:
         particle_files = [params.get(f"particle_file{i}", None)
                           for i in range(1, num_halos+1)]
         r_max = params.get("r_max", 20000.0)
-        return cls(basename, num_halos, hse_files, center, velocity,
+        return cls(basename, num_halos, profiles, center, velocity,
                    num_particles=num_particles, mag_file=mag_file,
                    particle_files=particle_files, r_max=r_max)
 
@@ -268,23 +260,24 @@ class ClusterICs:
         Parameters
         ----------
         """
-        hses = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
+        profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
         parts = self._generate_particles(
             regenerate_particles=regenerate_particles, prng=prng)
         if self.num_halos == 1:
             all_parts = parts[0]
             all_parts.add_offsets(self.center[0], self.velocity[0])
         elif self.num_halos == 2:
-            all_parts = combine_two_clusters(parts[0], parts[1], hses[0],
-                                             hses[1], self.center[0],
+            all_parts = combine_two_clusters(parts[0], parts[1], profiles[0],
+                                             profiles[1], self.center[0],
                                              self.center[1], self.velocity[0],
                                              self.velocity[1])
         else:
             all_parts = combine_three_clusters(parts[0], parts[1], parts[2],
-                                               hses[0], hses[1], hses[2],
-                                               self.center[0], self.center[1],
-                                               self.center[2], self.velocity[0],
-                                               self.velocity[1], self.velocity[2])
+                                               profiles[0], profiles[1], 
+                                               profiles[2], self.center[0], 
+                                               self.center[1], self.center[2], 
+                                               self.velocity[0], self.velocity[1],
+                                               self.velocity[2])
         return all_parts
 
     def resample_particle_ics(self, parts, passive_scalars=None):
@@ -300,21 +293,21 @@ class ClusterICs:
         filename : string
             The name of file to output the resampled ICs to.
         """
-        hses = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
+        profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
         if self.num_halos == 1:
-            new_parts = resample_one_cluster(parts, hses[0], self.center[0],
+            new_parts = resample_one_cluster(parts, profiles[0], self.center[0],
                                              self.velocity[0])
         elif self.num_halos == 2:
-            new_parts = resample_two_clusters(parts, hses[0], hses[1],
+            new_parts = resample_two_clusters(parts, profiles[0], profiles[1],
                                               self.center[0], self.center[1],
                                               self.velocity[0], self.velocity[1],
                                               [self.r_max]*2,
                                               passive_scalars=passive_scalars)
         else:
-            new_parts = resample_three_clusters(parts, hses[0], hses[1], hses[2],
-                                                self.center[0], self.center[1],
-                                                self.center[2], self.velocity[0], 
-                                                self.velocity[1], self.velocity[2], 
-                                                [self.r_max]*3, 
+            new_parts = resample_three_clusters(parts, profiles[0], profiles[1], 
+                                                profiles[2], self.center[0], 
+                                                self.center[1], self.center[2], 
+                                                self.velocity[0], self.velocity[1], 
+                                                self.velocity[2], [self.r_max]*3, 
                                                 passive_scalars=passive_scalars)
         return new_parts
