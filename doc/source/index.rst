@@ -19,6 +19,7 @@
    fields
    initial_conditions
    examples
+   codes
    api
 
 Indices and tables
