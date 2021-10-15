@@ -3,17 +3,19 @@
 Setting Up Idealized Cluster Problems in Various Codes
 ------------------------------------------------------
 
-FLASH
-=====
+``FLASH``
+=========
 
-The FLASH simulation setup ``GalaxyClusterMerger'' can be used with the inputs
-to ``cluster_generator'' to perform a single-cluster simulation or a binary 
-merger. ``GalaxyClusterMerger'' has two modes in which it can be run in: 
+The ``FLASH`` simulation setup ``GalaxyClusterMerger'' can be used with the 
+inputs to ``cluster_generator'' to perform a single-cluster simulation or a 
+binary merger. ``GalaxyClusterMerger'' has two modes in which it can be run in: 
 ``RigidGravity'', which uses rigid potentials to represent the dark matter, or
 ``SelfGravity'', which represents the dark matter as particles. 
 
-GAMER
-=====
+``GAMER``
+=========
+
+The GAMER simulation 
 
 Arepo
 =====
