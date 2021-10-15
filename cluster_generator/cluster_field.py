@@ -266,8 +266,7 @@ class GaussianRandomField(ClusterField):
                  g1=None, g2=None, g3=None, vector_potential=False, 
                  divergence_clean=False, prng=None, r_max=None):
 
-        if prng is None:
-            prng = np.random
+        prng = parse_prng(prng)
 
         super(GaussianRandomField, self).__init__(left_edge, right_edge, ddims,
                                                   padding=padding,

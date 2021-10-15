@@ -4,6 +4,7 @@ import logging
 from more_itertools import always_iterable
 from unyt import unyt_array, unyt_quantity
 from unyt import physical_constants as pc
+from numpy.random import RandomState
 
 
 cgLogger = logging.getLogger("cluster_generator")
@@ -82,4 +83,13 @@ def ensure_ytarray(arr, units):
     return arr.to(units)
 
 
-ensure_list = lambda x: list(always_iterable(x))
+def parse_prng(prng):
+    if isinstance(prng, RandomState):
+        return prng
+    else:
+        return RandomState(prng)
+
+
+def ensure_list(x):
+    return list(always_iterable(x))
+
