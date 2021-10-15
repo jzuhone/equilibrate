@@ -12,7 +12,7 @@ def f_gas(M500, hubble=0.7):
     Parameters
     ----------
     M500 : float
-        The M500 of the cluster in units of Msun/h.
+        The M500 of the cluster in units of Msun.
     hubble : float, optional
         The Hubble parameter in units of 100 km/s/Mpc.
         Default: 0.7
@@ -21,7 +21,8 @@ def f_gas(M500, hubble=0.7):
     -------
     f_gas at r500
     """
-    return ((0.72/hubble)**1.5)*(0.125+0.037*np.log10(M500*1.0e-15))
+    m = M500*1.0e-15/hubble
+    return ((0.72/hubble)**1.5)*(0.125+0.037*np.log10(m))
 
 
 def m_bcg(M500):
@@ -49,4 +50,3 @@ def r_bcg(r200):
 def convert_ne_to_density(ne):
     ne = ne*u.cm**-3
     return ne.to_value("Msun/kpc**3", "number_density", mu=mue)
-    
