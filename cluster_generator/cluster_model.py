@@ -59,7 +59,7 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         fields = OrderedDict()
         for field in fnames:
             a = unyt_array.from_hdf5(filename, dataset_name=field,
-                                  group_name="fields")
+                                     group_name="fields")
             fields[field] = unyt_array(a.d, str(a.units))
             if field not in cls._keep_units:
                 fields[field].convert_to_base("galactic")
@@ -114,9 +114,15 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         fields = {}
         for k, v in self.fields.items():
             if in_cgs:
-                fields[k] = v.in_cgs().to_astropy()
+                if k == "temperature":
+                    fd = v.to_equivalent("K", "thermal")
+                elif k not in self._keep_units:
+                    fd = v.in_cgs()
+                else:
+                    fd = v
             else:
-                fields[k] = v.to_astropy()
+                fd = v
+            fields[k] = fd.to_astropy()
         t = QTable(fields)
         t.meta['comments'] = f"unit_system={'cgs' if in_cgs else 'galactic'}"
         t.write(output_filename, overwrite=overwrite)
@@ -152,17 +158,17 @@ class ClusterModel(metaclass=RegisteredClusterModel):
             r_max = self.fields["radius"][-1].d*2
         mask = np.logical_and(self.fields["radius"].d >= r_min,
                               self.fields["radius"].d <= r_max)
-        for field in list(self.fields.keys()):
+        for k, v in self.fields.items():
             if in_cgs:
-                if field == "temperature":
-                    fd = self.fields[field][mask].to_equivalent("K", "thermal")
+                if k == "temperature":
+                    fd = v[mask].to_equivalent("K", "thermal")
+                elif k not in self._keep_units:
+                    fd = v[mask].in_cgs()
                 else:
-                    fd = self.fields[field][mask].in_cgs()
-                if field not in self._keep_units:
-                    fd.convert_to_cgs()
+                    fd = v[mask]
             else:
-                fd = self.fields[field][mask]
-            fd.write_hdf5(output_filename, dataset_name=field,
+                fd = v[mask]
+            fd.write_hdf5(output_filename, dataset_name=k,
                           group_name="fields")
 
     def set_field(self, name, value):
