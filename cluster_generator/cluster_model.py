@@ -17,6 +17,9 @@ class RegisteredClusterModel(type):
 
 class ClusterModel(metaclass=RegisteredClusterModel):
 
+    _keep_units = ["entropy", "electron_number_density",
+                   "magnetic_field_strength"]
+
     def __init__(self, num_elements, fields, parameters=None):
         if parameters is None:
             parameters = {}
@@ -57,7 +60,9 @@ class ClusterModel(metaclass=RegisteredClusterModel):
         for field in fnames:
             a = unyt_array.from_hdf5(filename, dataset_name=field,
                                   group_name="fields")
-            fields[field] = unyt_array(a.d, str(a.units)).in_base("galactic")
+            fields[field] = unyt_array(a.d, str(a.units))
+            if field not in cls._keep_units:
+                fields[field].convert_to_base("galactic")
         if r_min is None:
             r_min = 0.0
         if r_max is None:
@@ -153,6 +158,8 @@ class ClusterModel(metaclass=RegisteredClusterModel):
                     fd = self.fields[field][mask].to_equivalent("K", "thermal")
                 else:
                     fd = self.fields[field][mask].in_cgs()
+                if field not in self._keep_units:
+                    fd.convert_to_cgs()
             else:
                 fd = self.fields[field][mask]
             fd.write_hdf5(output_filename, dataset_name=field,
