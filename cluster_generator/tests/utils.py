@@ -2,6 +2,7 @@ from pathlib import Path
 from numpy.testing import assert_allclose, assert_equal
 
 from cluster_generator.cluster_model import ClusterModel
+from cluster_generator.cluster_particles import ClusterParticles
 from cluster_generator.hydrostatic import HydrostaticEquilibrium
 from cluster_generator.virial import VirialEquilibrium
 from cluster_generator.radial_profiles import find_overdensity_radius, \
@@ -34,7 +35,7 @@ def generate_profile():
     return p, vd, vs
 
 
-def answer_testing(model, filename, answer_store, answer_dir):
+def profile_answer_testing(model, filename, answer_store, answer_dir):
     p = Path(answer_dir) / filename
     if answer_store:
         model.write_model_to_h5(p, overwrite=True)
@@ -42,3 +43,13 @@ def answer_testing(model, filename, answer_store, answer_dir):
         old_model = ClusterModel.from_h5_file(p)
         for field in old_model.fields:
             assert_equal(old_model[field], model[field])
+
+
+def particle_answer_testing(parts, filename, answer_store, answer_dir):
+    p = Path(answer_dir) / filename
+    if answer_store:
+        parts.write_particles_to_h5(p, overwrite=True)
+    else:
+        old_parts = ClusterParticles.from_h5_file(p)
+        for field in old_parts.fields:
+            assert_equal(old_parts[field], parts[field])

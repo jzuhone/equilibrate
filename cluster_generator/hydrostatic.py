@@ -319,7 +319,8 @@ class HydrostaticEquilibrium(ClusterModel):
             B /= np.sqrt(4.0*np.pi)
         self.set_field("magnetic_field_strength", B)
 
-    def generate_particles(self, num_particles, r_max=None, sub_sample=1):
+    def generate_particles(self, num_particles, r_max=None, sub_sample=1,
+                           prng=None):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 
@@ -337,23 +338,27 @@ class HydrostaticEquilibrium(ClusterModel):
             repeated to fill the required number of particles. Default: 1,
             which means no sub-sampling.
         """
+        from cluster_generator.utils import parse_prng
+
         mylog.info("We will be assigning %d particles." % num_particles)
         mylog.info("Compute particle positions.")
+
+        prng = parse_prng(prng)
 
         num_particles_sub = num_particles // sub_sample
 
         radius_sub, mtot = generate_particle_radii(self["radius"].d,
                                                    self["gas_mass"].d,
-                                                   num_particles_sub, 
-                                                   r_max=r_max)
+                                                   num_particles_sub,
+                                                   r_max=r_max, prng=prng)
 
         if sub_sample > 1:
             radius = np.tile(radius_sub, sub_sample)[:num_particles]
         else:
             radius = radius_sub
 
-        theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
-        phi = 2.*np.pi*np.random.uniform(size=num_particles)
+        theta = np.arccos(prng.uniform(low=-1., high=1., size=num_particles))
+        phi = 2.*np.pi*prng.uniform(size=num_particles)
 
         fields = OrderedDict()
 

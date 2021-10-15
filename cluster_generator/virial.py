@@ -132,7 +132,7 @@ class VirialEquilibrium(ClusterModel):
         return rho[::-1], chk
 
     def generate_particles(self, num_particles, r_max=None, sub_sample=1,
-                           compute_potential=False):
+                           compute_potential=False, prng=None):
         """
         Generate a set of dark matter or star particles in virial equilibrium.
 
@@ -158,6 +158,8 @@ class VirialEquilibrium(ClusterModel):
         particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
             A set of dark matter or star particles.
         """
+        from cluster_generator.utils import parse_prng
+
         num_particles_sub = num_particles // sub_sample
         ptype = self.parameters["ptype"]
         key = {"dark_matter": "dm",  "stellar": "star"}[ptype]
@@ -165,21 +167,24 @@ class VirialEquilibrium(ClusterModel):
         mass = "%s_mass" % ptype
         energy_spline = InterpolatedUnivariateSpline(self["radius"].d, self.ee[::-1])
 
+        prng = parse_prng(prng)
+
         mylog.info(f"We will be assigning {num_particles} {ptype} particles.")
         mylog.info(f"Compute {ptype} particle positions.")
 
         nonzero = self[density] > 0.0
         radius_sub, mtot = generate_particle_radii(self["radius"].d[nonzero],
                                                    self[mass].d[nonzero],
-                                                   num_particles_sub, r_max=r_max)
+                                                   num_particles_sub, r_max=r_max,
+                                                   prng=prng)
 
         if sub_sample > 1:
             radius = np.tile(radius_sub, sub_sample)[:num_particles]
         else:
             radius = radius_sub
 
-        theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
-        phi = 2.*np.pi*np.random.uniform(size=num_particles)
+        theta = np.arccos(prng.uniform(low=-1., high=1., size=num_particles))
+        phi = 2.*np.pi*prng.uniform(size=num_particles)
 
         fields = OrderedDict()
 
@@ -202,8 +207,8 @@ class VirialEquilibrium(ClusterModel):
         else:
             velocity = velocity_sub
 
-        theta = np.arccos(np.random.uniform(low=-1., high=1., size=num_particles))
-        phi = 2.*np.pi*np.random.uniform(size=num_particles)
+        theta = np.arccos(prng.uniform(low=-1., high=1., size=num_particles))
+        phi = 2.*np.pi*prng.uniform(size=num_particles)
 
         fields[key, "particle_velocity"] = unyt_array(
             [velocity*np.sin(theta)*np.cos(phi),

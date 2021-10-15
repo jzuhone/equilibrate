@@ -57,13 +57,14 @@ def integrate_toinf(profile, rr):
     return ret
 
 
-def generate_particle_radii(r, m, num_particles, r_max=None):
+def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
+    prng = parse_prng(prng)
     if r_max is None:
         ridx = r.size
     else:
         ridx = np.searchsorted(r, r_max)
     mtot = m[ridx-1]
-    u = np.random.uniform(size=num_particles)
+    u = prng.uniform(size=num_particles)
     P_r = np.insert(m[:ridx], 0, 0.0)
     P_r /= P_r[-1]
     r = np.insert(r[:ridx], 0, 0.0)
