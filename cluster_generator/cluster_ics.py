@@ -1,4 +1,5 @@
-from cluster_generator.utils import ensure_ytarray, ensure_list
+from cluster_generator.utils import ensure_ytarray, ensure_list, \
+    parse_prng
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.virial import VirialEquilibrium
 from cluster_generator.cluster_particles import \
@@ -53,7 +54,7 @@ def compute_centers_for_binary(center, d, b, a=0.0):
 
 class ClusterICs:
     def __init__(self, basename, num_halos, hse_files, center,
-                 velocity, num_particles=None, mag_file=None, 
+                 velocity, num_particles=None, mag_file=None,
                  particle_files=None, r_max=20000.0):
         self.basename = basename
         self.num_halos = num_halos
@@ -125,22 +126,25 @@ class ClusterICs:
                 nsp = 0
             self.num_particles["star"].append(nsp)
 
-    def _generate_particles(self, regenerate_particles=False):
+    def _generate_particles(self, regenerate_particles=False, prng=None):
+        prng = parse_prng(prng)
         parts = []
         for i, hf in enumerate(self.hse_files):
             if regenerate_particles or self.particle_files[i] is None:
                 hse = ClusterModel.from_h5_file(hf)
                 vird = VirialEquilibrium.from_hse_model(hse, ptype="dark_matter")
                 p = vird.generate_particles(
-                    self.num_particles["dm"][i], r_max=self.r_max)
+                    self.num_particles["dm"][i], r_max=self.r_max, prng=prng)
                 if self.num_particles["star"][i] > 0:
                     virs = VirialEquilibrium.from_hse_model(hse, ptype="stellar")
                     sp = virs.generate_particles(
-                        self.num_particles["star"][i], r_max=self.r_max)
+                        self.num_particles["star"][i], r_max=self.r_max,
+                        prng=prng)
                     p = p + sp
                 if self.num_particles["gas"][i] > 0:
                     gp = hse.generate_particles(
-                        self.num_particles["gas"][i], r_max=self.r_max)
+                        self.num_particles["gas"][i], r_max=self.r_max,
+                        prng=prng)
                     p = p + gp
                 parts.append(p)
                 outfile = f"{self.basename}_{i}_particles.h5"
@@ -249,7 +253,7 @@ class ClusterICs:
                    num_particles=num_particles, mag_file=mag_file,
                    particle_files=particle_files, r_max=r_max)
 
-    def setup_particle_ics(self, regenerate_particles=False):
+    def setup_particle_ics(self, regenerate_particles=False, prng=None):
         r"""
         From a set of cluster models and their relative positions and
         velocities, set up initial conditions for use with SPH codes.
@@ -266,7 +270,7 @@ class ClusterICs:
         """
         hses = [ClusterModel.from_h5_file(hf) for hf in self.hse_files]
         parts = self._generate_particles(
-            regenerate_particles=regenerate_particles)
+            regenerate_particles=regenerate_particles, prng=prng)
         if self.num_halos == 1:
             all_parts = parts[0]
             all_parts.add_offsets(self.center[0], self.velocity[0])
