@@ -32,6 +32,10 @@ class RadialProfile:
     __radd__ = __add__
     __rmul__ = __mul__
 
+    def __pow__(self, power):
+        p = lambda r: self.profile(r)**power
+        return RadialProfile(p)
+
     def add_core(self, r_core, alpha):
         """
         Add a small core with radius *r_core* to the profile by
