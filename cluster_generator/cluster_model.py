@@ -512,7 +512,7 @@ class ClusterModel:
             B /= np.sqrt(4.0*np.pi)
         self.set_field("magnetic_field_strength", B)
 
-    def generate_particles(self, num_particles, r_max=None, sub_sample=1,
+    def generate_gas_particles(self, num_particles, r_max=None, sub_sample=1,
                            prng=None):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
@@ -588,6 +588,18 @@ class ClusterModel:
             np.zeros((num_particles, 3)), "kpc/Myr")
 
         return ClusterParticles("gas", fields)
+
+    def generate_dm_particles(self, num_particles, r_max=None, sub_sample=1,
+                              compute_potential=False, prng=None):
+        return self.dm_virial.generate_particles(
+            num_particles, r_max=r_max, sub_sample=sub_sample,
+            compute_potential=compute_potential, prng=prng)
+
+    def generate_star_particles(self, num_particles, r_max=None, sub_sample=1,
+                                compute_potential=False, prng=None):
+        return self.star_virial.generate_particles(
+            num_particles, r_max=r_max, sub_sample=sub_sample,
+            compute_potential=compute_potential, prng=prng)
 
     def plot(self, field, fig=None, ax=None, rmin=None, rmax=None,
              lw=2, **kwargs):

@@ -123,17 +123,15 @@ class ClusterICs:
         for i, pf in enumerate(self.profiles):
             if regenerate_particles or self.particle_files[i] is None:
                 m = ClusterModel.from_h5_file(pf)
-                vird = m.dm_virial
-                p = vird.generate_particles(
+                p = m.generate_dm_particles(
                     self.num_particles["dm"][i], r_max=self.r_max, prng=prng)
                 if self.num_particles["star"][i] > 0:
-                    virs = m.star_virial
-                    sp = virs.generate_particles(
+                    sp = m.generate_star_particles(
                         self.num_particles["star"][i], r_max=self.r_max,
                         prng=prng)
                     p = p + sp
                 if self.num_particles["gas"][i] > 0:
-                    gp = m.generate_particles(
+                    gp = m.generate_gas_particles(
                         self.num_particles["gas"][i], r_max=self.r_max,
                         prng=prng)
                     p = p + gp
