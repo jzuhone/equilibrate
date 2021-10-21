@@ -1,16 +1,14 @@
 from pathlib import Path
-from numpy.testing import assert_allclose, assert_equal
+from numpy.testing import assert_equal
 
 from cluster_generator.cluster_model import ClusterModel
 from cluster_generator.cluster_particles import ClusterParticles
-from cluster_generator.hydrostatic import HydrostaticEquilibrium
-from cluster_generator.virial import VirialEquilibrium
 from cluster_generator.radial_profiles import find_overdensity_radius, \
     snfw_density_profile, snfw_total_mass, vikhlinin_density_profile, \
     rescale_profile_by_mass, find_radius_mass, snfw_mass_profile
 
 
-def generate_profile():
+def generate_model():
     z = 0.1
     M200 = 1.5e15
     conc = 4.0
@@ -26,16 +24,14 @@ def generate_profile():
     rhos = 0.02*rhot
     rmin = 0.1
     rmax = 10000.0
-    p = HydrostaticEquilibrium.from_dens_and_tden(rmin, rmax, rhog, rhot,
-                                                  stellar_density=rhos)
-    p.set_magnetic_field_from_beta(100.0, gaussian=True)
-    vd = VirialEquilibrium.from_hse_model(p, ptype="dark_matter")
-    vs = VirialEquilibrium.from_hse_model(p, ptype="stellar")
+    m = ClusterModel.from_dens_and_tden(rmin, rmax, rhog, rhot,
+                                        stellar_density=rhos)
+    m.set_magnetic_field_from_beta(100.0, gaussian=True)
 
-    return p, vd, vs
+    return m
 
 
-def profile_answer_testing(model, filename, answer_store, answer_dir):
+def model_answer_testing(model, filename, answer_store, answer_dir):
     p = Path(answer_dir) / filename
     if answer_store:
         model.write_model_to_h5(p, overwrite=True)
@@ -43,6 +39,8 @@ def profile_answer_testing(model, filename, answer_store, answer_dir):
         old_model = ClusterModel.from_h5_file(p)
         for field in old_model.fields:
             assert_equal(old_model[field], model[field])
+        assert_equal(old_model.dm_virial.df, model.dm_virial.df)
+        assert_equal(old_model.star_virial.df, model.star_virial.df)
 
 
 def particle_answer_testing(parts, filename, answer_store, answer_dir):

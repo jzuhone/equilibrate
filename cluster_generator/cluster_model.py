@@ -8,6 +8,8 @@ from cluster_generator.utils import \
     ensure_ytquantity
 from cluster_generator.cluster_particles import \
     ClusterParticles
+from cluster_generator.virial import \
+    VirialEquilibrium
 from unyt import unyt_array
 import h5py
 import os
@@ -33,12 +35,24 @@ class ClusterModel:
     _keep_units = ["entropy", "electron_number_density",
                    "magnetic_field_strength"]
 
-    def __init__(self, num_elements, fields, 
-                 dm_virial=None, star_virial=None):
+    def __init__(self, num_elements, fields):
         self.num_elements = num_elements
         self.fields = fields
-        self.dm_virial = dm_virial
-        self.star_virial = star_virial 
+
+    _dm_virial = None
+    _star_virial = None
+
+    @property
+    def dm_virial(self):
+        if self._dm_virial is None:
+            self._dm_virial = VirialEquilibrium(self, "dark_matter")
+        return self._dm_virial
+
+    @property
+    def star_virial(self):
+        if self._star_virial is None:
+            self._star_virial = VirialEquilibrium(self, "stellar")
+        return self._star_virial
 
     @classmethod
     def from_arrays(cls, fields):
@@ -63,8 +77,8 @@ class ClusterModel:
 
         with h5py.File(filename, "r") as f:
             fnames = list(f['fields'].keys())
-            get_dm_virial = 'dm_virial' in f
-            get_star_virial = 'star_virial' in f
+            get_dm_virial = 'dm_df' in f
+            get_star_virial = 'star_df' in f
 
         fields = OrderedDict()
         for field in fnames:
@@ -83,22 +97,25 @@ class ClusterModel:
             fields[field] = fields[field][mask]
         num_elements = mask.sum()
 
+        model = cls(num_elements, fields)
+
         if get_dm_virial:
             mask = np.logical_and(fields["radius"].d >= r_min,
                                   fields["radius"].d <= r_max)
-            dm_virial = VirialEquilibrium()
-        else:
-            dm_virial = None
+            df = unyt_array.from_hdf5(
+                filename, dataset_name="dm_df")[mask]
+            model._dm_virial = VirialEquilibrium(
+                model, ptype="dark_matter", df=df)
 
         if get_star_virial:
             mask = np.logical_and(fields["radius"].d >= r_min,
                                   fields["radius"].d <= r_max)
-            star_virial = VirialEquilibrium()
-        else:
-            star_virial = None
+            df = unyt_array.from_hdf5(
+                filename, dataset_name="star_df")[mask]
+            model._star_virial = VirialEquilibrium(
+                model, ptype="stellar", df=df)
 
-        return ClusterModel(num_elements, fields, dm_virial=dm_virial,
-                            star_virial=star_virial)
+        return model
 
     @classmethod
     def _from_scratch(cls, fields, stellar_density=None):
@@ -219,7 +236,6 @@ class ClusterModel:
             raise IOError(f"Cannot create {output_filename}. It exists and "
                           f"overwrite=False.")
         f = h5py.File(output_filename, "w")
-        f.create_dataset("model_type", data=self._type_name)
         f.create_dataset("num_elements", data=self.num_elements)
         f.attrs["unit_system"] = "cgs" if in_cgs else "galactic"
         f.close()
@@ -241,6 +257,12 @@ class ClusterModel:
                 fd = v[mask]
             fd.write_hdf5(output_filename, dataset_name=k,
                           group_name="fields")
+        if hasattr(self, "dm_virial"):
+            fd = self.dm_virial.df
+            fd.write_hdf5(output_filename, dataset_name="dm_df")
+        if hasattr(self, "star_virial"):
+            fd = self.star_virial.df
+            fd.write_hdf5(output_filename, dataset_name="star_df")
 
     def set_field(self, name, value):
         r"""
@@ -413,11 +435,6 @@ class ClusterModel:
         """
         return unyt_array(np.interp(r, self["radius"], self[field]),
                           self[field].units)
-
-    def compute_virial(self, ptype):
-        from cluster_generator.virial import VirialEquilibrium
-        virial = VirialEquilibrium.from_model(self, ptype)
-        setattr(self, f"{ptype}_virial", virial)
 
     def check_hse(self):
         r"""

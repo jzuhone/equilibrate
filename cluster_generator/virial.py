@@ -12,47 +12,9 @@ from unyt import unyt_array
 
 class VirialEquilibrium:
 
-    def __init__(self, num_elements, fields, ptype='dark_matter'):
-        self.num_elements = num_elements
-        self.fields = fields
-        self.ptype = ptype
-        if "distribution_function" not in self.fields:
-            self._generate_df()
-        else:
-            f = self["distribution_function"].d[::-1]
-            self.f = InterpolatedUnivariateSpline(self.ee, f)
-
-    def __getitem__(self, key):
-        return self.fields[key]
-
-    def __contains__(self, key):
-        return key in self.fields
-
-    def keys(self):
-        return self.fields.keys()
-
-    def _generate_df(self):
-        pden = self[f"{self.ptype}_density"][::-1]
-        density_spline = InterpolatedUnivariateSpline(self.ee, pden)
-        g = np.zeros(self.num_elements)
-        dgdp = lambda t, e: 2*density_spline(e-t*t, 1)
-        pbar = tqdm(leave=True, total=self.num_elements, 
-                    desc="Computing particle DF ")
-        for i in range(self.num_elements):
-            g[i] = quad(dgdp, 0., np.sqrt(self.ee[i]), epsabs=1.49e-05,
-                        epsrel=1.49e-05, args=(self.ee[i]))[0]
-            pbar.update()
-        pbar.close()
-        g_spline = InterpolatedUnivariateSpline(self.ee, g)
-        ff = g_spline(self.ee, 1)/(np.sqrt(8.)*np.pi**2)
-        self.f = InterpolatedUnivariateSpline(self.ee, ff)
-        self.fields["distribution_function"] = unyt_array(ff[::-1], 
-                                                          "Msun*Myr**3/kpc**6")
-
-    @classmethod
-    def from_model(cls, model, ptype='dark_matter'):
+    def __init__(self, model, ptype='dark_matter', df=None):
         r"""
-        Generate a virial equilibrium model from a 
+        Generate a virial equilibrium model from a profile. 
 
         Parameters
         ----------
@@ -63,19 +25,40 @@ class VirialEquilibrium:
             The type of the particles which can be generated from this
             object, either "dark_matter" or "stellar". Default: "dark_matter"
         """
-        keys = ["radius", f"{ptype}_density", f"{ptype}_mass",
-                "total_density", "total_mass", "gravitational_potential",
-                "gravitational_field"]
-        fields = OrderedDict([(field, model[field]) for field in keys])
-        return cls(model.num_elements, fields, ptype=ptype)
+        self.num_elements = model.num_elements
+        self.ptype = ptype
+        self.model = model
+        if df is None:
+            self._generate_df()
+        else:
+            self.df = df
+            f = df.d[::-1]
+            self.f = InterpolatedUnivariateSpline(self.ee, f)
+
+    def _generate_df(self):
+        pden = self.model[f"{self.ptype}_density"][::-1]
+        density_spline = InterpolatedUnivariateSpline(self.ee, pden)
+        g = np.zeros(self.num_elements)
+        dgdp = lambda t, e: 2*density_spline(e-t*t, 1)
+        pbar = tqdm(leave=True, total=self.num_elements,
+                    desc="Computing particle DF ")
+        for i in range(self.num_elements):
+            g[i] = quad(dgdp, 0., np.sqrt(self.ee[i]), epsabs=1.49e-05,
+                        epsrel=1.49e-05, args=(self.ee[i]))[0]
+            pbar.update()
+        pbar.close()
+        g_spline = InterpolatedUnivariateSpline(self.ee, g)
+        ff = g_spline(self.ee, 1)/(np.sqrt(8.)*np.pi**2)
+        self.f = InterpolatedUnivariateSpline(self.ee, ff)
+        self.df = unyt_array(ff[::-1], "Msun*Myr**3/kpc**6")
 
     @property
     def ee(self):
-        return -self["gravitational_potential"].d[::-1]
+        return -self.model["gravitational_potential"].d[::-1]
 
     @property
     def ff(self):
-        return self["distribution_function"].d[::-1]
+        return self.df.d[::-1]
 
     def check_virial(self):
         r"""
@@ -95,13 +78,13 @@ class VirialEquilibrium:
         """
         n = self.num_elements
         rho = np.zeros(n)
-        pden = self[f"{ptype}_density"].d
+        pden = self.model[f"{self.ptype}_density"].d
         rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
         for i, e in enumerate(self.ee):
             rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e,))[0]
         chk = (rho[::-1]-pden)/pden
         mylog.info("The maximum relative deviation of this profile from "
-                   "virial equilibrium is %g" % np.abs(chk).max())
+                   "virial equilibrium is %g", np.abs(chk).max())
         return rho[::-1], chk
 
     def generate_particles(self, num_particles, r_max=None, sub_sample=1,
@@ -137,16 +120,18 @@ class VirialEquilibrium:
         key = {"dark_matter": "dm",  "stellar": "star"}[self.ptype]
         density = f"{self.ptype}_density"
         mass = f"{self.ptype}_mass"
-        energy_spline = InterpolatedUnivariateSpline(self["radius"].d, self.ee[::-1])
+        energy_spline = InterpolatedUnivariateSpline(self.model["radius"].d,
+                                                     self.ee[::-1])
 
         prng = parse_prng(prng)
 
-        mylog.info(f"We will be assigning {num_particles} {ptype} particles.")
-        mylog.info(f"Compute {ptype} particle positions.")
+        mylog.info("We will be assigning %s %s particles.",
+                   num_particles, self.ptype)
+        mylog.info("Compute %s particle positions.", num_particles)
 
-        nonzero = self[density] > 0.0
-        radius_sub, mtot = generate_particle_radii(self["radius"].d[nonzero],
-                                                   self[mass].d[nonzero],
+        nonzero = self.model[density] > 0.0
+        radius_sub, mtot = generate_particle_radii(self.model["radius"].d[nonzero],
+                                                   self.model[mass].d[nonzero],
                                                    num_particles_sub, r_max=r_max,
                                                    prng=prng)
 
@@ -164,15 +149,16 @@ class VirialEquilibrium:
             [radius*np.sin(theta)*np.cos(phi), radius*np.sin(theta)*np.sin(phi),
              radius*np.cos(theta)], "kpc").T
 
-        mylog.info(f"Compute {ptype} particle velocities.")
+        mylog.info("Compute %s particle velocities.", self.ptype)
 
         psi = energy_spline(radius_sub)
         vesc = 2.*psi
         fv2esc = vesc*self.f(psi)
         vesc = np.sqrt(vesc)
 
-        velocity_sub = generate_velocities(psi, vesc, fv2esc, self.f._eval_args[0],
-                                           self.f._eval_args[1], self.f._eval_args[2])
+        velocity_sub = generate_velocities(
+            psi, vesc, fv2esc, self.f._eval_args[0], self.f._eval_args[1],
+            self.f._eval_args[2])
 
         if sub_sample > 1:
             velocity = np.tile(velocity_sub, sub_sample)[:num_particles]
@@ -189,6 +175,7 @@ class VirialEquilibrium:
 
         fields[key, "particle_mass"] = unyt_array(
             [mtot/num_particles]*num_particles, "Msun")
+
         if compute_potential:
             if sub_sample > 1:
                 phi = -np.tile(psi, sub_sample)

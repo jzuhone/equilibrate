@@ -1,7 +1,6 @@
 from cluster_generator.utils import ensure_ytarray, ensure_list, \
     parse_prng
 from cluster_generator.cluster_model import ClusterModel
-from cluster_generator.virial import VirialEquilibrium
 from cluster_generator.cluster_particles import \
     ClusterParticles, \
     combine_two_clusters, \
@@ -123,28 +122,28 @@ class ClusterICs:
         parts = []
         for i, pf in enumerate(self.profiles):
             if regenerate_particles or self.particle_files[i] is None:
-                p = ClusterModel.from_h5_file(pf)
-                vird = VirialEquilibrium.from_model(p, ptype="dark_matter")
-                pp = vird.generate_particles(
+                m = ClusterModel.from_h5_file(pf)
+                vird = m.dm_virial
+                p = vird.generate_particles(
                     self.num_particles["dm"][i], r_max=self.r_max, prng=prng)
                 if self.num_particles["star"][i] > 0:
-                    virs = VirialEquilibrium.from_model(p, ptype="stellar")
+                    virs = m.star_virial
                     sp = virs.generate_particles(
                         self.num_particles["star"][i], r_max=self.r_max,
                         prng=prng)
-                    pp = pp + sp
+                    p = p + sp
                 if self.num_particles["gas"][i] > 0:
-                    gp = p.generate_particles(
+                    gp = m.generate_particles(
                         self.num_particles["gas"][i], r_max=self.r_max,
                         prng=prng)
-                    pp = pp + gp
-                parts.append(pp)
+                    p = p + gp
+                parts.append(p)
                 outfile = f"{self.basename}_{i}_particles.h5"
                 p.write_particles_to_h5(outfile, overwrite=True)
                 self.particle_files[i] = outfile
             else:
-                pp = ClusterParticles.from_h5_file(self.particle_files[i])
-                parts.append(pp)
+                p = ClusterParticles.from_h5_file(self.particle_files[i])
+                parts.append(p)
         return parts
 
     def to_file(self, filename, overwrite=False):
