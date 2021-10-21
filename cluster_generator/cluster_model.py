@@ -454,14 +454,11 @@ class ClusterModel:
         chk = dPdx - rhog
         chk /= rhog
         mylog.info("The maximum relative deviation of this profile from "
-                   "hydrostatic equilibrium is %g" % np.abs(chk).max())
+                   "hydrostatic equilibrium is %g", np.abs(chk).max())
         return chk
 
     def check_virial(self, ptype):
         which_virial = getattr(self, f"{ptype}_virial", None)
-        if which_virial is None:
-            raise RuntimeError(f"There is no virial equilibrium for the "
-                               f"\"{ptype}\" particle type!")
         return which_virial.check_virial()
 
     def set_magnetic_field_from_beta(self, beta, gaussian=True):
