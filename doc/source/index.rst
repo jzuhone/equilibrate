@@ -13,7 +13,6 @@
    introduction
    radial_profiles
    cluster_models
-   virial
    particles
    fields
    initial_conditions
