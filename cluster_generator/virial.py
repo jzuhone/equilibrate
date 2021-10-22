@@ -14,16 +14,19 @@ class VirialEquilibrium:
 
     def __init__(self, model, ptype='dark_matter', df=None):
         r"""
-        Generate a virial equilibrium model from a profile. 
+        Generate a virial equilibrium model from a profile.
 
         Parameters
         ----------
-        model : :class:`~cluster_generator.hydrostatic.ClusterModel`
+        model : :class:`~cluster_generator.cluster_model.ClusterModel`
             The cluster model which will be used to
             construct the virial equilibrium.
         ptype : string, optional
             The type of the particles which can be generated from this
             object, either "dark_matter" or "stellar". Default: "dark_matter"
+        df : unyt_array
+            The particle distribution function. If not supplied, it will
+            be generated.
         """
         self.num_elements = model.num_elements
         self.ptype = ptype
