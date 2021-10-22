@@ -477,7 +477,7 @@ class ClusterModel:
         self.set_field("magnetic_field_strength", B)
 
     def generate_gas_particles(self, num_particles, r_max=None, sub_sample=1,
-                               prng=None):
+                               compute_potential=False, prng=None):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 
@@ -550,6 +550,15 @@ class ClusterModel:
 
         fields["gas", "particle_velocity"] = unyt_array(
             np.zeros((num_particles, 3)), "kpc/Myr")
+
+        if compute_potential:
+            energy_spline = InterpolatedUnivariateSpline(
+                self["radius"].d, -self["gravitational_potential"])
+            phi = -energy_spline(radius_sub)
+            if sub_sample > 1:
+                phi = np.tile(phi, sub_sample)
+            fields["gas", "particle_potential"] = unyt_array(
+                phi, "kpc**2/Myr**2")
 
         return ClusterParticles("gas", fields)
 

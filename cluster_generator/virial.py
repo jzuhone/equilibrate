@@ -184,7 +184,7 @@ class VirialEquilibrium:
                 phi = -np.tile(psi, sub_sample)
             else:
                 phi = -psi
-            fields[key, "particle_potential"] = -unyt_array(
+            fields[key, "particle_potential"] = unyt_array(
                 phi, "kpc**2/Myr**2")
 
         return ClusterParticles(key, fields)
