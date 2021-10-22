@@ -29,42 +29,6 @@ cluster\_generator.cluster\_particles module
    :members:
    :show-inheritance:
 
-cluster\_generator.cython\_utils module
----------------------------------------
-
-.. automodule:: cluster_generator.cython_utils
-   :members:
-   :show-inheritance:
-
-cluster\_generator.cython\_utils module
----------------------------------------
-
-.. automodule:: cluster_generator.cython_utils
-   :members:
-   :show-inheritance:
-
-cluster\_generator.cython\_utils module
----------------------------------------
-
-.. automodule:: cluster_generator.cython_utils
-   :members:
-   :show-inheritance:
-
-cluster\_generator.cython\_utils module
----------------------------------------
-
-.. automodule:: cluster_generator.cython_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-cluster\_generator.hydrostatic module
--------------------------------------
-
-.. automodule:: cluster_generator.hydrostatic
-   :members:
-   :show-inheritance:
-
 cluster\_generator.radial\_profiles module
 ------------------------------------------
 
@@ -76,13 +40,6 @@ cluster\_generator.relations module
 -----------------------------------
 
 .. automodule:: cluster_generator.relations
-   :members:
-   :show-inheritance:
-
-cluster\_generator.utils module
--------------------------------
-
-.. automodule:: cluster_generator.utils
    :members:
    :show-inheritance:
 

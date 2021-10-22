@@ -7,36 +7,82 @@ To set up a cluster model in spherical hydrostatic and/or virial equilibrium,
 one needs models for various quantities as a function of radius. 
 :class:`~cluster_generator.radial_profiles.RadialProfile` objects 
 
+The profiles available in ``cluster_generator`` will now be described, with
+the mathematical formulae given as well as an example instantiation.
+
 General Profiles
 ================
 
+These profiles are for general use.
+
 Constant Profile
 ++++++++++++++++
+
+The :func:`~cluster_generator.radial_profiles.constant_profile` creates a
+profile which is constant with radius:
 
 .. math::
 
     p(r) = K
 
+where :math:`K` is a constant value with any units.
+
+Example:
+
+.. code-block:: python
+
+    import cluster_generator as cg
+    K = 1000.0 # constant
+    p = cg.constant_profile(K)
+
 Power-Law Profile
 +++++++++++++++++
+
+The :func:`~cluster_generator.radial_profiles.power_law_profile` creates
+a power-law profile.
 
 .. math::
 
     p(r) = A\left(\frac{r}{r_s}\right)^\alpha
 
+where :math:`A` is a normalization constant with any units, :math:`r_s` is a
+scale radius with units of kpc, and :math:`\alpha` is a power-law index.
+
+.. code-block:: python
+
+    import cluster_generator as cg
+    A = 1.0e-3 # normalization parameter
+    r_s = 100.0 # scale radius in kpc
+    alpha = -3.0 # index parameter
+    p = cg.power_law_profile(A, r_s, alpha)
+
 Density and Mass Profiles
 =========================
 
+These profiles are density and mass profiles from the literature that are
+often used to model gas, DM, or total density/mass distributions.
+
 NFW Profile
 +++++++++++
+
+The Navarro-Frenk-White (NFW) profile from (Navarro, J.F., Frenk, C.S.,
+& White, S.D.M. 1996, ApJ, 462, 563) is often used to model DM halos and
+total density/mass profiles.
+
+Density:
 
 .. math::
 
     \rho_{\rm NFW}(r) = \frac{\rho_s}{r/r_s\left(1+r/r_s\right)^2}
 
+Mass:
+
 .. math::
     
     M_{\rm NFW}(<r) = 4\pi{\rho_s}{r_s^2}\left[\ln\left(1+\frac{r}{r_s}\right)-\frac{r}{r+r_s}\right]
+
+where :math:`\rho_s` is a scale density in units of :math:`{\rm M_\odot~kpc^{-3}`,
+and :math:`r_s` is a scale radius in units of kpc. 
 
 "super-NFW" Profile
 +++++++++++++++++++

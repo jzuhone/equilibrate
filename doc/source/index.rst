@@ -11,15 +11,14 @@
    :caption: Contents:
 
    introduction
-   cluster_models
    radial_profiles
-   hydrostatic
+   cluster_models
    virial
    particles
    fields
    initial_conditions
-   examples
    codes
+   examples
    api
 
 Indices and tables
