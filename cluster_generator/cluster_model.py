@@ -5,7 +5,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     integrate, mylog, integrate_mass, \
     mp, G, generate_particle_radii, mu, mue, \
-    ensure_ytquantity
+    ensure_ytquantity, kpc_to_cm
 from cluster_generator.cluster_particles import \
     ClusterParticles
 from cluster_generator.virial import \
@@ -324,6 +324,14 @@ class ClusterModel:
         return cls._from_scratch(fields, stellar_density=stellar_density)
 
     @classmethod
+    def from_dens_and_entr(cls, rmin, rmax, density, entropy,
+                           stellar_density=None, num_points=1000):
+        n_e = density/(mue*mp*kpc_to_cm**3)
+        temperature = entropy*n_e**tt
+        return cls.from_dens_and_temp(rmin, rmax, density, temperature,
+                                      stellar_density=stellar_density,
+                                      num_points=num_points)
+    @classmethod
     def from_dens_and_tden(cls, rmin, rmax, density, total_density,
                            stellar_density=None, num_points=1000):
         """
@@ -385,47 +393,6 @@ class ClusterModel:
         fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
         fields["gravitational_field"].convert_to_units("kpc/Myr**2")
 
-        return cls._from_scratch(fields, stellar_density=stellar_density)
-
-    @classmethod
-    def from_entr_and_tden(cls, rmin, rmax, entropy, total_density,
-                           rfgas, fgas, stellar_density=None,
-                           num_points=1000):
-        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
-                         endpoint=True)
-        fields = OrderedDict()
-        mylog.info("Computing the profiles from density and entropy.")
-        fields["radius"] = unyt_array(rr, "kpc")
-        fields["total_density"] = unyt_array(total_density(rr), "Msun/kpc**3")
-        mylog.info("Integrating total mass profile.")
-        fields["total_mass"] = unyt_array(integrate_mass(total_density, rr),
-                                          "Msun")
-        fields["gravitational_field"] = -G*fields["total_mass"]/(fields["radius"]**2)
-        fields["gravitational_field"].convert_to_units("kpc/Myr**2")
-        g = fields["gravitational_field"].d
-        g_r = InterpolatedUnivariateSpline(rr, g)
-        K = unyt_array(entropy(rr), "keV*cm**2").in_base("galactic")
-        K *= (mp*mue)**-ft
-        Kr = InterpolatedUnivariateSpline(rr, K.d)
-        integrand = lambda r: Kr(r)**mtf*g_r(r)
-        I = integrate(integrand, rr)
-        integrand2 = lambda r: Kr(rr[-1])**mtf*g[-1]*(rr[-1]/r)**2
-        I += quad(integrand2, rr[-1], np.inf, limit=100)[0]
-        P = (-0.4*I)**2.5
-        rho = (P/K.d)**tf
-        m0 = rho[0]*rr[0]**3/3.
-        m_g = 4.0*np.pi*cumtrapz(rho*rr*rr, x=rr, initial=0.0)+m0
-        mgval = np.interp(rfgas, rr, m_g)
-        mtval = np.interp(rfgas, rr, fields["total_mass"].d)
-        x = fgas * mtval / mgval
-        P *= x
-        rho *= x
-        fields["pressure"] = unyt_array(P, "Msun/kpc/Myr**2")
-        fields["density"] = unyt_array(rho, "Msun/kpc**3")
-        density = InterpolatedUnivariateSpline(rr, rho)
-        fields["gas_mass"] = unyt_array(integrate_mass(density, rr), "Msun")
-        fields["temperature"] = fields["pressure"]*mu*mp/fields["density"]
-        fields["temperature"].convert_to_units("keV")
         return cls._from_scratch(fields, stellar_density=stellar_density)
 
     def find_field_at_radius(self, field, r):
@@ -510,7 +477,7 @@ class ClusterModel:
         self.set_field("magnetic_field_strength", B)
 
     def generate_gas_particles(self, num_particles, r_max=None, sub_sample=1,
-                           prng=None):
+                               prng=None):
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 

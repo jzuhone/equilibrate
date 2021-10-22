@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import quad
 import logging
 from more_itertools import always_iterable
-from unyt import unyt_array, unyt_quantity
+from unyt import unyt_array, unyt_quantity, kpc
 from unyt import physical_constants as pc
 from numpy.random import RandomState
 
@@ -26,6 +26,7 @@ mylog = cgLogger
 mp = (pc.mp).to("Msun")
 G = (pc.G).to("kpc**3/Msun/Myr**2")
 kboltz = (pc.kboltz).to("Msun*kpc**2/Myr**2/K")
+kpc_to_cm = (1.0*kpc).to_value("cm")
 
 X_H = 0.76
 mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
