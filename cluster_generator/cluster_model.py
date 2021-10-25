@@ -589,3 +589,8 @@ class ClusterModel:
         ax.tick_params(which="major", width=2, length=6)
         ax.tick_params(which="minor", width=2, length=3)
         return fig, ax
+
+
+# This is only for backwards-compatibility
+class HydrostaticEquilibrium(ClusterModel):
+    pass

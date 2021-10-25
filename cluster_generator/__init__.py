@@ -1,5 +1,5 @@
 from cluster_generator.cluster_model import \
-    ClusterModel
+    ClusterModel, HydrostaticEquilibrium
 from cluster_generator.cluster_ics import \
     ClusterICs, compute_centers_for_binary
 from cluster_generator.cluster_particles import \
