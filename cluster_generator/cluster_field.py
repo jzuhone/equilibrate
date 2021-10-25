@@ -1,5 +1,5 @@
 import numpy as np
-from cluster_generator.utils import mylog
+from cluster_generator.utils import mylog, parse_prng
 import os
 from cluster_generator.cluster_model import ClusterModel
 from unyt import unyt_array

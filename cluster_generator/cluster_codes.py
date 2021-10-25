@@ -23,7 +23,7 @@ def setup_gamer_ics(ics, regenerate_particles=False):
         flag is set to True, the particles will be
         re-created. Default: False
     """
-    hses = [ClusterModel.from_h5_file(hf) for hf in ics.hse_files]
+    hses = [ClusterModel.from_h5_file(hf) for hf in ics.profiles]
     parts = ics._generate_particles(
         regenerate_particles=regenerate_particles)
     outlines = [
@@ -32,7 +32,7 @@ def setup_gamer_ics(ics, regenerate_particles=False):
     for i in range(ics.num_halos):
         particle_file = f"{ics.basename}_gamerp_{i+1}.h5"
         parts[i].write_gamer_input(particle_file)
-        hse_file_gamer = ics.hse_files[i].replace(".h5", "_gamer.h5")
+        hse_file_gamer = ics.profiles[i].replace(".h5", "_gamer.h5")
         hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
                                   in_cgs=True, r_max=ics.r_max)
         vel = ics.velocity[i].to_value("km/s")
@@ -85,7 +85,7 @@ def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
     for i in range(ics.num_halos):
         vel = ics.velocity[i].to("km/s")
         outlines += [
-            f"profile{i+1}\t=\t{ics.hse_files[i]}\t# profile table of cluster {i+1}",
+            f"profile{i+1}\t=\t{ics.profiles[i]}\t# profile table of cluster {i+1}",
             f"xInit{i+1}\t=\t{ics.center[i][0]}\t# X-center of cluster {i+1} in kpc",
             f"yInit{i+1}\t=\t{ics.center[i][1]}\t# Y-center of cluster {i+1} in kpc",
             f"vxInit{i+1}\t=\t{vel[0]}\t# X-velocity of cluster {i+1} in km/s",
