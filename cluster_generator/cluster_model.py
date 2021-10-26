@@ -50,7 +50,7 @@ class ClusterModel:
 
     @property
     def star_virial(self):
-        if self._star_virial is None:
+        if self._star_virial is None and "stellar_density" in self:
             self._star_virial = VirialEquilibrium(self, "stellar")
         return self._star_virial
 
@@ -257,10 +257,10 @@ class ClusterModel:
                 fd = v[mask]
             fd.write_hdf5(output_filename, dataset_name=k,
                           group_name="fields")
-        if hasattr(self, "dm_virial"):
+        if getattr(self, "_dm_virial", None):
             fd = self.dm_virial.df
             fd.write_hdf5(output_filename, dataset_name="dm_df")
-        if hasattr(self, "star_virial"):
+        if getattr(self, "_star_virial", None):
             fd = self.star_virial.df
             fd.write_hdf5(output_filename, dataset_name="star_df")
 
