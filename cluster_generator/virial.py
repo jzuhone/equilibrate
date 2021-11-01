@@ -111,6 +111,11 @@ class VirialEquilibrium:
         compute_potential : boolean, optional
             If True, the gravitational potential for each particle will
             be computed. Default: False
+        prng : :class:`~numpy.random.RandomState` object, integer, or None
+            A pseudo-random number generator. Typically will only 
+            be specified if you have a reason to generate the same 
+            set of random numbers, such as for a test. Default is None, 
+            which sets the seed based on the system time.
 
         Returns
         -------

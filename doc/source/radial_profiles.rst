@@ -65,8 +65,8 @@ often used to model gas, DM, or total density/mass distributions.
 NFW Profile
 +++++++++++
 
-The Navarro-Frenk-White (NFW) profile from (Navarro, J.F., Frenk, C.S.,
-& White, S.D.M. 1996, ApJ, 462, 563) is often used to model DM halos and
+The Navarro-Frenk-White (NFW) profile from Navarro, J.F., Frenk, C.S.,
+& White, S.D.M. 1996, ApJ, 462, 563 is often used to model DM halos and
 total density/mass profiles.
 
 Density:
@@ -81,11 +81,34 @@ Mass:
     
     M_{\rm NFW}(<r) = 4\pi{\rho_s}{r_s^2}\left[\ln\left(1+\frac{r}{r_s}\right)-\frac{r}{r+r_s}\right]
 
-where :math:`\rho_s` is a scale density in units of :math:`{\rm M_\odot~kpc^{-3}`,
+where :math:`\rho_s` is a scale density in units of :math:`{\rm M_\odot~kpc^{-3}}`,
 and :math:`r_s` is a scale radius in units of kpc. 
+
+An NFW density profile function can be generated using 
+:func:`~cluster_generator.radial_profiles.nfw_density_profile`, and the NFW mass
+profile function can be generated using
+:func:`~cluster_generator.radial_profiles.nfw_mass_profile`.
+
+.. code-block:: python
+
+    import cluster_generator as cg
+    rho_s = 1.0e7 # scale density in units of Msun/kpc**3
+    r_s = 100.0 # scale radius in kpc
+    dp = cg.nfw_density_profile(rho_s, r_s)
+    mp = cg.nfw_mass_profile(rho_s, r_s)
+    
+If you want to determine the scale density using a given concentration parameter, 
+you can use the :func:`~cluster_generator.radial_profiles.nfw_scale_density`
+function to determine it:
+
+
 
 "super-NFW" Profile
 +++++++++++++++++++
+
+The "super-NFW" profile from Lilley, E. J., Wyn Evans, N., & Sanders, J.L. 2018,
+MNRAS is similar to the NFW profile, except that it falls off faster at large
+radius and thus its mass profile is finite at infinity. 
 
 .. math::
 
@@ -94,6 +117,22 @@ and :math:`r_s` is a scale radius in units of kpc.
 .. math::
 
     M_{\rm sNFW}(<r) = M\left[1-\frac{2+r/a}{2(1+r/a)^{3/2}}\right]
+
+where :math:`M` is the total mass of the profile in units of 
+:math:`{\rm M_\odot}`, and :math:`a` is a scale radius in units of kpc. 
+
+An sNFW density profile function can be generated using 
+:func:`~cluster_generator.radial_profiles.snfw_density_profile`, and the sNFW 
+mass profile function can be generated using
+:func:`~cluster_generator.radial_profiles.snfw_mass_profile`.
+
+.. code-block:: python
+
+    import cluster_generator as cg
+    M = 1.0e15 # total mass of the halo in Msun
+    a = 100.0 # scale radius in kpc
+    dp = cg.snfw_density_profile(M, a)
+    mp = cg.snfw_mass_profile(M, a)
 
 Truncated NFW Profile
 +++++++++++++++++++++

@@ -494,6 +494,14 @@ class ClusterModel:
             particle radii, densities, and energies which will then be
             repeated to fill the required number of particles. Default: 1,
             which means no sub-sampling.
+        compute_potential : boolean, optional
+            If True, the gravitational potential for each particle will
+            be computed. Default: False
+        prng : :class:`~numpy.random.RandomState` object, integer, or None
+            A pseudo-random number generator. Typically will only 
+            be specified if you have a reason to generate the same 
+            set of random numbers, such as for a test. Default is None, 
+            which sets the seed based on the system time.
         """
         from cluster_generator.utils import parse_prng
         prng = parse_prng(prng)
@@ -564,12 +572,72 @@ class ClusterModel:
 
     def generate_dm_particles(self, num_particles, r_max=None, sub_sample=1,
                               compute_potential=False, prng=None):
+        """
+        Generate a set of dark matter particles in virial equilibrium.
+
+        Parameters
+        ----------
+        num_particles : integer
+            The number of particles to generate.
+        r_max : float, optional
+            The maximum radius in kpc within which to generate 
+            particle positions. If not supplied, it will generate
+            positions out to the maximum radius available. Default: None
+        sub_sample : integer, optional
+            This option allows one to generate a sub-sample of unique
+            particle radii and velocities which will then be repeated
+            to fill the required number of particles. Default: 1, which
+            means no sub-sampling.
+        compute_potential : boolean, optional
+            If True, the gravitational potential for each particle will
+            be computed. Default: False
+        prng : :class:`~numpy.random.RandomState` object, integer, or None
+            A pseudo-random number generator. Typically will only 
+            be specified if you have a reason to generate the same 
+            set of random numbers, such as for a test. Default is None, 
+            which sets the seed based on the system time.
+
+        Returns
+        -------
+        particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+            A set of dark matter particles.
+        """
         return self.dm_virial.generate_particles(
             num_particles, r_max=r_max, sub_sample=sub_sample,
             compute_potential=compute_potential, prng=prng)
 
     def generate_star_particles(self, num_particles, r_max=None, sub_sample=1,
                                 compute_potential=False, prng=None):
+        """
+        Generate a set of star particles in virial equilibrium.
+
+        Parameters
+        ----------
+        num_particles : integer
+            The number of particles to generate.
+        r_max : float, optional
+            The maximum radius in kpc within which to generate 
+            particle positions. If not supplied, it will generate
+            positions out to the maximum radius available. Default: None
+        sub_sample : integer, optional
+            This option allows one to generate a sub-sample of unique
+            particle radii and velocities which will then be repeated
+            to fill the required number of particles. Default: 1, which
+            means no sub-sampling.
+        compute_potential : boolean, optional
+            If True, the gravitational potential for each particle will
+            be computed. Default: False
+        prng : :class:`~numpy.random.RandomState` object, integer, or None
+            A pseudo-random number generator. Typically will only 
+            be specified if you have a reason to generate the same 
+            set of random numbers, such as for a test. Default is None, 
+            which sets the seed based on the system time.
+
+        Returns
+        -------
+        particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+            A set of star particles.
+        """
         return self.star_virial.generate_particles(
             num_particles, r_max=r_max, sub_sample=sub_sample,
             compute_potential=compute_potential, prng=prng)
