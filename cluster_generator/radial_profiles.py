@@ -265,26 +265,6 @@ def nfw_mass_profile(rho_s, r_s):
     return RadialProfile(_nfw)
 
 
-def tnfw_density_profile(rho_s, r_s, r_t):
-    """
-    A truncated NFW density profile ().
-
-    Parameters
-    ----------
-    rho_s : float
-        The scale density in Msun/kpc**3.
-    r_s : float
-        The scale radius in kpc.
-    r_t : float
-        The truncation radius in kpc.
-    """
-    def _tnfw(r):
-        profile = rho_s/((r/r_s)*(1+r/r_s)**2)
-        profile /= (1+(r/r_t)**2)
-        return profile
-    return RadialProfile(_tnfw)
-
-
 def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
     """
     Compute a scale density parameter for an NFW profile
@@ -313,6 +293,26 @@ def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
     rho_crit = cosmo.critical_density(z).to_value("Msun/kpc**3")
     rho_s = delta*rho_crit*conc**3*_nfw_factor(conc)/3.
     return rho_s
+
+
+def tnfw_density_profile(rho_s, r_s, r_t):
+    """
+    A truncated NFW density profile ().
+
+    Parameters
+    ----------
+    rho_s : float
+        The scale density in Msun/kpc**3.
+    r_s : float
+        The scale radius in kpc.
+    r_t : float
+        The truncation radius in kpc.
+    """
+    def _tnfw(r):
+        profile = rho_s/((r/r_s)*(1+r/r_s)**2)
+        profile /= (1+(r/r_t)**2)
+        return profile
+    return RadialProfile(_tnfw)
 
 
 def snfw_density_profile(M, a):
