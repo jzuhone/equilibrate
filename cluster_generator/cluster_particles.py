@@ -45,6 +45,11 @@ ptype_map = OrderedDict([("PartType0", "gas"),
 
 rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
+gamer_particle_types = {
+    1: "dm",
+    2: "star"
+}
+
 
 class ClusterParticles:
     def __init__(self, particle_types, fields, box_size=None):
@@ -143,23 +148,52 @@ class ClusterParticles:
         return cls(particle_types, fields, box_size=box_size)
 
     @classmethod
-    def from_gamer_output(cls, filename, ptype="dm"):
+    def from_gamer_output(cls, filename, ptypes=None):
+        """
+        Read particles from a GAMER output file.
+        
+        Parameters
+        ----------
+        filename : string
+            The name of the file to obtain the particles from. 
+        ptypes : string or list of strings
+            The particle types to obtain from the GAMER output.
+            Options are "dm", "star". Default: None, which means
+            all particles of all types which are present in the 
+            file will be obtained.
+        """
         fields = OrderedDict()
-        particle_types = [ptype]
-        f = h5py.File(filename, "r")
+        if ptypes is None:
+            ptypes = ["dm", "star"]
+        else:
+            ptypes = ensure_list(ptypes)
+        with h5py.File(filename, "r") as f:
         g = f["Particle"]
+            if "ParType" in g:
+                v = g["ParType"][:].astype("int")
+                a = np.unique(v)
+                particle_types = []
+                idxs = []
+                for i in a:
+                    ptype = gamer_particle_types[i]
+                    if ptype in ptypes:
+                        particle_types.append(ptype)
+                        idxs.append(v == i)
+            else:
+                particle_types = ["dm"]
+                idxs = [slice(None, None, None)]
         lunit = f["Info"]["InputPara"]["Unit_L"].value
         munit = f["Info"]["InputPara"]["Unit_M"].value
         vunit = lunit/f["Info"]["InputPara"]["Unit_T"]
+            for i, ptype in enumerate(particle_types):
         fields[ptype, "particle_mass"] = unyt_array(
-            g["ParMass"][:]*munit, "g").in_base("galactic")
+                    g["ParMass"][idxs[i]]*munit, "g").in_base("galactic")
         fields[ptype, "particle_position"] = unyt_array(
-            [g[f"ParPos{ax}"][:]*lunit for ax in "XYZ"],
+                    [g[f"ParPos{ax}"][idxs[i]]*lunit for ax in "XYZ"],
             "cm").in_base("galactic")
         fields[ptype, "particle_velocity"] = unyt_array(
-            [g[f"ParVel{ax}"][:]*vunit for ax in "XYZ"],
+                    [g[f"ParVel{ax}"][idxs[i]]*vunit for ax in "XYZ"],
             "cm/s").in_base("galactic")
-        f.close()
         return cls(particle_types, fields)
 
     def _update_num_particles(self):
