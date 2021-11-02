@@ -5,9 +5,9 @@ from cluster_generator.utils import ensure_ytarray, ensure_list, \
     mylog, ensure_ytquantity, mu, mp, kboltz
 import h5py
 import numpy as np
-import os
 from more_itertools import always_iterable
 from unyt import unyt_array, unyt_quantity, uconcatenate
+from pathlib import Path
 
 ensure_list = lambda x: list(always_iterable(x))
 
@@ -98,7 +98,8 @@ class ClusterParticles:
     @classmethod
     def from_gadget_file(cls, filename, ptypes=None):
         """
-        Read in particle data from a Gadget snapshot
+        Read in particle data from a Gadget (or Arepo, GIZMO, etc.) 
+        snapshot
 
         Parameters
         ----------
@@ -321,7 +322,7 @@ class ClusterParticles:
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
         """
-        if os.path.exists(output_filename) and not overwrite:
+        if Path(output_filename).exists() and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
         with h5py.File(output_filename, "w") as f:
             for ptype in self.particle_types:
@@ -351,7 +352,7 @@ class ClusterParticles:
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
         """
-        if os.path.exists(output_filename) and not overwrite:
+        if Path(output_filename).exists() and not overwrite:
             raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
         ptypes = ["dm"]
         if "star" in self.particle_types:
@@ -491,7 +492,7 @@ class ClusterParticles:
         overwrite : boolean, optional
             Whether or not to overwrite an existing file. Default: False
         """
-        if os.path.exists(ic_filename) and not overwrite:
+        if Path(ic_filename).exists() and not overwrite:
             raise IOError(f"Cannot create {ic_filename}. It exists and "
                           f"overwrite=False.")
         num_particles = {}
