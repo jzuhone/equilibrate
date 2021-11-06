@@ -169,7 +169,7 @@ class ClusterParticles:
         else:
             ptypes = ensure_list(ptypes)
         with h5py.File(filename, "r") as f:
-        g = f["Particle"]
+            g = f["Particle"]
             if "ParType" in g:
                 v = g["ParType"][:].astype("int")
                 a = np.unique(v)
@@ -183,18 +183,18 @@ class ClusterParticles:
             else:
                 particle_types = ["dm"]
                 idxs = [slice(None, None, None)]
-        lunit = f["Info"]["InputPara"]["Unit_L"].value
-        munit = f["Info"]["InputPara"]["Unit_M"].value
-        vunit = lunit/f["Info"]["InputPara"]["Unit_T"]
+            lunit = f["Info"]["InputPara"]["Unit_L"].value
+            munit = f["Info"]["InputPara"]["Unit_M"].value
+            vunit = lunit/f["Info"]["InputPara"]["Unit_T"]
             for i, ptype in enumerate(particle_types):
-        fields[ptype, "particle_mass"] = unyt_array(
+                fields[ptype, "particle_mass"] = unyt_array(
                     g["ParMass"][idxs[i]]*munit, "g").in_base("galactic")
-        fields[ptype, "particle_position"] = unyt_array(
+                fields[ptype, "particle_position"] = unyt_array(
                     [g[f"ParPos{ax}"][idxs[i]]*lunit for ax in "XYZ"],
-            "cm").in_base("galactic")
-        fields[ptype, "particle_velocity"] = unyt_array(
+                    "cm").in_base("galactic")
+                fields[ptype, "particle_velocity"] = unyt_array(
                     [g[f"ParVel{ax}"][idxs[i]]*vunit for ax in "XYZ"],
-            "cm/s").in_base("galactic")
+                    "cm/s").in_base("galactic")
         return cls(particle_types, fields)
 
     def _update_num_particles(self):

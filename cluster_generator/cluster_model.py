@@ -424,9 +424,15 @@ class ClusterModel:
                    "hydrostatic equilibrium is %g", np.abs(chk).max())
         return chk
 
-    def check_virial(self, ptype):
-        which_virial = getattr(self, f"{ptype}_virial", None)
-        return which_virial.check_virial()
+    def check_dm_virial(self):
+        return dm_virial.check_virial()
+
+    def check_star_virial(self):
+        if self._star_virial is None:
+            raise RuntimeError("Cannot check the virial equilibrium of "
+                               "the stars because there are no stars in "
+                               "this model!")
+        return star_virial.check_virial()
 
     def set_magnetic_field_from_beta(self, beta, gaussian=True):
         """
