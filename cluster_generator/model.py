@@ -6,7 +6,7 @@ from cluster_generator.utils import \
     integrate, mylog, integrate_mass, \
     mp, G, generate_particle_radii, mu, mue, \
     ensure_ytquantity, kpc_to_cm
-from cluster_generator.cluster_particles import \
+from cluster_generator.particles import \
     ClusterParticles
 from cluster_generator.virial import \
     VirialEquilibrium
@@ -413,6 +413,8 @@ class ClusterModel:
             An array containing the relative deviation from hydrostatic
             equilibrium as a function of radius.
         """
+        if "pressure" not in self.fields:
+            raise RuntimeError("This ClusterModel contains no gas!")
         rr = self.fields["radius"].v
         pressure_spline = InterpolatedUnivariateSpline(
             rr, self.fields["pressure"].v)
@@ -605,7 +607,7 @@ class ClusterModel:
 
         Returns
         -------
-        particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+        particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of dark matter particles.
         """
         return self.dm_virial.generate_particles(
@@ -641,7 +643,7 @@ class ClusterModel:
 
         Returns
         -------
-        particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+        particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of star particles.
         """
         return self.star_virial.generate_particles(

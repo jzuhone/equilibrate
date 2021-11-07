@@ -1,10 +1,10 @@
-from cluster_generator.cluster_model import \
+from cluster_generator.model import \
     ClusterModel, HydrostaticEquilibrium
-from cluster_generator.cluster_ics import \
+from cluster_generator.ics import \
     ClusterICs, compute_centers_for_binary
-from cluster_generator.cluster_particles import \
+from cluster_generator.particles import \
     ClusterParticles
-from cluster_generator.cluster_field import \
+from cluster_generator.fields import \
     RandomMagneticField, \
     RadialRandomMagneticField, \
     RandomMagneticVectorPotential, \
@@ -28,4 +28,4 @@ from cluster_generator.radial_profiles import \
 from cluster_generator.relations import \
     m_bcg, m_sat, r_bcg, f_gas, \
     convert_ne_to_density
-from cluster_generator.cluster_codes import setup_gamer_ics
+from cluster_generator.codes import setup_gamer_ics

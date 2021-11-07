@@ -1,8 +1,8 @@
 from pathlib import Path
 from numpy.testing import assert_equal
 
-from cluster_generator.cluster_model import ClusterModel
-from cluster_generator.cluster_particles import ClusterParticles
+from cluster_generator.model import ClusterModel
+from cluster_generator.particles import ClusterParticles
 from cluster_generator.radial_profiles import find_overdensity_radius, \
     snfw_density_profile, snfw_total_mass, vikhlinin_density_profile, \
     rescale_profile_by_mass, find_radius_mass, snfw_mass_profile

@@ -1,7 +1,7 @@
 from cluster_generator.utils import ensure_ytarray, ensure_list, \
     parse_prng
-from cluster_generator.cluster_model import ClusterModel
-from cluster_generator.cluster_particles import \
+from cluster_generator.model import ClusterModel
+from cluster_generator.particles import \
     ClusterParticles, \
     combine_two_clusters, \
     combine_three_clusters, \

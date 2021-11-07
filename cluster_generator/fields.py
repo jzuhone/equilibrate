@@ -1,7 +1,7 @@
 import numpy as np
 from cluster_generator.utils import mylog, parse_prng
 import os
-from cluster_generator.cluster_model import ClusterModel
+from cluster_generator.model import ClusterModel
 from unyt import unyt_array
 
 
@@ -176,7 +176,7 @@ class ClusterField:
     @property
     def units(self):
         if self.vector_potential:
-            return "%s*kpc" % self._units
+            return f"{self.units}*kpc" 
         else:
             return self._units
 
@@ -238,7 +238,7 @@ class ClusterField:
 
         Parameters
         ----------
-        cluster_particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+        cluster_particles : :class:`~cluster_generator.particles.ClusterParticles`
             The ClusterParticles object which will have new
             fields added.
         ptype : string, optional

@@ -1,4 +1,4 @@
-from cluster_generator.cluster_model import ClusterModel
+from cluster_generator.model import ClusterModel
 from cluster_generator.utils import mylog
 
 

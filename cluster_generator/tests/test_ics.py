@@ -1,4 +1,4 @@
-from cluster_generator.cluster_ics import ClusterICs, \
+from cluster_generator.ics import ClusterICs, \
     compute_centers_for_binary
 from cluster_generator.tests.utils import particle_answer_testing
 from numpy.random import RandomState

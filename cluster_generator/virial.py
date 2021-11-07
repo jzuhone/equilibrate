@@ -3,7 +3,7 @@ from tqdm.auto import tqdm
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import \
     quad, generate_particle_radii, mylog
-from cluster_generator.cluster_particles import \
+from cluster_generator.particles import \
     ClusterParticles
 from cluster_generator.cython_utils import generate_velocities
 from collections import OrderedDict
@@ -18,7 +18,7 @@ class VirialEquilibrium:
 
         Parameters
         ----------
-        model : :class:`~cluster_generator.cluster_model.ClusterModel`
+        model : :class:`~cluster_generator.model.ClusterModel`
             The cluster model which will be used to
             construct the virial equilibrium.
         ptype : string, optional
@@ -119,7 +119,7 @@ class VirialEquilibrium:
 
         Returns
         -------
-        particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+        particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of dark matter or star particles.
         """
         from cluster_generator.utils import parse_prng

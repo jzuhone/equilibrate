@@ -748,7 +748,7 @@ def resample_one_cluster(particles, hse, center, velocity):
     Parameters
     ----------
 
-    particles : :class:`~cluster_generator.cluster_particles.ClusterParticles`
+    particles : :class:`~cluster_generator.particles.ClusterParticles`
     hse : 
     center : array_like
     velocity : array_like
