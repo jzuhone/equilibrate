@@ -101,7 +101,7 @@ possible to supply a stellar mass density profile as well via the
     a_star = 50.0 # units of kpc
     stellar_density = cg.hernquist_density_profile(M_star, a_star)
     p = cg.ClusterModel.no_gas(rmin, rmax, total_density, 
-                               stellar_profile=stellar_density)
+                               stellar_density=stellar_density)
 
 Checking the Hydrostatic Equilibrium
 ====================================
