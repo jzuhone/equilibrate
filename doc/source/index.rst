@@ -12,7 +12,7 @@
 
    introduction
    radial_profiles
-   cluster_models
+   models
    particles
    fields
    initial_conditions

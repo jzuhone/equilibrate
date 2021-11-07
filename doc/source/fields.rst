@@ -10,8 +10,8 @@ However, for initializing the complex magnetic and velocity fields which exist
 in clusters for use in magnetohydrodynamical simulations, a full 3D 
 implementation is required. 
 
-Overview
-========
+Mathematical Overview
+=====================
 
 Magnetic and velocity fields in clusters are assumed to be complex and 
 turbulent. If one wants to include these fields in a simulation of a single
@@ -63,8 +63,15 @@ Initializing Magnetic Fields
 Initializing Velocity Fields
 ============================
 
+.. _mapping_fields_to_particles:
+
+Mapping Fields to Particles
+===========================
+
 Writing Fields Out to Disk
 ==========================
 
+.. code-block:: python
 
+    bfields.write_to_h5("bfield.h5")
 

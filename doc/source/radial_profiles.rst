@@ -87,7 +87,7 @@ and :math:`r_s` is a scale radius in units of kpc.
 An NFW density profile function can be generated using 
 :func:`~cluster_generator.radial_profiles.nfw_density_profile`, and the NFW mass
 profile function can be generated using
-:func:`~cluster_generator.radial_profiles.nfw_mass_profile`.
+:func:`~cluster_generator.radial_profiles.nfw_mass_profile`:
 
 .. code-block:: python
 
@@ -110,9 +110,13 @@ The "super-NFW" profile from Lilley, E. J., Wyn Evans, N., & Sanders, J.L. 2018,
 MNRAS is similar to the NFW profile, except that it falls off faster at large
 radius and thus its mass profile is finite at infinity. 
 
+Density:
+
 .. math::
 
     \rho_{\rm sNFW}(r) = \frac{3M}{16\pi{a^3}}\frac{1}{r/a\left(1+r/a\right)^{5/2}}
+
+Mass:
 
 .. math::
 
@@ -124,7 +128,7 @@ where :math:`M` is the total mass of the profile in units of
 An sNFW density profile function can be generated using 
 :func:`~cluster_generator.radial_profiles.snfw_density_profile`, and the sNFW 
 mass profile function can be generated using
-:func:`~cluster_generator.radial_profiles.snfw_mass_profile`.
+:func:`~cluster_generator.radial_profiles.snfw_mass_profile`:
 
 .. code-block:: python
 

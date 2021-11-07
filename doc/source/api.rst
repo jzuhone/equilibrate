@@ -1,31 +1,31 @@
 ``cluster_generator`` API Docs
 ==============================
 
-cluster\_generator.cluster\_field module
+cluster\_generator.fields module
 ----------------------------------------
 
-.. automodule:: cluster_generator.cluster_field
+.. automodule:: cluster_generator.fields
    :members:
    :show-inheritance:
 
-cluster\_generator.cluster\_ics module
+cluster\_generator.ics module
 --------------------------------------
 
-.. automodule:: cluster_generator.cluster_ics
+.. automodule:: cluster_generator.ics
    :members:
    :show-inheritance:
 
-cluster\_generator.cluster\_model module
+cluster\_generator.model module
 ----------------------------------------
 
-.. automodule:: cluster_generator.cluster_model
+.. automodule:: cluster_generator.model
    :members:
    :show-inheritance:
 
-cluster\_generator.cluster\_particles module
+cluster\_generator.particles module
 --------------------------------------------
 
-.. automodule:: cluster_generator.cluster_particles
+.. automodule:: cluster_generator.particles
    :members:
    :show-inheritance:
 
@@ -43,9 +43,9 @@ cluster\_generator.relations module
    :members:
    :show-inheritance:
 
-cluster\_generator.virial module
+cluster\_generator.codes module
 --------------------------------
 
-.. automodule:: cluster_generator.virial
+.. automodule:: cluster_generator.codes
    :members:
    :show-inheritance:
