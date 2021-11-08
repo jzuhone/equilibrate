@@ -650,8 +650,29 @@ class ClusterModel:
             num_particles, r_max=r_max, sub_sample=sub_sample,
             compute_potential=compute_potential, prng=prng)
 
-    def plot(self, field, fig=None, ax=None, rmin=None, rmax=None,
-             lw=2, **kwargs):
+    def plot(self, field, r_min=None, r_max=None, fig=None, ax=None, **kwargs):
+        """
+        Plot a field vs radius from this model using Matplotlib.
+        
+        Parameters
+        ----------
+        field : string
+            The field to plot. 
+        r_min : float
+            The minimum radius of the plot in kpc.
+        r_max : float
+            The maximum radius of the plot in kpc.
+        fig : Matplotlib Figure
+            The figure to plot in. Default; None, in which case
+            one will be generated. 
+        ax : Matplotlib Axes
+            The axes to plot in. Default: None, in which case
+            one will be generated.
+            
+        Returns
+        -------
+        The Figure, Axes tuple used for the plot. 
+        """
         import matplotlib.pyplot as plt
         plt.rc("font", size=18)
         plt.rc("axes", linewidth=2)
