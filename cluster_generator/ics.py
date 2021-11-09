@@ -309,24 +309,28 @@ class ClusterICs:
                                                 passive_scalars=passive_scalars)
         return new_parts
 
-    def create_dataset(self, domain_dimensions, box_size, left_edge=None, 
+    def create_dataset(self, domain_dimensions, box_size, left_edge=None,
                        **kwargs):
         """
-        Create a uniformly gridded dataset using yt by adding the clusters
-        into a box. 
+        Create an in-memory, uniformly gridded dataset in 3D using yt by
+        placing the clusters into a box. When adding multiple clusters,
+        per-volume quantities from each cluster such as density and
+        pressure are added, whereas per-mass quantites such as temperature
+        and velocity are mass-weighted.
 
         Parameters
         ----------
         domain_dimensions : 3-tuple of ints
-             The number of cells on a side for the domain.
-        :param box_size: 
-        :param left_edge: 
-        :param kwargs: 
-        :return: 
+            The number of cells on a side for the domain.
+        box_size : float
+            The size of the box in kpc.
+        left_edge : array_like, optional
+            The minimum coordinate of the box in all three dimensions,
+            in kpc. Default: None, which means the left edge will
+            be [0, 0, 0].
         """
         from yt.loaders import load_uniform_grid
         from scipy.interpolate import InterpolatedUnivariateSpline
-        from unyt import unyt_array
         if left_edge is None:
             left_edge = np.zeros(3)
         left_edge = np.array(left_edge)
