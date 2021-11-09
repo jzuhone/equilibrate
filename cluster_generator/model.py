@@ -427,14 +427,14 @@ class ClusterModel:
         return chk
 
     def check_dm_virial(self):
-        return dm_virial.check_virial()
+        return self.dm_virial.check_virial()
 
     def check_star_virial(self):
         if self._star_virial is None:
             raise RuntimeError("Cannot check the virial equilibrium of "
                                "the stars because there are no stars in "
                                "this model!")
-        return star_virial.check_virial()
+        return self.star_virial.check_virial()
 
     def set_magnetic_field_from_beta(self, beta, gaussian=True):
         """
