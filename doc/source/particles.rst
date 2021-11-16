@@ -240,6 +240,15 @@ or to boost the particle velocities to a new frame, or both, we can use the
     so these are relative translations by the given amounts and not movements
     to the values of the ``r_ctr`` and ``v_ctr`` parameters.
 
+Make a Cut on Radius
+^^^^^^^^^^^^^^^^^^^^
+
+Add Black Hole Particles
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Add a New Field
+^^^^^^^^^^^^^^^
+
 ``ClusterParticles`` I/O
 ++++++++++++++++++++++++
 
