@@ -392,14 +392,17 @@ class ClusterParticles:
         ----------
         r_ctr : array-like
             A 3-element list, NumPy array, or unyt_array of the coordinates
-            of the new center of the particle distribution.
+            of the new center of the particle distribution. If units are not
+            given, they are assumed to be in kpc.
         v_ctr : array-like
             A 3-element list, NumPy array, or unyt_array of the coordinates
-            of the new bulk velocity of the particle distribution.
+            of the new bulk velocity of the particle distribution. If units 
+            are not given, they are assumed to be in kpc/Myr.
         ptypes : string or list of strings, optional
             A single string or list of strings indicating the particle
             type(s) to be offset. Default: None, meaning all of the 
-            particle types will be offset.
+            particle types will be offset. This should not be used in
+            normal circumstances.
         """
         if ptypes is None:
             ptypes = self.particle_types
@@ -607,7 +610,7 @@ class ClusterParticles:
         ----------
         box_size : float
             The width of the domain on a side, in kpc.
-        ptypes : list of strings, optional
+        ptypes : string or list of strings, optional
             The particle types to export to the dataset. If
             not set, all will be exported.
         """

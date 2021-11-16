@@ -172,3 +172,75 @@ which is covered in more detail next.
 The ``ClusterParticles`` Class
 ==============================
 
+The :class:`~cluster_generator.particles.ClusterParticles` class is a
+container for particle properties. 
+
+``ClusterParticles`` Operations
++++++++++++++++++++++++++++++++
+
+Several kinds of operations can be performed on 
+:class:`~cluster_generator.particles.ClusterParticles` objects. 
+
+Adding ``ClusterParticles`` Objects
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~cluster_generator.particles.ClusterParticles` objects can be added
+together. In this case, we add particles of different types so that they
+are combined into a single object:
+
+.. code-block:: python
+
+    all_particles = gas_particles+dm_particles+star_particles
+
+If you have multiple :class:`~cluster_generator.particles.ClusterParticles` 
+objects with the same particle types, the particle field arrays will simply 
+be concatenated together:
+
+.. code-block:: python
+
+    gas_parts = gas_parts1+gas_parts2
+
+Dropping Particle Types
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To drop all fields of a specific particle type from a 
+:class:`~cluster_generator.particles.ClusterParticles` instance, use the 
+:meth:`~cluster_generator.particles.ClusterParticles.drop_ptypes` method:
+
+.. code-block:: python
+
+    # Drop gas particles
+    parts.drop_ptypes("gas")
+    
+    # Drop DM and star particles
+    parts.drop_ptypes(["dm","star"])
+
+Add Position and Velocity Offsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, a :class:`~cluster_generator.particles.ClusterParticles` object is
+centered at (0, 0, 0) kpc and has a bulk velocity of (0, 0, 0) kpc/Myr.
+To translate the particle positions of a 
+:class:`~cluster_generator.particles.ClusterParticles` instance to a new center,
+or to boost the particle velocities to a new frame, or both, we can use the 
+:meth:`~cluster_generator.particles.ClusterParticles.add_offsets` method:
+
+.. code-block::
+    
+    # shift the particle positions by this amount in each direction
+    r_ctr = [1000.0, -1000.0, 10.0] # kpc
+    # shift the particle velocities by this amount in each direction
+    v_ctr = [-500.0, 200.0, 0.0] # kpc/Myr
+    parts.add_offsets(r_ctr, v_ctr)
+
+.. note::
+
+    The :meth:`~cluster_generator.particles.ClusterParticles.add_offsets` does
+    exactly as it is named, it adds *offsets* to the positions and velocities,
+    so these are relative translations by the given amounts and not movements
+    to the values of the ``r_ctr`` and ``v_ctr`` parameters.
+
+``ClusterParticles`` I/O
+++++++++++++++++++++++++
+
+
