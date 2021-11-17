@@ -225,7 +225,7 @@ To translate the particle positions of a
 or to boost the particle velocities to a new frame, or both, we can use the 
 :meth:`~cluster_generator.particles.ClusterParticles.add_offsets` method:
 
-.. code-block::
+.. code-block:: python
     
     # shift the particle positions by this amount in each direction
     r_ctr = [1000.0, -1000.0, 10.0] # kpc
@@ -243,11 +243,42 @@ or to boost the particle velocities to a new frame, or both, we can use the
 Make a Cut on Radius
 ^^^^^^^^^^^^^^^^^^^^
 
+To cut out particles beyond a certain radius, use the 
+:meth:`~cluster_generator.particles.ClusterParticles.make_radial_cut` method:
+
+.. code-block:: python
+
+    # make a radial cut at r_max, assuming the center is [0, 0, 0] kpc
+    r_max = 5000.0 # in kpc
+    parts.make_radial_cut(r_max)
+    
+    # make a radial cut at r_max, assuming the center is 
+    # [500, 500, 500] kpc
+    r_max = 5000.0 # in kpc
+    center = [500, 500, 500] # in kpc
+    parts.make_radial_cut(r_max, center=center)
+
+You can also cut out only certain particle types:
+
+.. code-block:: python
+
+    # make radial cut on stars only
+    r_max = 5000.0 # in kpc
+    parts.make_radial_cut(r_max, ptypes="star")
+
+    # make radial cut on stars and dm
+    r_max = 5000.0 # in kpc
+    parts.make_radial_cut(r_max, ptypes=["star","dm"])
+
 Add Black Hole Particles
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
+To add a single black hole particle 
+
 Add a New Field
 ^^^^^^^^^^^^^^^
+
+Finally, a new field can be added to the particles rather easily. 
 
 ``ClusterParticles`` I/O
 ++++++++++++++++++++++++
