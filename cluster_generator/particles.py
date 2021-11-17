@@ -5,21 +5,19 @@ from cluster_generator.utils import ensure_ytarray, ensure_list, \
     mylog, ensure_ytquantity, mu, mp, kboltz
 import h5py
 import numpy as np
-from more_itertools import always_iterable
 from unyt import unyt_array, unyt_quantity, uconcatenate
 from pathlib import Path
 
-ensure_list = lambda x: list(always_iterable(x))
 
-gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                        "Potential"],
-                 "gas": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                         "InternalEnergy", "MagneticField", "Density", "Potential",
-                         "PassiveScalars"],
-                 "star": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                          "Potential"],
-                 "black_hole": ["Coordinates", "Velocities", "Masses", "ParticleIDs",
-                                "Potential"]}
+gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses",
+                        "ParticleIDs", "Potential"],
+                 "gas": ["Coordinates", "Velocities", "Masses",
+                         "ParticleIDs", "InternalEnergy", "MagneticField",
+                         "Density", "Potential", "PassiveScalars"],
+                 "star": ["Coordinates", "Velocities", "Masses",
+                          "ParticleIDs", "Potential"],
+                 "black_hole": ["Coordinates", "Velocities", "Masses",
+                                "ParticleIDs", "Potential"]}
 
 gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
@@ -60,6 +58,145 @@ class ClusterParticles:
         self.box_size = box_size
         self.passive_scalars = []
 
+    def __getitem__(self, key):
+        return self.fields[key]
+
+    def __setitem__(self, key, value):
+        self.fields[key] = value
+
+    def keys(self):
+        return self.fields.keys()
+
+    def _update_num_particles(self):
+        self.num_particles = {}
+        for ptype in self.particle_types:
+            self.num_particles[ptype] = self.fields[ptype, "particle_mass"].size
+
+    def _update_field_names(self):
+        self.field_names = defaultdict(list)
+        for field in self.fields:
+            self.field_names[field[0]].append(field[1])
+
+    def _clip_to_box(self, ptype, box_size):
+        pos = self.fields[ptype, "particle_position"]
+        return ~np.logical_or((pos < 0.0).any(axis=1),
+                              (pos > box_size).any(axis=1))
+
+    def __add__(self, other):
+        fields = self.fields.copy()
+        for field in other.fields:
+            if field in fields:
+                fields[field] = uconcatenate([self[field], other[field]])
+            else:
+                fields[field] = other[field]
+        particle_types = list(set(self.particle_types + other.particle_types))
+        return ClusterParticles(particle_types, fields)
+
+    @property
+    def num_passive_scalars(self):
+        return len(self.passive_scalars)
+
+    def drop_ptypes(self, ptypes):
+        """
+        Drop all particles with a type in *ptypes*.
+        """
+        ptypes = ensure_list(ptypes)
+        for ptype in ptypes:
+            self.particle_types.remove(ptype)
+            names = list(self.fields.keys())
+            for name in names:
+                if name[0] in ptypes:
+                    self.fields.pop(name)
+        self._update_num_particles()
+        self._update_field_names()
+
+    def make_radial_cut(self, r_max, center=None, ptypes=None):
+        """
+        Make a radial cut on particles. All particles outside
+        a certain radius will be removed.
+
+        Parameters
+        ----------
+        r_max : float
+            The maximum radius of the particles in kpc.
+        center : array-like, optional
+            The center coordinate of the system of particles to define
+            the radius from, in units of kpc. Default: [0.0, 0.0, 0.0]
+        ptypes : list of strings, optional
+            The particle types to perform the radial cut on. If
+            not set, all will be exported.
+        """
+        rm2 = r_max*r_max
+        if center is None:
+            center = np.array([0.0]*3)
+        if ptypes is None:
+            ptypes = self.particle_types
+        ptypes = ensure_list(ptypes)
+
+        for pt in ptypes:
+            cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
+            for field in self.field_names[pt]:
+                self.fields[pt, field] = self.fields[pt, field][cidx]
+        self._update_num_particles()
+
+    def add_black_hole(self, bh_mass, pos=None, vel=None,
+                       use_pot_min=False):
+        r"""
+        Add a black hole particle to the set of cluster
+        particles.
+
+        Parameters
+        ----------
+        bh_mass : float
+            The mass of the black hole particle in solar masses.
+        pos : array-like, optional
+            The position of the particle, assumed to be in units of
+            kpc if units are not given. If use_pot_min=True this
+            argument is ignored. Default: None, in which case the
+            particle position is [0.0, 0.0, 0.0] kpc.
+        vel : array-like, optional
+            The velocity of the particle, assumed to be in units of
+            kpc/Myr if units are not given. If use_pot_min=True this
+            argument is ignored. Default: None, in which case the
+            particle velocity is [0.0, 0.0, 0.0] kpc/Myr.
+        use_pot_min : boolean, optional 
+            If True, use the dark matter particle with the minimum
+            value of the gravitational potential to determine the 
+            position and velocity of the black hole particle. Default:
+            False
+        """
+        mass = unyt_quantity(bh_mass, "Msun")
+        self.fields["black_hole", "particle_mass"] = unyt_array(
+            [bh_mass], "Msun")
+        if use_pot_min:
+            idx = np.argmin(self.fields["dm", "potential_energy"])
+            pos = unyt_array(self.fields["dm", "particle_position"][idx]
+                             ).reshape(1,3)
+            vel = unyt_array(self.fields["dm", "particle_velocity"][idx]
+                             ).reshape(1,3)
+        else:
+            if pos is None:
+                pos = unyt_array(np.zeros((1, 3)), "kpc")
+            if vel is None:
+                vel = unyt_array(np.zeros((1, 3)), "kpc/Myr")
+            pos = ensure_ytarray(pos, "kpc")
+            vel = ensure_ytarray(vel, "kpc/Myr")
+        if "black_hole" not in self.particle_types:
+            self.particle_types.append("black_hole")
+            self.fields["black_hole", "particle_position"] = pos
+            self.fields["black_hole", "particle_velocity"] = vel
+            self.fields["black_hole", "particle_mass"] = mass
+        else:
+            uappend = lambda x, y: unyt_array(np.append(x, y, axis=0).v,
+                                              x.units)
+            self.fields["black_hole", "particle_position"] = uappend(
+                self.fields["black_hole", "particle_position"], pos)
+            self.fields["black_hole", "particle_velocity"] = uappend(
+                self.fields["black_hole", "particle_velocity"], vel)
+            self.fields["black_hole", "particle_mass"] = uappend(
+                self.fields["black_hole", "particle_mass"], mass)
+        self._update_num_particles()
+
     @classmethod
     def from_h5_file(cls, filename, ptypes=None):
         r"""
@@ -98,7 +235,7 @@ class ClusterParticles:
     @classmethod
     def from_gadget_file(cls, filename, ptypes=None):
         """
-        Read in particle data from a Gadget (or Arepo, GIZMO, etc.) 
+        Read in particle data from a Gadget (or Arepo, GIZMO, etc.)
         snapshot
 
         Parameters
@@ -152,7 +289,7 @@ class ClusterParticles:
     def from_gamer_output(cls, filename, ptypes=None):
         """
         Read particles from a GAMER output file.
-        
+
         Parameters
         ----------
         filename : string
@@ -197,118 +334,7 @@ class ClusterParticles:
                     "cm/s").in_base("galactic")
         return cls(particle_types, fields)
 
-    def _update_num_particles(self):
-        self.num_particles = {}
-        for ptype in self.particle_types:
-            self.num_particles[ptype] = self.fields[ptype, "particle_mass"].size
-
-    def _update_field_names(self):
-        self.field_names = defaultdict(list)
-        for field in self.fields:
-            self.field_names[field[0]].append(field[1])
-
-    def drop_ptypes(self, ptypes):
-        """
-        Drop all particles with a type in *ptypes*.
-        """
-        ptypes = ensure_list(ptypes)
-        for ptype in ptypes:
-            self.particle_types.remove(ptype)
-            names = list(self.fields.keys())
-            for name in names:
-                if name[0] in ptypes:
-                   self.fields.pop(name) 
-        self._update_num_particles()
-        self._update_field_names()
-
-    def make_radial_cut(self, r_max, center=None, ptypes=None):
-        """
-        Make a radial cut on particles. All particles outside
-        a certain radius will be removed.
-
-        Parameters
-        ----------
-        r_max : float
-            The maximum radius of the particles in kpc.
-        center : array-like, optional
-            The center coordinate of the system of particles to define
-            the radius from, in units of kpc. Default: [0.0, 0.0, 0.0]
-        ptypes : list of strings, optional
-            The particle types to perform the radial cut on. If
-            not set, all will be exported.
-        """
-        rm2 = r_max*r_max
-        if center is None:
-            center = np.array([0.0]*3)
-        if ptypes is None:
-            ptypes = self.particle_types
-        ptypes = ensure_list(ptypes)
-
-        for pt in ptypes:
-            cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
-            for field in self.field_names[pt]:
-                self.fields[pt, field] = self.fields[pt, field][cidx]
-        self._update_num_particles()
-
-    def add_black_hole(self, bh_mass, pos=None, vel=None,
-                       use_pot_min=False):
-        r"""
-        Add a black hole particle to the set of cluster
-        particles.
-
-        Parameters
-        ----------
-        bh_mass : float
-            The mass of the black hole particle in solar masses.
-        pos : array-like, optional
-            The position of the particle, assumed to be in units of
-            kpc if units are not given. If use_pot_min=True this
-            argument is ignored. Default: None, in which case the 
-            particle position is [0.0, 0.0, 0.0] kpc. 
-        vel : array-like, optional
-            The velocity of the particle, assumed to be in units of
-            kpc/Myr if units are not given. If use_pot_min=True this
-            argument is ignored. Default: None, in which case the 
-            particle velocity is [0.0, 0.0, 0.0] kpc/Myr. 
-        use_pot_min : boolean, optional 
-            If True, use the dark matter particle with the minimum
-            value of the gravitational potential to determine the 
-            position and velocity of the black hole particle. Default:
-            False
-        """
-        mass = unyt_quantity(bh_mass, "Msun")
-        self.fields["black_hole", "particle_mass"] = unyt_array(
-            [bh_mass], "Msun")
-        if use_pot_min:
-            idx = np.argmin(self.fields["dm", "potential_energy"])
-            pos = unyt_array(self.fields["dm", "particle_position"][idx]
-                             ).reshape(1,3)
-            vel = unyt_array(self.fields["dm", "particle_velocity"][idx]
-                             ).reshape(1,3)
-        else:
-            if pos is None:
-                pos = unyt_array(np.zeros((1,3)), "kpc")
-            if vel is None:
-                vel = unyt_array(np.zeros((1,3)), "kpc/Myr")
-            pos = ensure_ytarray(pos, "kpc")
-            vel = ensure_ytarray(vel, "kpc/Myr")
-        if "black_hole" not in self.particle_types:
-            self.particle_types.append("black_hole")
-            self.fields["black_hole", "particle_position"] = pos
-            self.fields["black_hole", "particle_velocity"] = vel
-            self.fields["black_hole", "particle_mass"] = mass
-        else:
-            uappend = lambda x, y: unyt_array(np.append(x, y, axis=0).v, 
-                                              x.units)
-            self.fields["black_hole", "particle_position"] = uappend(
-                self.fields["black_hole", "particle_position"], pos)
-            self.fields["black_hole", "particle_velocity"] = uappend(
-                self.fields["black_hole", "particle_velocity"], vel)
-            self.fields["black_hole", "particle_mass"] = uappend(
-                self.fields["black_hole", "particle_mass"], mass)
-        self._update_num_particles()
-
-    def write_particles_to_h5(self, output_filename, in_cgs=False, 
+    def write_particles_to_h5(self, output_filename, in_cgs=False,
                               overwrite=False):
         """
         Write the particles to an HDF5 file.
@@ -337,8 +363,8 @@ class ClusterParticles:
                     fd = self.fields[field].in_cgs()
                 else:
                     fd = self.fields[field]
-                    fd.write_hdf5(output_filename, dataset_name=field[1],
-                                  group_name=field[0])
+                fd.write_hdf5(output_filename, dataset_name=field[1],
+                              group_name=field[0])
 
     def write_gamer_input(self, output_filename, overwrite=True):
         """
@@ -353,35 +379,73 @@ class ClusterParticles:
             Overwrite an existing file with the same name. Default False.
         """
         if Path(output_filename).exists() and not overwrite:
-            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
+            raise IOError(f"Cannot create {output_filename}. It exists and overwrite=False.")
         ptypes = ["dm"]
         if "star" in self.particle_types:
             ptypes.append("star")
         nparts = [self.num_particles[ptype] for ptype in ptypes]
-        f = h5py.File(output_filename, "w")
-        for field in self.field_names["dm"]:
-            fd = uconcatenate([self.fields[ptype, field] for ptype in ptypes], axis=0)
-            if hasattr(fd, "units"):
-                fd.convert_to_cgs()
-            f.create_dataset(field, data=np.asarray(fd))
-        fd = np.concatenate([(i+1)*np.ones(nparts[i]) for i, ptype in enumerate(ptypes)])
-        f.create_dataset("particle_type", data=fd)
-        f.flush()
-        f.close()
+        with h5py.File(output_filename, "w") as f:
+            for field in self.field_names["dm"]:
+                fd = uconcatenate(
+                    [self.fields[ptype, field] for ptype in ptypes], axis=0)
+                if hasattr(fd, "units"):
+                    fd.convert_to_cgs()
+                f.create_dataset(field, data=np.asarray(fd))
+            fd = np.concatenate([(i+1)*np.ones(nparts[i]) 
+                                 for i, ptype in enumerate(ptypes)])
+            f.create_dataset("particle_type", data=fd)
 
-    def __add__(self, other):
-        fields = self.fields.copy()
-        for field in other.fields:
-            if field in fields:
-                fields[field] = uconcatenate([self[field], other[field]])
+    def set_field(self, ptype, name, value, units=None, add=False,
+                  passive_scalar=False):
+        """
+        Add or update a particle field using a unyt_array.
+        The array will be checked to make sure that it
+        has the appropriate size.
+
+        Parameters
+        ----------
+        ptype : string
+            The particle type of the field to add or update.
+        name : string
+            The name of the field to add or update.
+        value : unyt_array
+            The particle field itself--an array with the same 
+            shape as the number of particles.
+        units : string, optional
+            The units to convert the field to. Default: None,
+            indicating the units will be preserved.
+        add : boolean, optional
+            If True and the field already exists, the values
+            in the array will be added to the already existing
+            field array.
+        passive_scalar : boolean, optional
+            If set, the field to be added is a passive scalar.
+            Default: False
+        """
+        if not isinstance(value, unyt_array):
+            value = unyt_array(value, "dimensionless")
+        num_particles = self.num_particles[ptype]
+        exists = (ptype, name) in self.fields
+        if value.shape[0] == num_particles:
+            if exists:
+                if add:
+                    self.fields[ptype, name] += value
+                else:
+                    mylog.warning(f"Overwriting field ({ptype}, {name}).")
+                    self.fields[ptype, name] = value
             else:
-                fields[field] = other[field]
-        particle_types = list(set(self.particle_types + other.particle_types))
-        return ClusterParticles(particle_types, fields)
-
-    @property
-    def num_passive_scalars(self):
-        return len(self.passive_scalars)
+                if add:
+                    raise RuntimeError(f"Field ({ptype}, {name}) does not "
+                                       f"exist and add=True!")
+                else:
+                    self.fields[ptype, name] = value
+                if passive_scalar and ptype == "gas":
+                    self.passive_scalars.append(name)
+            if units is not None:
+                self.fields[ptype, name].convert_to_units(units)
+        else:
+            raise ValueError("The length of the array needs to be %d particles!"
+                             % num_particles)
 
     def add_offsets(self, r_ctr, v_ctr, ptypes=None):
         """
@@ -412,51 +476,6 @@ class ClusterParticles:
         for ptype in ptypes:
             self.fields[ptype, "particle_position"] += r_ctr
             self.fields[ptype, "particle_velocity"] += v_ctr
-
-    def add_background_grid(self, nxb, box_size, part_mass=None,
-                            T_bg=None):
-        ngp = nxb**3
-        dx = box_size/nxb
-        if T_bg is None:
-            T_bg = unyt_quantity(1.0e5, "K")
-        T_bg = ensure_ytquantity(T_bg, "K")
-        if part_mass is None:
-            part_mass = np.mean(self.fields["gas","particle_mass"])
-        part_mass = ensure_ytquantity(part_mass, "Msun")
-        x, y, z = (np.mgrid[0:nxb,0:nxb,0:nxb] + 0.5)*dx
-        self.fields["gas", "particle_position"] = uconcatenate([
-            self.fields["gas", "particle_position"],
-            unyt_array([x.flatten(), y.flatten(), z.flatten()], "kpc").T
-        ])
-        self.fields["gas", "particle_velocity"] = uconcatenate([
-            self.fields["gas", "particle_velocity"],
-            unyt_array(np.zeros((ngp, 3)), "kpc/Myr")
-        ])
-        mass = part_mass*np.ones(ngp)
-        self.fields["gas", "particle_mass"] = uconcatenate([
-            self.fields["gas", "particle_mass"],
-            mass
-        ])
-        self.fields["gas", "density"] = uconcatenate([
-            self.fields["gas", "density"],
-            mass/unyt_array(dx**3, "kpc**3")
-        ])
-        e_th = 1.5*kboltz*T_bg/(mu*mp)
-        self.fields["gas", "thermal_energy"] = uconcatenate([
-            self.fields["gas", "thermal_energy"],
-            e_th*np.ones(ngp)
-        ])
-        if ("gas", "magnetic_field") in self.fields:
-            bunits = self.fields["gas", "magnetic_field"].units
-            self.fields["gas", "magnetic_field"] = uconcatenate([
-                self.fields["gas", "magnetic_field"],
-                unyt_array(np.zeros((ngp, 3)), bunits)
-            ])
-
-    def _clip_to_box(self, ptype, box_size):
-        pos = self.fields[ptype, "particle_position"]
-        return ~np.logical_or((pos < 0.0).any(axis=1),
-                              (pos > box_size).any(axis=1))
 
     def _write_gadget_fields(self, ptype, h5_group, idxs, dtype):
         for field in gadget_fields[ptype]:
@@ -540,67 +559,6 @@ class ClusterParticles:
         hg.attrs["Flag_IC_Info"] = 0
         f.flush()
         f.close()
-
-    def set_field(self, ptype, name, value, units=None, add=False,
-                  passive_scalar=False):
-        """
-        Add or update a particle field using a unyt_array.
-        The array will be checked to make sure that it
-        has the appropriate size.
-
-        Parameters
-        ----------
-        ptype : string
-            The particle type of the field to add or update.
-        name : string
-            The name of the field to add or update.
-        value : unyt_array
-            The particle field itself--an array with the same 
-            shape as the number of particles.
-        units : string, optional
-            The units to convert the field to. Default: None,
-            indicating the units will be preserved.
-        add : boolean, optional
-            If True and the field already exists, the values
-            in the array will be added to the already existing
-            field array.
-        passive_scalar : boolean, optional
-            If set, the field to be added is a passive scalar.
-            Default: False
-        """
-        if not isinstance(value, unyt_array):
-            value = unyt_array(value, "dimensionless")
-        num_particles = self.num_particles[ptype]
-        exists = (ptype, name) in self.fields
-        if value.shape[0] == num_particles:
-            if exists:
-                if add:
-                    self.fields[ptype, name] += value
-                else:
-                    mylog.warning(f"Overwriting field ({ptype}, {name}).")
-                    self.fields[ptype, name] = value
-            else:
-                if add:
-                    raise RuntimeError(f"Field ({ptype}, {name}) does not "
-                                       f"exist and add=True!")
-                else:
-                    self.fields[ptype, name] = value
-                if passive_scalar and ptype == "gas":
-                    self.passive_scalars.append(name)
-            if units is not None:
-                self.fields[ptype, name].convert_to_units(units)
-        else:
-            raise ValueError("The length of the array needs to be %d particles!"
-                             % num_particles)
-
-    def __getitem__(self, key):
-        return self.fields[key]
-
-    def __setitem__(self, key, value):
-        self.fields[key] = value
-
-    def keys(self):
-        return self.fields.keys()
 
     def to_yt_dataset(self, box_size, ptypes=None):
         """
