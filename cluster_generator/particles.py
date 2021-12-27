@@ -1,8 +1,7 @@
-from yt import load_particles
 from collections import OrderedDict, defaultdict
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import ensure_ytarray, ensure_list, \
-    mylog, ensure_ytquantity, mu, mp, kboltz
+    mylog
 import h5py
 import numpy as np
 from unyt import unyt_array, unyt_quantity, uconcatenate
@@ -572,6 +571,7 @@ class ClusterParticles:
             The particle types to export to the dataset. If
             not set, all will be exported.
         """
+        from yt import load_particles
         data = self.fields.copy()
         if ptypes is None:
             ptypes = self.particle_types
