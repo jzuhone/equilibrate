@@ -7,7 +7,7 @@ Most of the functionality of ``cluster_generator`` assumes spherical symmetry
 for each cluster, and thus most applications can work with 1D models which can 
 be mapped onto either grid cells, particles, or used of their own accord. 
 However, for initializing the complex magnetic and velocity fields which exist
-in clusters for use in magnetohydrodynamical simulations, a full 3D 
+in clusters for use in (magneto)hydrodynamical simulations, a full 3D 
 implementation is required. 
 
 Mathematical Overview
@@ -57,19 +57,50 @@ The best way to do this is to derive the magnetic vector potential :math:`{\bf A
 Given :math:`\tilde{\bf B}`, :math:`\tilde{\bf A}` can be solved for in 
 :math:`{\bf k}`-space and can then be transformed to :math:`{\bf A}`. 
 
-Initializing Magnetic Fields
+Initializing a Magnetic Field
+=============================
+
+Random Magnetic Fields and Vector Potentials
+++++++++++++++++++++++++++++++++++++++++++++
+
+Radial Random Magnetic Fields and Vector Potentials
++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Initializing a Velocity Field
+=============================
+
+Random Velocity Fields
+++++++++++++++++++++++
+
+Radial Random Velocity Fields
++++++++++++++++++++++++++++++
+
+.. _map_field_to_particles:
+
+Mapping a Field to Particles
 ============================
 
-Initializing Velocity Fields
-============================
+A :class:`~cluster_generator.fields.ClusterField` object can have its field
+mapped to a set of particles at given positionss using the 
+:meth:`~cluster_generator.fields.ClusterField.map_field_to_particles` method.
+This takes as input a :class:`~cluster_generator.particles.ClusterParticles`
+object, and optional arguments for the particle type and the units to set the
+new particle field to:
 
-.. _mapping_fields_to_particles:
+.. code-block:: python
 
-Mapping Fields to Particles
+    # parts is a ClusterParticles object
+    ptype = "gas" # the default
+    units = "km/s" # the default value is the already assigned units for
+                   # the field
+    vfield.map_field_to_particles(parts, ptype=ptype, units=units)
+
+Writing a Field Out to Disk
 ===========================
 
-Writing Fields Out to Disk
-==========================
+A :class:`~cluster_generator.fields.ClusterField` object can be written
+to disk using the :meth:`~cluster_generator.fields.ClusterField.write_to_h5`
+method. 
 
 .. code-block:: python
 

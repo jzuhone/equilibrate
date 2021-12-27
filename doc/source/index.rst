@@ -18,7 +18,7 @@
    initial_conditions
    codes
    examples
-   api
+   api/index
 
 Indices and tables
 ==================

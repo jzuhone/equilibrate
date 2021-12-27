@@ -29,7 +29,7 @@ and ``"thermal_energy"`` fields. They may optionally also have a
 ``"magnetic_field"`` field, which is a vector field with shape 
 ``(number_of_particles, 3)``. This field is not derived from hydrostatic
 equilibrium and thus needs to be set later by the user, either by hand or
-from a 3D field. See :ref:`map_fields_to_particles` for details. 
+from a 3D field. See :ref:`map_field_to_particles` for details. 
 
 To generate gas particles, use the 
 If you want to add a field with the particle gravitational
