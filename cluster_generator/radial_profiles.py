@@ -297,7 +297,8 @@ def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
 
 def tnfw_density_profile(rho_s, r_s, r_t):
     """
-    A truncated NFW density profile ().
+    A truncated NFW (tNFW) density profile (Baltz, E.A.,
+    Marshall, P., & Oguri, M. 2009, JCAP, 2009, 015).
 
     Parameters
     ----------
@@ -312,6 +313,33 @@ def tnfw_density_profile(rho_s, r_s, r_t):
         profile = rho_s/((r/r_s)*(1+r/r_s)**2)
         profile /= (1+(r/r_t)**2)
         return profile
+    return RadialProfile(_tnfw)
+
+
+def tnfw_mass_profile(rho_s, r_s, r_t):
+    """
+    A truncated NFW (tNFW) mass profile (Baltz, E.A.,
+    Marshall, P., & Oguri, M. 2009, JCAP, 2009, 015).
+
+    Parameters
+    ----------
+    rho_s : float
+        The scale density in Msun/kpc**3.
+    r_s : float
+        The scale radius in kpc.
+    r_t : float
+        The truncation radius in kpc.
+    """
+    from sympy import Symbol, integrate, lambdify
+    xx = Symbol("x")
+    aa = Symbol("a")
+    yy = Symbol("y")
+    f = integrate(xx**2/(xx*(1+xx)**2)/(1+(xx/aa)**2), (xx, 0, yy))
+    fl = lambdify((yy, aa), f, modules="numpy")
+    def _tnfw(r):
+        x = r / r_s
+        a = r_t / r_s
+        return 4*np.pi*rho_s*r_s**3*fl(x, a).astype('float64')
     return RadialProfile(_tnfw)
 
 
