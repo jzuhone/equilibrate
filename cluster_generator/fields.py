@@ -176,11 +176,11 @@ class ClusterField:
     @property
     def units(self):
         if self.vector_potential:
-            return f"{self.units}*kpc" 
+            return f"{self._units}*kpc"
         else:
             return self._units
 
-    def write_to_h5(self, filename, in_cgs=False, overwrite=False, 
+    def write_to_h5(self, filename, overwrite=False,
                     length_unit=None, field_unit=None):
         r"""
         Write the 3D field to an HDF5 file. The coordinates of
@@ -190,16 +190,13 @@ class ClusterField:
         ----------
         filename : string
             The name of the file to write the fields to.
-        in_cgs : boolean, optional
-            If True, the field and the coordinates are written
-            in cgs units. Default: False, which means that "galactic"
-            units are used.
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
         length_unit : string, optional
-            The length unit (affects coordinates and potential fields). 
-            Default: None, which uses "kpc" unless "cgs" units are set.
-        field_unit : string, optional 
+            The length unit (affects coordinates and potential fields).
+            Default: "kpc"
+        field_unit : string, optional
+            The units for the field 
         """
         import h5py
         if length_unit is None:
@@ -209,26 +206,21 @@ class ClusterField:
                           f"It exists and overwrite=False.")
         all_comps = ["x", "y", "z"] + self.comps
         for field in all_comps:
-            if in_cgs:
-                self[field].in_cgs().write_hdf5(filename, dataset_name=field)
-            elif length_unit is not None and field in "xyz":
-                self[field].to(length_unit).write_hdf5(filename, 
-                                                       dataset_name=field)
+            if field in "xyz":
+                f = self[field].to(length_unit)
             elif field_unit is not None:
                 if self.vector_potential:
                     units = f"{length_unit}*{field_unit}"
                 else:
                     units = field_unit
-                self[field].to(units).write_hdf5(filename, dataset_name=field)
+                f = self[field].to(units)
             else:
-                self[field].write_hdf5(filename, dataset_name=field)
-        f = h5py.File(filename, "r+")
-        f.attrs["unit_system"] = "cgs" if in_cgs else "galactic"
-        f.attrs["name"] = self._name
-        f.attrs["units"] = self.units
-        f.attrs["vector_potential"] = int(self.vector_potential)
-        f.flush()
-        f.close()
+                f = self[field]
+            f.write_hdf5(filename, dataset_name=field)
+        with h5py.File(filename, "r+") as f:
+            f.attrs["name"] = self._name
+            f.attrs["units"] = self.units
+            f.attrs["vector_potential"] = int(self.vector_potential)
 
     def map_field_to_particles(self, cluster_particles,
                                ptype="gas", units=None):
