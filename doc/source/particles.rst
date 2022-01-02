@@ -173,7 +173,10 @@ The ``ClusterParticles`` Class
 ==============================
 
 The :class:`~cluster_generator.particles.ClusterParticles` class is a
-container for particle properties. 
+container for particle properties. It is the format that is returned
+from the various ``generate_*_particles`` methods described above. This
+class can be used to perform further operations on particles or write
+them to disk.
 
 ``ClusterParticles`` Operations
 +++++++++++++++++++++++++++++++
@@ -273,14 +276,146 @@ You can also cut out only certain particle types:
 Add Black Hole Particles
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-To add a single black hole particle 
+To add a single black hole particle, use the 
+:meth:`~cluster_generator.particles.ClusterParticles.add_black_hole`
+method. The simplest way to do this is to simply provide it with a 
+mass, which will place a black hole particle at [0.0, 0.0, 0.0] kpc
+with zero velocity:
 
-Add a New Field
-^^^^^^^^^^^^^^^
+.. code-block:: python
 
-Finally, a new field can be added to the particles rather easily. 
+    Mbh = 3.0e9 # assumed units of Msun
+    parts.add_black_hole(Mbh)
+
+to supply an alternate position and velocity, use ``pos`` and ``vel``:
+
+.. code-block:: python
+
+    Mbh = 3.0e9 # assumed units of Msun
+    pos = [300.0, 100.0, -100.0] # assumed units of kpc
+    vel = [-200.0, -100.0, 50.0] # assumed units of kpc/Myr
+    parts.add_black_hole(Mbh, pos=pos, vel=vel)
+
+to choose the position and velocity of the DM particle with the minimum
+gravitational potential, set ``use_pot_min=True``:
+
+.. code-block:: python
+
+    Mbh = 3.0e9 # assumed units of Msun
+    parts.add_black_hole(Mbh, use_pot_min=True)
+
+Add a New Field or Change a Field
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A new field can be added to the particles rather easily. For example, if 
+you wanted to add a field which added a tag to the DM particles to keep
+track of which halo they originated from:
+
+.. code-block:: python
+
+    num_particles1 = 1_000_000
+    num_particles2 = 200_000
+    halo1 = np.ones(num_particles1)
+    halo2 = 2.0*np.ones(num_particles2)
+    cluster1.set_field("dm", "tag", halo1)
+    cluster2.set_field("dm", "tag", halo2)
+
+If you pick a field that already exists, it will be overwritten by default
+with the new values, but you will get a warning. If you want to add the numerical
+values to those of the existing field, set ``add=True``:
+
+.. code-block:: python
+
+    import unyt as u
+
+    B0 = 1.5*np.ones(num_particles)*u.uG # A constant field of 1.5 microgauss
+    cluster1.set_field("gas", "magnetic_field_x", B0, add=True)
+
+If the field you are adding is a passive scalar, set ``passive_scalar=True``:
+
+.. code-block:: python
+
+    import unyt as u
+    
+    metals = 0.3*np.ones(num_particles)*u.Zsun
+    cluster1.set_field("gas", "metals", metals, passive_scalar=True)
+
+.. warning::
+    
+    It is obviously not recommended to alter a particle field created 
+    from a radial profile or an equilibrium condition!
 
 ``ClusterParticles`` I/O
 ++++++++++++++++++++++++
 
+:class:`~cluster_generator.particles.ClusterParticles` objects can be written
+to disk or read from a file on disk. The normal way of writing the particles
+to disk is to use the 
+:meth:`~cluster_generator.particles.ClusterParticles.write_particles` method:
 
+.. code-block:: python
+
+    # overwrite is a boolean which allows you to overwrite an existing file
+    parts.write_particles("my_particles.h5", overwrite=True)
+
+A :class:`~cluster_generator.particles.ClusterParticles` object can be read
+in from disk using the 
+:meth:`~cluster_generator.particles.ClusterParticles.from_file` method:
+
+.. code-block:: python
+
+    import cluster_generator as cg
+    new_parts = cg.ClusterParticles.from_file("my_particles.h5")
+
+To only read in certain particle types from the file, specify them in
+``ptypes``:
+
+.. code-block:: python
+
+    import cluster_generator as cg
+    
+    # only gas particles
+    gas_only = cg.ClusterParticles.from_file("my_particles.h5", ptypes="gas")
+
+    # only dm, star particles
+    dm_star = cg.ClusterParticles.from_file("my_particles.h5", 
+                                            ptypes=["dm", "star"])
+
+Gadget-Like I/O
+^^^^^^^^^^^^^^^
+
+``cluster_generator`` also provides for the creation of Gadget-like snapshot/IC
+files for use with codes such as Gadget, Arepo, GIZMO, etc. The
+:meth:`~cluster_generator.particles.ClusterParticles.write_to_gadget_file`
+writes an HDF5 file with the different particle types in the 
+:class:`~cluster_generator.particles.ClusterParticles` object in a format
+that can be used as initial conditions for these codes. It requires a 
+``box_size`` parameter, which determines the width of the cubical box that 
+the initial conditions will be set within. 
+
+.. code-block:: python
+
+    box_size = 20000.0 # in kpc
+    parts.write_to_gadget_file("cluster_ics.hdf5", box_size, overwrite=True)
+
+To create a new :class:`~cluster_generator.particles.ClusterParticles` object
+from one of these files, use the 
+:meth:`~cluster_generator.particles.ClusterParticles.from_gadget_file` method:
+
+.. code-block:: python
+
+    import cluster_generator as cg
+    
+    # all particle types
+    parts = cg.ClusterParticles.from_gadget_file("cluster_ics.hdf5")
+    
+    # only gas particles
+    gas_only = cg.ClusterParticles.from_gadget_file("cluster_ics.hdf5", 
+                                                    ptypes="gas")
+
+    # only dm, star particles
+    dm_star = cg.ClusterParticles.from_gadget_file("cluster_ics.hdf5", 
+                                                   ptypes=["dm", "star"])
+
+For more information on how these files are used in Gadget-like codes, see 
+:ref:`codes`.
