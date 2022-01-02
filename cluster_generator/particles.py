@@ -197,7 +197,7 @@ class ClusterParticles:
         self._update_num_particles()
 
     @classmethod
-    def from_h5_file(cls, filename, ptypes=None):
+    def from_file(cls, filename, ptypes=None):
         r"""
         Generate cluster particles from an HDF5 file.
 
@@ -209,7 +209,7 @@ class ClusterParticles:
         Examples
         --------
         >>> from cluster_generator import ClusterParticles
-        >>> dm_particles = ClusterParticles.from_h5_file("dm_particles.h5")
+        >>> dm_particles = ClusterParticles.from_file("dm_particles.h5")
         """
         names = {}
         with h5py.File(filename, "r") as f:
@@ -230,6 +230,10 @@ class ClusterParticles:
                     fields[ptype, field] = unyt_array(
                         a.d.astype("float64"), str(a.units)).in_base("galactic")
         return cls(ptypes, fields)
+
+    @classmethod
+    def from_h5_file(cls, filename, ptypes=None):
+        return cls.from_file(filename, ptypes=ptypes)
 
     @classmethod
     def from_gadget_file(cls, filename, ptypes=None):
@@ -333,8 +337,7 @@ class ClusterParticles:
                     "cm/s").in_base("galactic")
         return cls(particle_types, fields)
 
-    def write_particles_to_h5(self, output_filename, in_cgs=False,
-                              overwrite=False):
+    def write_particles(self, output_filename, overwrite=False):
         """
         Write the particles to an HDF5 file.
 
@@ -342,8 +345,6 @@ class ClusterParticles:
         ----------
         output_filename : string
             The file to write the particles to.
-        in_cgs : boolean, optional
-            Whether to convert the units to cgs before writing. Default False.
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
         """
@@ -358,12 +359,11 @@ class ClusterParticles:
                     g = f[field[0]]
                     g.create_dataset("particle_index", data=self.fields[field])
             else:
-                if in_cgs:
-                    fd = self.fields[field].in_cgs()
-                else:
-                    fd = self.fields[field]
-                fd.write_hdf5(output_filename, dataset_name=field[1],
-                              group_name=field[0])
+                self.fields[field].write_hdf5(output_filename, 
+                    dataset_name=field[1], group_name=field[0])
+
+    def write_particles_to_h5(self, output_filename, overwrite=False):
+        self.write_particles(output_filename, overwrite=overwrite)
 
     def write_gamer_input(self, output_filename, overwrite=True):
         """

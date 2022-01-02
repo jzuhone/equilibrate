@@ -137,10 +137,10 @@ class ClusterICs:
                     p = p + gp
                 parts.append(p)
                 outfile = f"{self.basename}_{i}_particles.h5"
-                p.write_particles_to_h5(outfile, overwrite=True)
+                p.write_particles(outfile, overwrite=True)
                 self.particle_files[i] = outfile
             else:
-                p = ClusterParticles.from_h5_file(self.particle_files[i])
+                p = ClusterParticles.from_file(self.particle_files[i])
                 parts.append(p)
         return parts
 

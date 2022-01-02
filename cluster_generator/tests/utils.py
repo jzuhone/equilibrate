@@ -46,8 +46,8 @@ def model_answer_testing(model, filename, answer_store, answer_dir):
 def particle_answer_testing(parts, filename, answer_store, answer_dir):
     p = Path(answer_dir) / filename
     if answer_store:
-        parts.write_particles_to_h5(p, overwrite=True)
+        parts.write_particles(p, overwrite=True)
     else:
-        old_parts = ClusterParticles.from_h5_file(p)
+        old_parts = ClusterParticles.from_file(p)
         for field in old_parts.fields:
             assert_equal(old_parts[field], parts[field])

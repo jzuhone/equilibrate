@@ -461,9 +461,25 @@ def snfw_conc(conc_nfw):
     return 0.76*conc_nfw+1.36
 
 
-def cored_snfw_total_mass(Mr, r, a, r_c):
+def cored_snfw_total_mass(mass, radius, a, r_c):
+    """
+    Find the total mass parameter for the cored super-NFW
+    model by inputting a reference mass and radius 
+    (say, M200c and R200c), along with the scale radius.
+
+    Parameters
+    ----------
+    mass : float
+        The input mass in Msun.
+    radius : float
+        The input radius that the input ``mass`` corresponds to in kpc.
+    a : float
+        The scale radius in kpc.
+    r_c : float
+        The core radius in kpc.
+    """
     mp = cored_snfw_mass_profile(1.0, a, r_c)
-    return Mr/mp(r)
+    return mass/mp(radius)
 
 
 _dn = lambda n: 3.0*n - 1./3. + 8.0/(1215.*n) + 184.0/(229635.*n*n)
