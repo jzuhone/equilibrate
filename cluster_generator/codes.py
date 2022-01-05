@@ -17,7 +17,7 @@ def setup_gamer_ics(ics, regenerate_particles=False):
     Parameters
     ----------
     ics : ClusterICs object
-        The ClusterICs object to generate the GAMER ICs from. 
+        The ClusterICs object to generate the GAMER ICs from.
     regenerate_particles : boolean, optional
         If particle files have already been created and this
         flag is set to True, the particles will be
