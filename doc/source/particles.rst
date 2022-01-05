@@ -53,8 +53,10 @@ Dark matter and star particles are initialized with velocities assuming
 collisionless dynamics and virial equilibrium with the underlying 
 gravitational potential from all mass sources. 
 
-Mathematical Overview
-^^^^^^^^^^^^^^^^^^^^^
+.. _math_overview_particles:
+
+Virial Equilibria: Mathematical Overview
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The mass density :math:`\rho({\bf r})` of such a system can be derived by 
 integrating the phase-space distribution function :math:`f({\bf r}, {\bf v})` 

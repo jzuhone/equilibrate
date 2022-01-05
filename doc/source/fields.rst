@@ -81,7 +81,7 @@ Mapping a Field to Particles
 ============================
 
 A :class:`~cluster_generator.fields.ClusterField` object can have its field
-mapped to a set of particles at given positionss using the 
+mapped to a set of particles at given positions using the 
 :meth:`~cluster_generator.fields.ClusterField.map_field_to_particles` method.
 This takes as input a :class:`~cluster_generator.particles.ClusterParticles`
 object, and optional arguments for the particle type and the units to set the

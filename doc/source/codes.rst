@@ -29,7 +29,7 @@ for the ``ClusterMerger`` setup are as follows:
 * ``SIMU_OPTION += -DGRAVITY`` (required)
 * ``SIMU_OPTION += -DPARTICLE`` (required)
 * ``SIMU_OPTION += -DNCOMP_PASSIVE_USER=n`` (required, n = ``Merger_Coll_NumHalos+Merger_Coll_UseMetals``, see below )
-* ``SIMU_OPTION += -DMHD`` (optional)
+* ``SIMU_OPTION += -DMHD`` (optional, for simulations with magnetic fields)
 * ``SIMU_OPTION += -DEOS=EOS_GAMMA`` (required)
 * ``SIMU_OPTION += -DPAR_NATT_USER=2`` (required, supports the type and halo attributes)
 * ``SIMU_OPTION += -DGPU`` (recommended)

@@ -3,8 +3,10 @@
 Cluster Models
 --------------
 
-Mathematical Overview
-=====================
+.. _math_overview_models:
+
+Cluster Models: Mathematical Overview
+=====================================
 
 Assuming the intracluster medium of galaxy clusters can be modeled as an
 ideal fluid, the momentum density :math:`\rho{\bf v}` of the
