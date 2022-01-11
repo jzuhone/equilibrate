@@ -12,7 +12,10 @@ def setup_gamer_ics(ics, regenerate_particles=False):
     files will also be created which have all fields in CGS units
     for reading into GAMER. If a magnetic field file is present
     in the ICs, a note will be given about how it should be named
-    for GAMER to use it. 
+    for GAMER to use it.
+
+    NOTE: Gas particles in the initial conditions will be interpreted
+    as tracer particles.
 
     Parameters
     ----------
@@ -31,7 +34,7 @@ def setup_gamer_ics(ics, regenerate_particles=False):
     ]
     for i in range(ics.num_halos):
         particle_file = f"{ics.basename}_gamerp_{i+1}.h5"
-        parts[i].write_gamer_input(particle_file)
+        parts[i].write_sim_input(particle_file)
         hse_file_gamer = ics.profiles[i].replace(".h5", "_gamer.h5")
         hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
                                   in_cgs=True, r_max=ics.r_max)

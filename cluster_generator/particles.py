@@ -7,6 +7,7 @@ import numpy as np
 from unyt import unyt_array, unyt_quantity, uconcatenate
 from pathlib import Path
 
+gamer_fields = ["particle_position", "particle_velocity", "particle_mass"]
 
 gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses",
                         "ParticleIDs", "Potential"],
@@ -311,10 +312,10 @@ class ClusterParticles:
     def write_particles_to_h5(self, output_filename, overwrite=False):
         self.write_particles(output_filename, overwrite=overwrite)
 
-    def write_gamer_input(self, output_filename, overwrite=True):
+    def write_sim_input(self, output_filename, overwrite=True):
         """
         Write the particles to an HDF5 file to be read in by the GAMER
-        code.
+        or FLASH codes.
 
         Parameters
         ----------
@@ -324,8 +325,12 @@ class ClusterParticles:
             Overwrite an existing file with the same name. Default False.
         """
         if Path(output_filename).exists() and not overwrite:
-            raise IOError(f"Cannot create {output_filename}. It exists and overwrite=False.")
-        ptypes = ["dm"]
+            raise IOError(f"Cannot create {output_filename}. "
+                          f"It exists and overwrite=False.")
+        if "gas" in self.particle_types:
+            ptypes = ["gas", "dm"]
+        else:
+            ptypes = ["dm"]
         if "star" in self.particle_types:
             ptypes.append("star")
         nparts = [self.num_particles[ptype] for ptype in ptypes]
@@ -339,6 +344,9 @@ class ClusterParticles:
             fd = np.concatenate([(i+1)*np.ones(nparts[i]) 
                                  for i, ptype in enumerate(ptypes)])
             f.create_dataset("particle_type", data=fd)
+
+    def write_gamer_input(self, output_filename, overwrite=True):
+        return self.write_sim_input(output_filename, overwrite=overwrite)
 
     def set_field(self, ptype, name, value, units=None, add=False,
                   passive_scalar=False):
