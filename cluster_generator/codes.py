@@ -65,7 +65,7 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     """
     gamer_ptypes = ["dm", "star"]
     if use_tracers:
-        gamer_ptypes.index(0, "tracer")
+        gamer_ptypes.insert(0, "tracer")
     gamer_ptype_num = {"tracer": 0, "dm": 2, "star": 3}
     hses = [ClusterModel.from_h5_file(hf) for hf in ics.profiles]
     parts = ics._generate_particles(
