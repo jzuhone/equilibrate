@@ -2,7 +2,7 @@ from cluster_generator.model import ClusterModel
 from cluster_generator.utils import mylog
 
 
-def setup_gamer_ics(ics, regenerate_particles=False):
+def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     r"""
 
     Generate the "Input_TestProb" lines needed for use
@@ -25,7 +25,13 @@ def setup_gamer_ics(ics, regenerate_particles=False):
         If particle files have already been created and this
         flag is set to True, the particles will be
         re-created. Default: False
+    use_tracers : boolean
+        Set to True to add tracer particles. Default: False
     """
+    gamer_ptypes = ["dm", "star"]
+    if use_tracers:
+        gamer_ptypes.index(0, "gas")
+    gamer_ptype_num = {"gas": 0, "dm": 2, "star": 3}
     hses = [ClusterModel.from_h5_file(hf) for hf in ics.profiles]
     parts = ics._generate_particles(
         regenerate_particles=regenerate_particles)
@@ -34,7 +40,7 @@ def setup_gamer_ics(ics, regenerate_particles=False):
     ]
     for i in range(ics.num_halos):
         particle_file = f"{ics.basename}_gamerp_{i+1}.h5"
-        parts[i].write_sim_input(particle_file)
+        parts[i].write_sim_input(particle_file, gamer_ptypes, gamer_ptype_num)
         hse_file_gamer = ics.profiles[i].replace(".h5", "_gamer.h5")
         hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
                                   in_cgs=True, r_max=ics.r_max)

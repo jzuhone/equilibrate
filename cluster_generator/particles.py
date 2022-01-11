@@ -7,7 +7,6 @@ import numpy as np
 from unyt import unyt_array, unyt_quantity, uconcatenate
 from pathlib import Path
 
-gamer_fields = ["particle_position", "particle_velocity", "particle_mass"]
 
 gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses",
                         "ParticleIDs", "Potential"],
@@ -312,7 +311,8 @@ class ClusterParticles:
     def write_particles_to_h5(self, output_filename, overwrite=False):
         self.write_particles(output_filename, overwrite=overwrite)
 
-    def write_sim_input(self, output_filename, overwrite=True):
+    def write_sim_input(self, output_filename, ptypes, ptype_num, 
+                        overwrite=True):
         """
         Write the particles to an HDF5 file to be read in by the GAMER
         or FLASH codes.
@@ -327,21 +327,16 @@ class ClusterParticles:
         if Path(output_filename).exists() and not overwrite:
             raise IOError(f"Cannot create {output_filename}. "
                           f"It exists and overwrite=False.")
-        if "gas" in self.particle_types:
-            ptypes = ["gas", "dm"]
-        else:
-            ptypes = ["dm"]
-        if "star" in self.particle_types:
-            ptypes.append("star")
         nparts = [self.num_particles[ptype] for ptype in ptypes]
         with h5py.File(output_filename, "w") as f:
-            for field in self.field_names["dm"]:
+            for field in ["particle_position", "particle_velocity",
+                          "particle_mass"]:
                 fd = uconcatenate(
                     [self.fields[ptype, field] for ptype in ptypes], axis=0)
                 if hasattr(fd, "units"):
                     fd.convert_to_cgs()
                 f.create_dataset(field, data=np.asarray(fd))
-            fd = np.concatenate([(i+1)*np.ones(nparts[i]) 
+            fd = np.concatenate([ptype_num[ptype]*np.ones(nparts[i]) 
                                  for i, ptype in enumerate(ptypes)])
             f.create_dataset("particle_type", data=fd)
 
