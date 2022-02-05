@@ -484,6 +484,44 @@ class ClusterModel:
             B /= np.sqrt(4.0*np.pi)
         self.set_field("magnetic_field_strength", B)
 
+    def generate_tracer_particles(self, num_particles, r_max=None, sub_sample=1,
+                                  prng=None):
+        from cluster_generator.utils import parse_prng
+        prng = parse_prng(prng)
+        mylog.info("We will be assigning %d particles." % num_particles)
+        mylog.info("Compute particle positions.")
+
+        num_particles_sub = num_particles // sub_sample
+
+        radius_sub, mtot = generate_particle_radii(self["radius"].d,
+                                                   self["gas_mass"].d,
+                                                   num_particles_sub,
+                                                   r_max=r_max, prng=prng)
+
+        if sub_sample > 1:
+            radius = np.tile(radius_sub, sub_sample)[:num_particles]
+        else:
+            radius = radius_sub
+
+        theta = np.arccos(prng.uniform(low=-1., high=1., size=num_particles))
+        phi = 2.*np.pi*prng.uniform(size=num_particles)
+
+        fields = OrderedDict()
+
+        fields["tracer", "particle_position"] = unyt_array(
+            [radius*np.sin(theta)*np.cos(phi), radius*np.sin(theta)*np.sin(phi),
+             radius*np.cos(theta)], "kpc").T
+
+        fields["tracer", "particle_velocity"] = unyt_array(
+            np.zeros(fields["tracer","particle_position"].shape), "kpc/Myr"
+        )
+
+        fields["tracer", "particle_mass"] = unyt_array(
+            np.zeros(num_particles), "Msun"
+        )
+
+        return ClusterParticles("tracer", fields)
+
     def generate_gas_particles(self, num_particles, r_max=None, sub_sample=1,
                                compute_potential=False, prng=None):
         """
