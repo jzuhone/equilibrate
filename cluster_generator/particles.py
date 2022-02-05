@@ -311,38 +311,6 @@ class ClusterParticles:
     def write_particles_to_h5(self, output_filename, overwrite=False):
         self.write_particles(output_filename, overwrite=overwrite)
 
-    def write_sim_input(self, output_filename, ptypes, ptype_num, 
-                        overwrite=True):
-        """
-        Write the particles to an HDF5 file to be read in by the GAMER
-        or FLASH codes.
-
-        Parameters
-        ----------
-        output_filename : string
-            The file to write the particles to.
-        overwrite : boolean, optional
-            Overwrite an existing file with the same name. Default False.
-        """
-        if Path(output_filename).exists() and not overwrite:
-            raise IOError(f"Cannot create {output_filename}. "
-                          f"It exists and overwrite=False.")
-        nparts = [self.num_particles[ptype] for ptype in ptypes]
-        with h5py.File(output_filename, "w") as f:
-            for field in ["particle_position", "particle_velocity",
-                          "particle_mass"]:
-                fd = uconcatenate(
-                    [self.fields[ptype, field] for ptype in ptypes], axis=0)
-                if hasattr(fd, "units"):
-                    fd.convert_to_cgs()
-                f.create_dataset(field, data=np.asarray(fd))
-            fd = np.concatenate([ptype_num[ptype]*np.ones(nparts[i]) 
-                                 for i, ptype in enumerate(ptypes)])
-            f.create_dataset("particle_type", data=fd)
-
-    def write_gamer_input(self, output_filename, overwrite=True):
-        return self.write_sim_input(output_filename, overwrite=overwrite)
-
     def set_field(self, ptype, name, value, units=None, add=False,
                   passive_scalar=False):
         """

@@ -1,5 +1,40 @@
 from cluster_generator.model import ClusterModel
 from cluster_generator.utils import mylog
+from unyt import uconcatenate
+from pathlib import Path
+import numpy as np
+
+
+def write_amr_particles(particles, output_filename, ptypes,
+                        ptype_num, overwrite=True):
+    """
+    Write the particles to an HDF5 file to be read in by the GAMER
+    or FLASH codes.
+
+    Parameters
+    ----------
+    output_filename : string
+        The file to write the particles to.
+    overwrite : boolean, optional
+        Overwrite an existing file with the same name. Default False.
+    """
+    import h5py
+
+    if Path(output_filename).exists() and not overwrite:
+        raise IOError(f"Cannot create {output_filename}. "
+                      f"It exists and overwrite=False.")
+    nparts = [particles.num_particles[ptype] for ptype in ptypes]
+    with h5py.File(output_filename, "w") as f:
+        for field in ["particle_position", "particle_velocity",
+                      "particle_mass"]:
+            fd = uconcatenate(
+                [particles[ptype, field] for ptype in ptypes], axis=0)
+            if hasattr(fd, "units"):
+                fd.convert_to_cgs()
+            f.create_dataset(field, data=np.asarray(fd))
+        fd = np.concatenate([ptype_num[ptype] * np.ones(nparts[i])
+                             for i, ptype in enumerate(ptypes)])
+        f.create_dataset("particle_type", data=fd)
 
 
 def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
@@ -30,8 +65,8 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     """
     gamer_ptypes = ["dm", "star"]
     if use_tracers:
-        gamer_ptypes.index(0, "gas")
-    gamer_ptype_num = {"gas": 0, "dm": 2, "star": 3}
+        gamer_ptypes.index(0, "tracer")
+    gamer_ptype_num = {"tracer": 0, "dm": 2, "star": 3}
     hses = [ClusterModel.from_h5_file(hf) for hf in ics.profiles]
     parts = ics._generate_particles(
         regenerate_particles=regenerate_particles)
@@ -40,7 +75,7 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     ]
     for i in range(ics.num_halos):
         particle_file = f"{ics.basename}_gamerp_{i+1}.h5"
-        parts[i].write_sim_input(particle_file, gamer_ptypes, gamer_ptype_num)
+        write_amr_particles(parts[i], particle_file, gamer_ptypes, gamer_ptype_num)
         hse_file_gamer = ics.profiles[i].replace(".h5", "_gamer.h5")
         hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
                                   in_cgs=True, r_max=ics.r_max)
@@ -89,7 +124,7 @@ def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
         ics._generate_particles(
             regenerate_particles=regenerate_particles)
     outlines = [
-        f"testSingleCluster    {ics.num_halos} # number of halos"
+        f"testSingleCluster\t=\t{ics.num_halos} # number of halos"
     ]
     for i in range(ics.num_halos):
         vel = ics.velocity[i].to("km/s")
@@ -107,6 +142,10 @@ def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
     mylog.info("Add the following lines to flash.par: ")
     for line in outlines:
         print(line)
+
+
+def setup_arepo_ics(ics):
+    pass
 
 
 def setup_athena_ics(ics):
