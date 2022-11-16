@@ -75,7 +75,11 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     ]
     for i in range(ics.num_halos):
         particle_file = f"{ics.basename}_gamerp_{i+1}.h5"
-        write_amr_particles(parts[i], particle_file, gamer_ptypes, gamer_ptype_num)
+        if ics.num_particles["star"][i] == 0:
+            ptypes = gamer_ptypes[:-1]
+        else:
+            ptypes = gamer_ptypes
+        write_amr_particles(parts[i], particle_file, ptypes, gamer_ptype_num)
         hse_file_gamer = ics.profiles[i].replace(".h5", "_gamer.h5")
         hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
                                   in_cgs=True, r_max=ics.r_max)
