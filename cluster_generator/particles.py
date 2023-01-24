@@ -428,7 +428,7 @@ class ClusterParticles:
             The datatype of the fields to write, either 'float32' or
             'float64'. Default: 'float32'
         overwrite : boolean, optional
-            Whether or not to overwrite an existing file. Default: False
+            Whether to overwrite an existing file. Default: False
         """
         if Path(ic_filename).exists() and not overwrite:
             raise IOError(f"Cannot create {ic_filename}. It exists and "

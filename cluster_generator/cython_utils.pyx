@@ -15,7 +15,7 @@ import numpy as np
 cimport numpy as np
 cimport cython
 from scipy.interpolate import _fitpack
-from yt.funcs import get_pbar
+from tqdm.auto import tqdm
 
 cdef extern from "math.h":
     double sqrt(double x) nogil
@@ -51,7 +51,8 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
     ext = 0
     num_particles = psi.shape[0]
     velocity = np.zeros(num_particles, dtype='float64')
-    pbar = get_pbar("Generating particle velocities", num_particles)
+    pbar = tqdm(leave=True, total=num_particles,
+                desc="Generating particle velocities ")
     for i in range(num_particles):
         not_done = 1
         while not_done:
@@ -62,5 +63,5 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
             not_done = f*v2 < drand48()*fv2esc[i]
         velocity[i] = sqrt(v2)
         pbar.update()
-    pbar.finish()
+    pbar.close()
     return velocity

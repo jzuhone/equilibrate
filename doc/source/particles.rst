@@ -218,7 +218,7 @@ To drop all fields of a specific particle type from a
     parts.drop_ptypes("gas")
     
     # Drop DM and star particles
-    parts.drop_ptypes(["dm","star"])
+    parts.drop_ptypes(["dm", "star"])
 
 Add Position and Velocity Offsets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

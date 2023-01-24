@@ -67,8 +67,8 @@ class RadialProfile:
         f_r : array-like
             Array of profile values in the appropriate units.
         """
-        from scipy.interpolate import InterpolatedUnivariateSpline
-        f = InterpolatedUnivariateSpline(r, f_r)
+        from scipy.interpolate import UnivariateSpline
+        f = UnivariateSpline(r, f_r)
         return cls(f)
 
     def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None,
