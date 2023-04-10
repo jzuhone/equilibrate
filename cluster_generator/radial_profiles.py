@@ -54,6 +54,14 @@ class RadialProfile:
             return self.profile(r)*ret
         return RadialProfile(_core)
 
+    def cutoff(self, r_cut, k=5):
+        def _cutoff(r):
+            x = r/r_cut
+            step = 1.0/(1.0+np.exp(-2*k*(x-1)))
+            p = self.profile(r)*(1.0-step)
+            return p
+        return RadialProfile(_cutoff)
+
     @classmethod
     def from_array(cls, r, f_r):
         """
