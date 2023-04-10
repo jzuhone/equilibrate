@@ -691,7 +691,7 @@ class ClusterModel:
     def plot(self, field, r_min=None, r_max=None, fig=None, ax=None, **kwargs):
         """
         Plot a field vs radius from this model using Matplotlib.
-        
+
         Parameters
         ----------
         field : string
@@ -706,7 +706,7 @@ class ClusterModel:
         ax : Matplotlib Axes
             The axes to plot in. Default: None, in which case
             one will be generated.
-            
+
         Returns
         -------
         The Figure, Axes tuple used for the plot. 
@@ -725,6 +725,13 @@ class ClusterModel:
         ax.tick_params(which="minor", width=2, length=3)
         return fig, ax
 
+    def mass_in_radius(self, radius):
+        masses = {}
+        r = self.fields["radius"].to_value("kpc")
+        for mtype in ["total", "gas", "dark_matter", "stellar"]:
+            if f"{mtype}_mass" in self.fields:
+                masses[mtype] = self.fields[f"{mtype}_mass"][r < radius][-1]
+        return masses
 
 # This is only for backwards-compatibility
 class HydrostaticEquilibrium(ClusterModel):
