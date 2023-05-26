@@ -264,6 +264,39 @@ class ClusterModel:
             fd = self.star_virial.df
             fd.write_hdf5(output_filename, dataset_name="star_df")
 
+    def write_model_to_binary(self, output_filename, fields_to_write=None,
+                              in_cgs=False, r_min=None, r_max=None, 
+                              overwrite=False):
+        if fields_to_write is None:
+            fields_to_write = list(self.fields.keys())
+        from scipy.io import FortranFile
+        if os.path.exists(output_filename) and not overwrite:
+            raise IOError(f"Cannot create {output_filename}. It exists and "
+                          f"overwrite=False.")
+        if r_min is None:
+            r_min = 0.0
+        if r_max is None:
+            r_max = self.fields["radius"][-1].d*2
+        mask = np.logical_and(self.fields["radius"].d >= r_min,
+                              self.fields["radius"].d <= r_max)
+        with FortranFile(output_filename, 'w') as f:
+            f.write_record(self.fields["radius"].size)
+            prof_rec = []
+            for k, v in self.fields.items():
+                if k not in fields_to_write:
+                    continue
+                if in_cgs:
+                    if k == "temperature":
+                        fd = v[mask].to_equivalent("K", "thermal")
+                    elif k not in self._keep_units:
+                        fd = v[mask].in_cgs()
+                    else:
+                        fd = v[mask]
+                else:
+                    fd = v[mask]
+                prof_rec.append(fd)
+            f.write_record(np.array(prof_rec).T)
+
     def set_field(self, name, value):
         r"""
         Set a field with name `name` to value `value`, which is an `unyt_array`.

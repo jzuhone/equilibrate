@@ -180,10 +180,11 @@ class ClusterField:
         else:
             return self._units
 
-    def write_to_h5(self, filename, overwrite=False,
-                    length_unit=None, field_unit=None):
+    def write_file(self, filename, overwrite=False,
+                   length_unit=None, field_unit=None,
+                   format='hdf5'):
         r"""
-        Write the 3D field to an HDF5 file. The coordinates of
+        Write the 3D field to a file. The coordinates of
         the cells along the different axes are also written.
 
         Parameters
@@ -199,28 +200,40 @@ class ClusterField:
             The units for the field 
         """
         import h5py
+        from scipy.io import FortranFile
         if length_unit is None:
             length_unit = "kpc"
         if os.path.exists(filename) and not overwrite:
             raise IOError(f"Cannot create {filename}. "
                           f"It exists and overwrite=False.")
         all_comps = ["x", "y", "z"] + self.comps
-        for field in all_comps:
-            if field in "xyz":
-                f = self[field].to(length_unit)
-            elif field_unit is not None:
-                if self.vector_potential:
-                    units = f"{length_unit}*{field_unit}"
+        if format == "hdf5":
+            write_class = h5py.File
+        elif format == "fortran":
+            write_class = FortranFile
+        with write_class(filename, "w") as f:
+            if format == "fortran":
+                f.write_record(self["x"].size)
+            for field in all_comps:
+                if field in "xyz":
+                    fd = self[field].to(length_unit)
+                elif field_unit is not None:
+                    if self.vector_potential:
+                        units = f"{length_unit}*{field_unit}"
+                    else:
+                        units = field_unit
+                    fd = self[field].to(units)
                 else:
-                    units = field_unit
-                f = self[field].to(units)
-            else:
-                f = self[field]
-            f.write_hdf5(filename, dataset_name=field)
-        with h5py.File(filename, "r+") as f:
-            f.attrs["name"] = self._name
-            f.attrs["units"] = self.units
-            f.attrs["vector_potential"] = int(self.vector_potential)
+                    fd = self[field]
+                if format == "hdf5":
+                    d = f.create_dataset(field, data=fd.d)
+                    d.attrs["units"] = str(fd.units)
+                elif format == "fortran":
+                    f.write_record(fd.d)
+            if format == "hdf5":
+                f.attrs["name"] = self._name
+                f.attrs["units"] = self.units
+                f.attrs["vector_potential"] = int(self.vector_potential)
 
     def map_field_to_particles(self, cluster_particles,
                                ptype="gas", units=None):
