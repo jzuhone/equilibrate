@@ -280,11 +280,10 @@ class ClusterModel:
         mask = np.logical_and(self.fields["radius"].d >= r_min,
                               self.fields["radius"].d <= r_max)
         with FortranFile(output_filename, 'w') as f:
-            f.write_record(self.fields["radius"].size)
+            f.write_record(self.fields["radius"][mask].size)
             prof_rec = []
-            for k, v in self.fields.items():
-                if k not in fields_to_write:
-                    continue
+            for k in fields_to_write:
+                v = self.fields[k]
                 if in_cgs:
                     if k == "temperature":
                         fd = v[mask].to_equivalent("K", "thermal")

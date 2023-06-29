@@ -6,17 +6,20 @@ import numpy as np
 
 
 def write_amr_particles(particles, output_filename, ptypes,
-                        ptype_num, overwrite=True):
+                        ptype_num, overwrite=True, in_cgs=False,
+                        format="hdf5"):
     """
-    Write the particles to an HDF5 file to be read in by the GAMER
-    or FLASH codes.
+    Write the particles to an HDF5 file to be read in by the GAMER,
+    FLASH, or RAMSES codes.
 
     Parameters
     ----------
+    particles : :class:`cluster_generator.particles.ClusterParticles`
+        The ClusterParticles instance which will be written.
     output_filename : string
         The file to write the particles to.
     overwrite : boolean, optional
-        Overwrite an existing file with the same name. Default False.
+        Overwrite an existing file with the same name. Default: False.
     """
     import h5py
     from scipy.io import FortranFile
@@ -36,13 +39,14 @@ def write_amr_particles(particles, output_filename, ptypes,
                       "particle_mass"]:
             fd = uconcatenate(
                 [particles[ptype, field] for ptype in ptypes], axis=0)
-            if hasattr(fd, "units"):
+            if hasattr(fd, "units") and in_cgs:
                 fd.convert_to_cgs()
-            if field == "particle_mass":
-                num_particles = fd.size
             if format == "hdf5":
                 f.create_dataset(field, data=np.asarray(fd))
-            pdata.append(np.asarray(fd).astype("float64").T)
+            else:
+                if field == "particle_mass":
+                    num_particles = fd.size
+                pdata.append(np.asarray(fd).astype("float64").T)
         if format == "hdf5":
             fd = np.concatenate([ptype_num[ptype] * np.ones(nparts[i])
                                  for i, ptype in enumerate(ptypes)])
@@ -50,6 +54,7 @@ def write_amr_particles(particles, output_filename, ptypes,
         else:
             f.write_record(num_particles)
             f.write_record(np.vstack(pdata).T)
+
 
 def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     r"""
@@ -93,7 +98,8 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
             ptypes = gamer_ptypes[:-1]
         else:
             ptypes = gamer_ptypes
-        write_amr_particles(parts[i], particle_file, ptypes, gamer_ptype_num)
+        write_amr_particles(parts[i], particle_file, ptypes, gamer_ptype_num,
+                            in_cgs=True, format="hdf5")
         hse_file_gamer = ics.profiles[i].replace(".h5", "_gamer.h5")
         hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
                                   in_cgs=True, r_max=ics.r_max)
@@ -135,7 +141,7 @@ def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
         If True, set up particle distributions. Default: True
     regenerate_particles : boolean, optional
         If particle files have already been created, particles
-        are being used, and this flag is set to True, the particles 
+        are being used, and this flag is set to True, the particles
         will be re-created. Default: False
     """
     if use_particles:
@@ -186,34 +192,40 @@ def setup_enzo_ics(ics):
     pass
 
 
-def setup_ramses_ics(ics):
+def setup_ramses_ics(ics, regenerate_particles=False):
     r"""
     Parameters
     ----------
     ics : ClusterICs object
         The ClusterICs object to generate the Ramses ICs from.
+    regenerate_particles : boolean, optional
+        If particle files have already been created, particles
+        are being used, and this flag is set to True, the particles
+        will be re-created. Default: False
     """
     names = ["Main", "Sub", "Third"]
     config_lines = ["# Merger Dynamics Setting, do not change the general format"]
     hses = [ClusterModel.from_h5_file(hf) for hf in ics.profiles]
     parts = ics._generate_particles(
         regenerate_particles=regenerate_particles)
-    parts[0].add_offsets(center1, velocity1, ptypes=["dm"])
+    parts[0].add_offsets(ics.center[0], ics.velocity[0], ptypes=["dm"])
     particles = parts[0]
     if ics.num_halos > 1:
-        parts[1].add_offsets(center2, velocity2, ptypes=["dm"])
+        parts[1].add_offsets(ics.center[1], ics.velocity[1], ptypes=["dm"])
         particles += parts[1]
     if ics.num_halos > 2:
-        parts[2].add_offsets(center3, velocity3, ptypes=["dm"])
+        parts[2].add_offsets(ics.center[2], ics.velocity[2], ptypes=["dm"])
         particles += parts[2]
     particle_file = "cg_dhalo.dat"
-    write_amr_particles(particles, particle_file, ["dm"], {"dm": 0})
+    write_amr_particles(particles, particle_file, ["dm"], {"dm": 1}, 
+                        format="fortran")
+    fields_to_write = ["radius", "density", "pressure"]
     for i in range(ics.num_halos):
         if i > 0:
             config_lines.append("#")
         config_lines += [f"# {names[i]}", "#", "#", f"Halo {i+1}"]
         hses[i].write_model_to_binary(f"halo{i+1}_prof.dat", overwrite=True, in_cgs=True,
-                                      r_max=ics.r_max)
+                                      r_max=ics.r_max, fields_to_write=fields_to_write)
         vel = ics.velocity[i].to_value("km/s")
         pos = ics.center[i].to_value("kpc")
         config_lines += [
@@ -224,7 +236,7 @@ def setup_ramses_ics(ics):
             f"vy_cen[kms]    ={vel[1]:16.6e}",
             f"vz_cen[kms]    ={vel[2]:16.6e}"
         ]
-    mylog.info(f"Simulation setups saved to Merger_Config.txt: ")
+    mylog.info(f"Simulation setups saved to Merger_Config.txt.")
     np.savetxt("Merger_Config.txt", config_lines, fmt="%s")
 
 
