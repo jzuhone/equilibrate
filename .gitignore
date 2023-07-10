@@ -6,3 +6,4 @@ cluster_generator.egg-info
 *~
 doc/build
 .idea
+*.h5
