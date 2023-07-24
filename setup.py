@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 from setuptools import setup
+import os
+
+#- Force system to install cython (called before dependancy assertion) -#
+os.system("pip install cython")
+
 from Cython.Build import cythonize
 from distutils.extension import Extension
 import numpy as np
