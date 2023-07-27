@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-``cluster_generator``: Generating Equilibrium Cluster Models 
+cluster_generator: Generating Equilibrium Cluster Models
 ============================================================
 
 .. toctree::
@@ -18,7 +18,7 @@
    initial_conditions
    codes
    examples
-   api/index
+   api
 
 Indices and tables
 ==================

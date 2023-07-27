@@ -1,12 +1,38 @@
+"""
+===============
+Radial Profiles
+===============
+sdfsdf
+"""
 import numpy as np
 
-
+#  Minor Functions
+# ----------------------------------------------------------------------------------------------------------------- #
+#: Alternative factor for rho(r) in NFW profiles. See `the wiki<https://en.wikipedia.org/wiki/Navarro%E2%80%93Frenk%E2%80%93White_profile>`_
 _nfw_factor = lambda conc: 1.0/(np.log(conc+1.0)-conc/(1.0+conc))
 
 
+#  Classes
+# ----------------------------------------------------------------------------------------------------------------- #
 class RadialProfile:
+    """
+    The ``RadialProfile`` class is a container class for all of the radial profiles in ``cluster_generator``.
+
+    Parameters
+    ----------
+    profile: RadialProfile or callable
+        The radial profile to attribute to the object. The radial profile must be callable (i.e. ``lambda`` function) or
+        another instance of ``RadialProfile``.
+
+        .. admonition:: info
+
+            If another instance of ``RadialProfile`` is passed, the ``RadialProfile.profile`` object is passed so that
+            the new ``RadialProfile`` object has the same profile as the previous one.
+
+    """
     def __init__(self, profile):
         if isinstance(profile, RadialProfile):
+            # Consistency check for profile type consistency.
             self.profile = profile.profile
         else:
             self.profile = profile
