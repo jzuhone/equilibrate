@@ -1,3 +1,6 @@
+"""
+3D fields for magnetic field initiation and other field based tasks.
+"""
 import numpy as np
 from cluster_generator.utils import mylog, parse_prng
 import os
@@ -6,6 +9,22 @@ from unyt import unyt_array
 
 
 def parse_value(value, default_units):
+    """
+    Parses an array of values into the correct units.
+    Parameters
+    ----------
+    value: array-like or tuple
+        The array from which to convert values to correct units. If ``value`` is a ``unyt_array``, the unit is simply converted,
+        if ``value`` is a tuple in the form ``(v_array,v_unit)``, the conversion will be made and will return an ``unyt_array``.
+        Finally, if ``value`` is an array, it is assumed that the ``default_units`` are correct.
+    default_units: str
+        The default unit for the quantity.
+
+    Returns
+    -------
+    unyt_array:
+        The converted array.
+    """
     if isinstance(value, unyt_array):
         val = unyt_array(value.v, value.units).in_units(default_units)
     elif isinstance(value, tuple):
@@ -16,6 +35,25 @@ def parse_value(value, default_units):
 
 
 def rot_3d(axis, gx, gy, gz, ang):
+    """
+    Rotates the vector ``[gx,gy,gz]`` by an angle ``ang`` around a specified axis.
+
+    Parameters
+    ----------
+    axis: int
+        The axis to rotate about. Options are ``1,2,3``.
+    gx: float
+    gy: float
+    gz: float
+    ang: float
+        The angle over which to rotate.
+
+    Returns
+    -------
+    gx: float
+    gy: float
+    gz: float
+    """
 
     c = np.cos(ang)
     s = np.sin(ang)
@@ -36,22 +74,43 @@ class ClusterField:
 
     def __init__(self, left_edge, right_edge, ddims, padding=0.1, 
                  vector_potential=False, divergence_clean=False):
+        """
 
+        Parameters
+        ----------
+        left_edge: array-like
+            The lower edge of the box [kpc] for each of the dimensions.
+        right_edge: array-like
+            The upper edge of the box [kpc] for each of the dimensions.
+        ddims: array-like
+            The number of grids in each of the axes.
+        padding: The amount of additional padding to add to the boundary.
+        vector_potential
+        divergence_clean
+        """
+        #  Basic Management
+        # ----------------------------------------------------------------------------------------------------------------- #
+        # - Type conversions and setup
         ddims = np.array(ddims).astype("int")
         left_edge = parse_value(left_edge, "kpc").v
         right_edge = parse_value(right_edge, "kpc").v
         width = right_edge-left_edge
         deltas = width/ddims
+
+        # - Accounting for padding - #
         pad_dims = (2*np.ceil(0.5*padding*ddims)).astype("int")
         self.left_edge = left_edge - 0.5*pad_dims*deltas 
         self.right_edge = right_edge + 0.5*pad_dims*deltas
         self.ddims = ddims + pad_dims
+
+        # - Additional attributes - #
         self.vector_potential = vector_potential
         self.divergence_clean = divergence_clean
-        self.comps = [f"{self._name}_{ax}" for ax in "xyz"]
         self.dx, self.dy, self.dz = deltas
+        self.comps = [f"{self._name}_{ax}" for ax in "xyz"]
 
     def _compute_coords(self):
+        """Creates the coordinate mgrids from the grid"""
         nx, ny, nz = self.ddims
         x, y, z = np.mgrid[0:nx,0:ny,0:nz] + 0.5
         x *= self.dx

@@ -1,3 +1,6 @@
+"""
+Module for management of particle initial conditions.
+"""
 from collections import OrderedDict, defaultdict
 from scipy.interpolate import InterpolatedUnivariateSpline
 from cluster_generator.utils import ensure_ytarray, ensure_list, \
@@ -6,34 +9,16 @@ import h5py
 import numpy as np
 from unyt import unyt_array, unyt_quantity, uconcatenate
 from pathlib import Path
-
-
-gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses",
-                        "ParticleIDs", "Potential"],
-                 "gas": ["Coordinates", "Velocities", "Masses",
-                         "ParticleIDs", "InternalEnergy", "MagneticField",
-                         "Density", "Potential", "PassiveScalars"],
-                 "star": ["Coordinates", "Velocities", "Masses",
-                          "ParticleIDs", "Potential"],
-                 "black_hole": ["Coordinates", "Velocities", "Masses",
-                                "ParticleIDs", "Potential"]}
-
-gadget_field_map = {"Coordinates": "particle_position",
-                    "Velocities": "particle_velocity",
-                    "Masses": "particle_mass",
-                    "Density": "density",
-                    "Potential": "potential_energy",
-                    "InternalEnergy": "thermal_energy",
-                    "MagneticField": "magnetic_field"}
-
-gadget_field_units = {"Coordinates": "kpc",
-                      "Velocities": "km/s",
-                      "Masses": "1e10*Msun",
-                      "Density": "1e10*Msun/kpc**3",
-                      "InternalEnergy": "km**2/s**2",
-                      "Potential": "km**2/s**2",
-                      "PassiveScalars": "",
-                      "MagneticField": "1e5*sqrt(Msun)*km/s/(kpc**1.5)"}
+import yaml
+import os
+import pathlib as pt
+# -------------------------------------------------------------------------------------------------------------------- #
+# Setup ============================================================================================================== #
+# -------------------------------------------------------------------------------------------------------------------- #
+# - Loading the yaml file
+with open(os.path.join(pt.Path(__file__).parents[0],"bin",".resources","particle_fields.yaml")) as gfile:
+    _gadget_setup_dict = yaml.load(gfile,yaml.FullLoader)
+    gadget_fields, gadget_field_map, gadget_field_units = _gadget_setup_dict["gadget_fields"], _gadget_setup_dict["gadget_field_map"], _gadget_setup_dict["gadget_field_units"]
 
 ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType1", "dm"),
@@ -42,13 +27,42 @@ ptype_map = OrderedDict([("PartType0", "gas"),
 
 rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
+# -------------------------------------------------------------------------------------------------------------------- #
+# Classes ============================================================================================================ #
+# -------------------------------------------------------------------------------------------------------------------- #
 
 class ClusterParticles:
+    """
+    The ``ClusterParticles`` class provides an interface with a simulation's particle distribution during the generation
+    process.
+
+    Parameters
+    ----------
+    particle_types: list of str
+        The particle types which are included in the simulation. These should be the names of the gadget particle types,
+        (``gas``,``dm``,``star``,``black_hole``).
+    fields: dict[tuple,array-like]
+        The gadget fields of the cluster particles. These should be indexed by tuples, i.e. ``('gas','density')`` and
+        values should be 1D arrays with the same length as the number of particles.
+
+        .. attention::
+
+            Some fields must be specified for correct function of the class. Specifically, the user must specify a
+            ``('ptype','particle_mass')`` field for each of the desired ``ptypes``. This is used to determine the
+            number of particles implicitly from the length of the array.
+
+    box_size: int or float, optional
+        The boxsize of the simulation.
+
+    Notes
+    -----
+    - ``__getitem__`` and ``__setitem__`` index into ``self.fields``. Similarly, ``.keys()`` is an alias for ``self.fields.keys()``.
+    """
     def __init__(self, particle_types, fields, box_size=None):
         self.particle_types = ensure_list(particle_types)
         self.fields = fields
-        self._update_num_particles()
-        self._update_field_names()
+        self._update_num_particles() #--> Keeps number of particles current
+        self._update_field_names() #--> Keeps field names current.
         self.box_size = box_size
         self.passive_scalars = []
 
@@ -88,11 +102,22 @@ class ClusterParticles:
 
     @property
     def num_passive_scalars(self):
+        """The number of defined passive scalars"""
         return len(self.passive_scalars)
 
     def drop_ptypes(self, ptypes):
         """
-        Drop all particles with a type in *ptypes*.
+        Drop all of the particles with ``ptype in ptypes``.
+
+        Parameters
+        ----------
+        ptypes: list
+            The particle types to remove from the object.
+
+        Returns
+        -------
+        None
+
         """
         ptypes = ensure_list(ptypes)
         for ptype in ptypes:
@@ -228,6 +253,7 @@ class ClusterParticles:
 
     @classmethod
     def from_h5_file(cls, filename, ptypes=None):
+        """Equivalent to ``cls.from_file``."""
         return cls.from_file(filename, ptypes=ptypes)
 
     @classmethod
@@ -558,6 +584,7 @@ def _sample_clusters(particles, hses, center, velocity,
 
 def combine_two_clusters(particles1, particles2, hse1, hse2,
                          center1, center2, velocity1, velocity2):
+    """TODO: Documentation"""
     center1 = ensure_ytarray(center1, "kpc")
     center2 = ensure_ytarray(center2, "kpc")
     velocity1 = ensure_ytarray(velocity1, "kpc/Myr")
@@ -586,6 +613,7 @@ def combine_three_clusters(particles1, particles2, particles3,
                            hse1, hse2, hse3, center1, center2,
                            center3, velocity1, velocity2,
                            velocity3):
+    """TODO: Documentation"""
     center1 = ensure_ytarray(center1, "kpc")
     center2 = ensure_ytarray(center2, "kpc")
     center3 = ensure_ytarray(center3, "kpc")
@@ -653,6 +681,7 @@ def resample_one_cluster(particles, hse, center, velocity):
 def resample_two_clusters(particles, hse1, hse2, center1, center2,
                           velocity1, velocity2, radii,
                           passive_scalars=None):
+    """TODO: Documentation"""
     particles = _sample_clusters(particles, [hse1, hse2],
                                  [center1, center2],
                                  [velocity1, velocity2],
@@ -664,6 +693,7 @@ def resample_two_clusters(particles, hse1, hse2, center1, center2,
 def resample_three_clusters(particles, hse1, hse2, hse3, center1,
                             center2, center3, velocity1, velocity2,
                             velocity3, radii, passive_scalars=None):
+    """TODO: Documentation"""
     particles = _sample_clusters(particles, [hse1, hse2, hse3],
                                  [center1, center2, center3],
                                  [velocity1, velocity2, velocity3],

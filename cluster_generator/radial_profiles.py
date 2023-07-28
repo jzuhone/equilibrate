@@ -2,7 +2,7 @@
 ===============
 Radial Profiles
 ===============
-sdfsdf
+Radial profiles for use in cluster generation.
 """
 import numpy as np
 
@@ -15,7 +15,7 @@ _nfw_factor = lambda conc: 1.0/(np.log(conc+1.0)-conc/(1.0+conc))
 #  Classes
 # ----------------------------------------------------------------------------------------------------------------- #
 class RadialProfile:
-    """
+    r"""
     The ``RadialProfile`` class is a container class for all of the radial profiles in ``cluster_generator``.
 
     Parameters
@@ -41,6 +41,7 @@ class RadialProfile:
         return self.profile(r)
 
     def _do_op(self, other, op):
+        # Allows for operations between profiles.
         if hasattr(other, "profile"):
             p = lambda r: op(self.profile(r), other.profile(r))
         else:
@@ -63,9 +64,8 @@ class RadialProfile:
         return RadialProfile(p)
 
     def add_core(self, r_core, alpha):
-        """
-        Add a small core with radius *r_core* to the profile by
-        multiplying it by 1-exp(-(r/r_core)**alpha).
+        r"""
+        Adds a core to the pre-existing profile.
 
         Parameters
         ----------
@@ -73,6 +73,17 @@ class RadialProfile:
             The core radius in kpc.
         alpha : float
             The power-low index inside the exponential.
+
+        Notes
+        -----
+        ``add_core`` is implemented by taking the existing profile :math:`f(r)` and altering it such that
+
+        .. math::
+
+            f'(r) = \left(1-\exp\left(\frac{-r}{r_{core}}\right)^\alpha\right) f(r).
+
+        This will cause any cuspy profile (i.e. one for which :math:`\left.\frac{d}{dr} f(r)\right|_{r=0} > 0` and which grows
+        faster than the exponential term added to instead contain a core and go to 0 in its limit.
         """
         def _core(r):
             x = r/r_core
@@ -81,6 +92,29 @@ class RadialProfile:
         return RadialProfile(_core)
 
     def cutoff(self, r_cut, k=5):
+        r"""
+        Generates a truncated form of the profile.
+
+        Parameters
+        ----------
+        r_cut: float or int
+            The cutoff radius beyond which the truncation should dominate the profile behavior [kpc].
+        k: int
+            The truncation rate. Higher ``k`` will cause the truncation to go to zero faster.
+
+        Returns
+        -------
+        RadialProfile
+            The corresponding ``RadialProfile`` object with the truncated profile.
+
+        Notes
+        -----
+        The truncation is achieved by multiplying the profile by the factor
+
+        .. math::
+
+            1-\frac{1}{1+\exp\left(-2k\left(\frac{r}{r_{cut}}\right)\right)}.
+        """
         def _cutoff(r):
             x = r/r_cut
             step = 1.0/(1.0+np.exp(-2*k*(x-1)))
@@ -100,6 +134,15 @@ class RadialProfile:
             Array of radii in kpc.
         f_r : array-like
             Array of profile values in the appropriate units.
+
+        Returns
+        -------
+        RadialProfile
+            The corresponding radial profile.
+
+        Notes
+        -----
+        This function uses ``scipy.interpolate.UnivariateSpline`` to generate a continuous spectrum.
         """
         from scipy.interpolate import UnivariateSpline
         f = UnivariateSpline(r, f_r)
@@ -178,8 +221,7 @@ def power_law_profile(A, r_s, alpha):
 
 def beta_model_profile(rho_c, r_c, beta):
     """
-    A beta-model density profile (Cavaliere A., 
-    Fusco-Femiano R., 1976, A&A, 49, 137).
+    A beta-model density profile [1]_.
 
     Parameters
     ----------
@@ -189,6 +231,15 @@ def beta_model_profile(rho_c, r_c, beta):
         The core radius in kpc.
     beta : float
         The beta parameter.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
+
+    References
+    ----------
+    .. [1] (Cavaliere A.,Fusco-Femiano R., 1976, A&A, 49, 137).
     """
     p = lambda r: rho_c*((1+(r/r_c)**2)**(-1.5*beta))
     return RadialProfile(p)
@@ -196,8 +247,7 @@ def beta_model_profile(rho_c, r_c, beta):
 
 def hernquist_density_profile(M_0, a):
     """
-    A Hernquist density profile (Hernquist, L. 1990,
-    ApJ, 356, 359).
+    A Hernquist density profile [1].
 
     Parameters
     ----------
@@ -205,6 +255,15 @@ def hernquist_density_profile(M_0, a):
         The total mass in Msun.
     a : float
         The scale radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
+
+    References
+    ----------
+    .. [1] (Hernquist, L. 1990, ApJ, 356, 359).
     """
     p = lambda r: M_0/(2.*np.pi*a**3)/((r/a)*(1.+r/a)**3)
     return RadialProfile(p)
@@ -223,6 +282,10 @@ def cored_hernquist_density_profile(M_0, a, b):
         The scale radius in kpc.
     b : float
         The core radius in kpc.
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     p = lambda r: M_0*b/(2.*np.pi*a**3)/((1.+b*r/a)*(1.+r/a)**3)
     return RadialProfile(p)
@@ -239,6 +302,11 @@ def hernquist_mass_profile(M_0, a):
         The total mass in Msun.
     a : float
         The scale radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     p = lambda r: M_0*r**2/(r+a)**2
     return RadialProfile(p)
@@ -259,6 +327,11 @@ def convert_nfw_to_hernquist(M_200, r_200, conc):
         critical density of the universe in kpc.
     conc : float
         The concentration parameter r200/r_s for the NFW profile.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     a = r_200/(np.sqrt(0.5*conc*conc*_nfw_factor(conc))-1.0)
     M0 = M_200*(r_200+a)**2/r_200**2
@@ -276,6 +349,11 @@ def nfw_density_profile(rho_s, r_s):
         The scale density in Msun/kpc**3.
     r_s : float
         The scale radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     p = lambda r: rho_s/((r/r_s)*(1.0+r/r_s)**2)
     return RadialProfile(p)
@@ -292,6 +370,11 @@ def nfw_mass_profile(rho_s, r_s):
         The scale density in Msun/kpc**3.
     r_s : float
         The scale radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     def _nfw(r):
         x = r/r_s
@@ -320,6 +403,11 @@ def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
         The cosmology to be used when computing the critical
         density. If not supplied, a default one from yt will 
         be used.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     from yt.utilities.cosmology import Cosmology
     if cosmo is None:
@@ -342,6 +430,11 @@ def tnfw_density_profile(rho_s, r_s, r_t):
         The scale radius in kpc.
     r_t : float
         The truncation radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     def _tnfw(r):
         profile = rho_s/((r/r_s)*(1+r/r_s)**2)
@@ -363,6 +456,11 @@ def tnfw_mass_profile(rho_s, r_s, r_t):
         The scale radius in kpc.
     r_t : float
         The truncation radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     from sympy import Symbol, integrate, lambdify
     xx = Symbol("x")
@@ -388,6 +486,11 @@ def snfw_density_profile(M, a):
         The total mass in Msun.
     a : float
         The scale radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     def _snfw(r):
         x = r/a
@@ -406,6 +509,11 @@ def snfw_mass_profile(M, a):
         The total mass in Msun.
     a : float
         The scale radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     def _snfw(r):
         x = r/a
@@ -427,6 +535,11 @@ def snfw_total_mass(mass, radius, a):
         The input radius that the input ``mass`` corresponds to in kpc.
     a : float
         The scale radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     mp = snfw_mass_profile(1.0, a)
     return mass/mp(radius)
@@ -445,6 +558,11 @@ def cored_snfw_density_profile(M, a, r_c):
         The scale radius in kpc.
     r_c : float
         The core radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     b = a/r_c
     def _snfw(r):
@@ -466,6 +584,11 @@ def cored_snfw_mass_profile(M, a, r_c):
         The scale radius in kpc.
     r_c : float
         The core radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     b = a/r_c
     def _snfw(r):
@@ -491,6 +614,11 @@ def snfw_conc(conc_nfw):
     ----------
     conc_nfw : float
         NFW concentration for r200c.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     return 0.76*conc_nfw+1.36
 
@@ -511,6 +639,11 @@ def cored_snfw_total_mass(mass, radius, a, r_c):
         The scale radius in kpc.
     r_c : float
         The core radius in kpc.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     mp = cored_snfw_mass_profile(1.0, a, r_c)
     return mass/mp(radius)
@@ -533,6 +666,11 @@ def einasto_density_profile(M, r_s, n):
         The scale radius in kpc.
     n : float
         The inverse power-law index.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     from scipy.special import gamma
     alpha = 1.0/n
@@ -558,6 +696,11 @@ def einasto_mass_profile(M, r_s, n):
         The scale radius in kpc.
     n : float
         The inverse power-law index.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     from scipy.special import gammaincc
     alpha = 1.0/n
@@ -585,6 +728,11 @@ def am06_density_profile(rho_0, a, a_c, c, n):
     c : float
         The scale of the temperature drop of the cool core.
     n : float
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     alpha = -1.-n*(c-1.)/(c-a/a_c)
     beta = 1.-n*(1.-a/a_c)/(c-a/a_c)
@@ -616,6 +764,11 @@ def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta,
     gamma : float
         This parameter controls the width of the outer
         transition. If None, it will be gamma = 3 by default.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     if gamma is None:
         gamma = 3.0
@@ -650,6 +803,11 @@ def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min,
         The cooling radius in kpc.
     a_cool : float
         The logarithmic slope in the cooling region.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     def _temp(r):
         x = (r/r_cool)**a_cool
@@ -674,6 +832,11 @@ def am06_temperature_profile(T_0, a, a_c, c):
         The cooling radius in kpc.
     c : float
         The scale of the temperature drop of the cool core.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     p = lambda r: T_0/(1.+r/a)*(c+r/a_c)/(1.+r/a_c)
     return RadialProfile(p)
@@ -694,6 +857,11 @@ def baseline_entropy_profile(K_0, K_200, r_200, alpha):
         The virial radius in kpc.
     alpha : float
         The logarithmic slope of the profile.
+
+    Returns
+    -------
+    RadialProfile
+        The corresponding radial profile object.
     """
     p = lambda r: K_0 + K_200*(r/r_200)**alpha
     return RadialProfile(p)

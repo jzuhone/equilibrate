@@ -1,3 +1,9 @@
+"""
+==========
+Relations
+==========
+The functions in this module provide empirical relations between profile variables in a variety of cases.
+"""
 import numpy as np
 import unyt as u
 from .utils import mue
