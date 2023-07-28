@@ -54,5 +54,19 @@ def r_bcg(r200):
 
 
 def convert_ne_to_density(ne):
+    """
+    Converts the electron number density :math:`n_e` to an electron mass density :math:`\rho_{e^-}`.
+
+    Parameters
+    ----------
+    ne
+
+    Returns
+    -------
+
+    Notes
+    -----
+    The mean molecular mass for the electrons is :math:`\mu_e`
+    """
     ne = ne*u.cm**-3
     return ne.to_value("Msun/kpc**3", "number_density", mu=mue)

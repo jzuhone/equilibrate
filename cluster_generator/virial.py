@@ -28,9 +28,12 @@ class VirialEquilibrium:
             The particle distribution function. If not supplied, it will
             be generated.
         """
+        # - Attributes - #
         self.num_elements = model.num_elements
         self.ptype = ptype
         self.model = model
+
+        # - Generate the DF function - #
         if df is None:
             self._generate_df()
         else:
@@ -57,10 +60,21 @@ class VirialEquilibrium:
 
     @property
     def ee(self):
+        """
+        The ``relative potential``, :math:`\Psi(r) = -\Phi +\Phi_0`. In this case, :math:`\Phi_0 = 0`.
+
+        .. warning::
+
+            The relative potential here is in order of decreasing :math:`r`.
+        Returns
+        -------
+
+        """
         return -self.model["gravitational_potential"].d[::-1]
 
     @property
     def ff(self):
+        """Reverse direction of ``self.df`` as a numpy array. """
         return self.df.d[::-1]
 
     def check_virial(self):
@@ -78,13 +92,50 @@ class VirialEquilibrium:
         chk : NumPy array
             The relative difference between the input density
             profile and the one calculated using this method.
+
+        Notes
+        -----
+        See [1]_ for a complete discussion. The basis of the derivation is as follows:
+
+        Let :math:`f(\textbf{v})` be the distribution function of the system. Then, by definition,
+
+        .. math::
+
+            \rho =  \int f d^3\textbf{v}.
+
+        Invoking the Jeans Theorem, we may acknowledge that :math:`f` is a function only of :math:`L,\mathcal{E}`. Furthermore,
+        due to the assumption of an isotropic dispersion tensor, :math:`f` is a function only of the energy. We therefore write
+        the above equation as
+
+        .. math::
+
+                \rho = 4\pi \int_0^\Psi f(\mathcal{E})\sqrt{2(\Psi-\mathcal{E})}\; d\mathcal{E},
+
+        where
+        .. math::
+
+            \Psi = -\Phi + \Phi_0, \;\;\text{and}\;\;\mathcal{E} = \Psi - \frac{1}{2}v^2.
+
+        These quantities are referred to as **relative potential** and **relative energy**.
+
+        References
+        ----------
+            [1] Binney, J., & Tremaine, S. (2011). Galactic dynamics (Vol. 20). Princeton university press.
         """
+        #  Preparing arrays and pulling data
+        # ----------------------------------------------------------------------------------------------------------------- #
         n = self.num_elements
         rho = np.zeros(n)
-        pden = self.model[f"{self.ptype}_density"].d
+        pden = self.model[f"{self.ptype}_density"].d #-> This is the profile / model density array.
+
+        # - Defining the integrand - #
         rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
+
+        # - Carrying out the cumulative integration - #
         for i, e in enumerate(self.ee):
             rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e,))[0]
+
+        # - performing the check.
         chk = (rho[::-1]-pden)/pden
         mylog.info("The maximum relative deviation of this profile from "
                    "virial equilibrium is %g", np.abs(chk).max())
@@ -122,10 +173,14 @@ class VirialEquilibrium:
         particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of dark matter or star particles.
         """
+        #  Setup
+        # ----------------------------------------------------------------------------------------------------------------- #
         from cluster_generator.utils import parse_prng
 
-        num_particles_sub = num_particles // sub_sample
-        key = {"dark_matter": "dm",  "stellar": "star"}[self.ptype]
+        num_particles_sub = num_particles // sub_sample # number of particles for which to generate.
+        key = {"dark_matter": "dm",  "stellar": "star"}[self.ptype] # particle type reference.
+
+        #- Pulling fields - #
         density = f"{self.ptype}_density"
         mass = f"{self.ptype}_mass"
         energy_spline = InterpolatedUnivariateSpline(self.model["radius"].d,

@@ -98,6 +98,7 @@ def integrate_mass(profile, rr):
         This function may be costly if run over a large array because each integral is computed individually instead
         of by increment.
 
+
     """
     mass_int = lambda r: profile(r)*r*r
     mass = np.zeros(rr.shape)
