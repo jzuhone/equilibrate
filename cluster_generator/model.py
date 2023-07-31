@@ -37,6 +37,7 @@ class ClusterModel:
         The number of elements included. This is equivalent to the number of radii at which the model is sampled.
     fields: dict[str,unyt_array]
         The fields to attribute to the ``ClusterModel``.
+    gravity: str {"newtonian","aqual","qumond"}, optional. default = 'newtonian'
 
     Notes
     -----
@@ -60,9 +61,13 @@ class ClusterModel:
 
     #  Dunder Methods
     # ----------------------------------------------------------------------------------------------------------------- #
-    def __init__(self, num_elements, fields):
+    def __init__(self, num_elements, fields,gravity="newtonian"):
+        self.gravity = gravity
         self.num_elements = num_elements
         self.fields = fields
+
+        # - asserting gravity check - #
+        assert self.gravity in ["newtonian","aqual","qumond"], f"gravity must be newtonian, aqual, or qumond. not {self.gravity}."
 
     def __getitem__(self, key):
         return self.fields[key]
@@ -76,13 +81,13 @@ class ClusterModel:
     @property
     def dm_virial(self):
         if self._dm_virial is None:
-            self._dm_virial = VirialEquilibrium(self, "dark_matter")
+            self._dm_virial = VirialEquilibrium(self, "dark_matter",gravity=self.gravity) #TODO: this needs local maxwellian check
         return self._dm_virial
 
     @property
     def star_virial(self):
         if self._star_virial is None and "stellar_density" in self:
-            self._star_virial = VirialEquilibrium(self, "stellar")
+            self._star_virial = VirialEquilibrium(self, "stellar",gravity=self.gravity) #TODO: this check needs local maxwellian check.
         return self._star_virial
 
     #  Class Methods
@@ -172,7 +177,14 @@ class ClusterModel:
         return model
 
     @classmethod
-    def _from_scratch(cls, fields, stellar_density=None):
+    def _from_scratch(cls, fields, stellar_density=None,gravity="newtonian"):
+        #  Sanity check
+        # ------------------------------------------------------------------------------------------------------------ #
+        if any(field not in fields for field in ["radius","total_density","total_mass"]):
+            raise ValueError("Failed to find all necessary fields for initialization.")
+
+        #  Pulling data
+        # ------------------------------------------------------------------------------------------------------------ #
         rr = fields["radius"].d
         mylog.info("Integrating gravitational potential profile.")
         tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
@@ -223,7 +235,7 @@ class ClusterModel:
 
     @classmethod
     def from_dens_and_temp(cls, rmin, rmax, density, temperature,
-                           stellar_density=None, num_points=1000):
+                           stellar_density=None, num_points=1000, gravity="newtonian"):
         """
         Construct a hydrostatic equilibrium model using gas density
         and temperature profiles.
@@ -267,7 +279,7 @@ class ClusterModel:
 
     @classmethod
     def from_dens_and_entr(cls, rmin, rmax, density, entropy,
-                           stellar_density=None, num_points=1000):
+                           stellar_density=None, num_points=1000,gravity="newtonian"):
         n_e = density / (mue * mp * kpc_to_cm ** 3)
         temperature = entropy * n_e ** tt
         return cls.from_dens_and_temp(rmin, rmax, density, temperature,
@@ -276,7 +288,7 @@ class ClusterModel:
 
     @classmethod
     def from_dens_and_tden(cls, rmin, rmax, density, total_density,
-                           stellar_density=None, num_points=1000):
+                           stellar_density=None, num_points=1000,gravity="newtonian"):
         """
         Construct a hydrostatic equilibrium model using gas density
         and total density profiles
@@ -324,7 +336,7 @@ class ClusterModel:
 
     @classmethod
     def no_gas(cls, rmin, rmax, total_density, stellar_density=None,
-               num_points=1000):
+               num_points=1000,gravity="newtonian"):
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
                          endpoint=True)
         fields = OrderedDict()
@@ -462,6 +474,7 @@ class ClusterModel:
                     fd = v[mask]
                 prof_rec.append(fd)
             f.write_record(np.array(prof_rec).T)
+
 
     def set_field(self, name, value):
         r"""

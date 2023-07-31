@@ -3,7 +3,7 @@
 """
 import pytest
 import os
-
+from .utils import generate_model
 
 def pytest_addoption(parser):
     """Adds ``--answer_dir`` and ``--answer_store`` to the command line arguments."""
@@ -17,7 +17,6 @@ def pytest_addoption(parser):
 def answer_store(request):
     """fetches the ``--answer_store`` option."""
     return request.config.getoption('--answer_store')
-
 
 @pytest.fixture()
 def answer_dir(request):

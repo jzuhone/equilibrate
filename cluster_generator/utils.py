@@ -215,5 +215,3 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     return radius, mtot
 
 
-
-

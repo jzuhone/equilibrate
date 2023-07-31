@@ -12,7 +12,7 @@ from unyt import unyt_array
 
 class VirialEquilibrium:
 
-    def __init__(self, model, ptype='dark_matter', df=None):
+    def __init__(self, model, ptype='dark_matter', df=None, gravity="newtonian"):
         r"""
         Generate a virial equilibrium model from a profile.
 
@@ -27,6 +27,10 @@ class VirialEquilibrium:
         df : unyt_array
             The particle distribution function. If not supplied, it will
             be generated.
+        gravity: str
+            .. warning::
+
+                Work in progress.
         """
         # - Attributes - #
         self.num_elements = model.num_elements
