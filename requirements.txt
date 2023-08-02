@@ -3,3 +3,4 @@ numpy
 scipy
 ruamel.yaml
 yt
+h5py
