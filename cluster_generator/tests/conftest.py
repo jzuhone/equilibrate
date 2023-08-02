@@ -12,6 +12,19 @@ def pytest_addoption(parser):
     parser.addoption("--answer_store", action="store_true",
                      help="Generate new answers, but don't test.")
 
+def pytest_collection_modifyitems(session,config,items):
+    _module_order = ["cluster_generator.tests."+i for i in ["test_particles","test_profile","test_gravity","test_ics"]]
+    module_mapping = {item: item.module.__name__ for item in items}
+
+    sorted_items = items.copy()
+
+    for module in _module_order:
+        sorted_items = [it for it in sorted_items if module_mapping[it] != module] + [it for it in sorted_items if module_mapping[it] == module]
+
+    items[:] = sorted_items
+
+    print(f"\nPrescribed order {_module_order}.")
+    print(f"\nAsserted order {[item.module.__name__.replace('cluster_generator.tests.','') for item in items]}.\n")
 
 @pytest.fixture()
 def answer_store(request):
