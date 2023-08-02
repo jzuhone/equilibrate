@@ -123,10 +123,6 @@ class ClusterModel:
         filename : string
             The name of the file to read the model from.
 
-        Examples
-        --------
-        >>> from cluster_generator import ClusterModel
-        >>> hse_model = ClusterModel.from_h5_file("hse_model.h5")
         """
         from cluster_generator.virial import VirialEquilibrium
 
