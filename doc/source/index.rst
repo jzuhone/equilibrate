@@ -7,7 +7,7 @@
 
 cluster_generator
 =================
-|yt-project| |docs| |testing| |Github Page| |Pylint|
+|yt-project| |docs| |testing| |Github Page| |Pylint| |coverage|
 
 .. raw:: html
 
@@ -62,3 +62,5 @@ Indices and tables
 .. |testing| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test.yml/badge.svg
 .. |Pylint| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/pylint.yml/badge.svg
 .. |Github Page| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg
+.. |coverage| image:: https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=MOND
+   :target: https://coveralls.io/github/Eliza-Diggins/cluster_generator?branch=MOND
