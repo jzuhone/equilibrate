@@ -30,3 +30,4 @@ jobs:
         run: |
           pytest cluster_generator --doctest-modules --answer_dir="./tmp" --answer_store
           pytest cluster_generator --doctest-modules --cov=cluster_generator --cov-report=xml --answer_dir="./tmp"
+          COVERALLS_REPO_TOKEN=tQ0ra8kUn56CDx6Cjp7Wil8Pp5qA9vTdK coveralls
