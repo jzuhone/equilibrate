@@ -3,12 +3,30 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-cluster_generator: Generating Equilibrium Cluster Models
-============================================================
+cluster_generator
+=================
+
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
+
+``cluster_generator`` is a cross-platform galaxy cluster initializer for N-body / hydrodynamics codes. ``cluster_generator`` supports
+a variety of different possible configurations for the initialized galaxy clusters, including a variety of profiles, different construction
+assumptions, and non-Newtonian gravity options.
+
+
+.. raw:: html
+
+   <hr style="color:black">
+
+Contents
+========
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
 
    introduction
    radial_profiles
@@ -22,6 +40,11 @@ cluster_generator: Generating Equilibrium Cluster Models
 
 Indices and tables
 ==================
+
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
+
 
 * :ref:`genindex`
 * :ref:`modindex`
