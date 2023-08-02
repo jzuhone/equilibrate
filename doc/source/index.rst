@@ -22,6 +22,42 @@ assumptions, and non-Newtonian gravity options.
 
    <hr style="color:black">
 
+Features
+========
+
+.. raw:: html
+
+   <table width="100%" table-layout="fixed">
+   <tr>
+      <td width="500" style="vertical-align: middle;">
+      <h3 style="text-align: center;"> Gravities </h3> </td>
+      <td width="500" style="vertical-align: middle;">
+      <h3 style="text-align: center;"> Profiles </h3> </td>
+   </tr>
+   <tr>
+      <td>
+      <ul>
+      <li> Newtonian Gravity </li>
+      <li> AQUAL (MONDian) </li>
+      <li> QUMOND (MONDian) </li>
+      </ul>
+      </td>
+      <td>
+      <ul>
+      <li> [T/S]-NFW  </li>
+      <li> Hernquist [cored / uncored] </li>
+      <li> Einasto </li>
+      <li> Power Law </li>
+      <li> Beta Model </li>
+      <li> am06 </li>
+      <li> Vikhlinin (density) </li>
+      <li> Vikhlinin (temperature) </li>
+      <li> Entropy [baseline, broken, walker] </li>
+      </ul>
+      </td>
+   </tr>
+   </table>
+
 Contents
 ========
 .. raw:: html
