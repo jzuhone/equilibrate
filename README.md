@@ -6,6 +6,7 @@
 ![Testing](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test.yml/badge.svg)
 ![Pylint](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/pylint.yml/badge.svg)
 ![Github Pages](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg)](https://coveralls.io/github/Eliza-Diggins/cluster_generator)
 
 ``cluster_generator`` is a cross-platform galaxy cluster initializer for N-body / hydrodynamics codes. ``cluster_generator`` supports
 a variety of different possible configurations for the initialized galaxy clusters, including a variety of profiles, different construction
