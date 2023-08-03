@@ -112,7 +112,6 @@ class Potential:
     >>> _ = ax.set_title("Potential")
     >>> _ = ax2.set_title("Acceleration")
     >>> _ = plt.subplots_adjust(wspace=0.3)
-    >>> figure.savefig("../doc/source/_images/gravity/image1.png")
 
     .. image:: ../_images/gravity/image1.png
     """
