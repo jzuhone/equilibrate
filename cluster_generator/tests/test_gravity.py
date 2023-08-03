@@ -46,17 +46,22 @@ def test_diff_mdr(answer_dir):
     m,d,r = generate_mdr_potential()
     pot_QUMOND = Potential.from_fields({"total_mass":m,"total_density":d,"radius":r},gravity="QUMOND")
     pot_NEWTONIAN = Potential.from_fields({"total_mass":m,"total_density":d,"radius":r},gravity="Newtonian")
+    pot_AQUAL = Potential.from_fields({"total_mass":m,"total_density":d,"radius":r},gravity="AQUAL")
 
     figure = plt.figure(figsize=(12,6))
     ax1,ax2 = figure.add_subplot(121),figure.add_subplot(122)
 
-    pot_QUMOND.plot(fig=figure,ax=ax1,color="red")
-    pot_NEWTONIAN.plot(fig=figure,ax=ax1,color="black")
+    pot_QUMOND.plot(fig=figure,ax=ax1,color="red",ls="--")
+    pot_NEWTONIAN.plot(fig=figure,ax=ax1,color="black",ls="-.")
+    pot_AQUAL.plot(fig=figure,ax=ax1,color="blue",ls=":")
 
-    ax2.loglog(pot_NEWTONIAN.fields["radius"].d,np.gradient(pot_NEWTONIAN.fields["potential"].d,pot_NEWTONIAN.fields["radius"].d),color="black")
-    ax2.loglog(pot_QUMOND.fields["radius"].d,np.gradient(pot_QUMOND.fields["potential"].d, pot_QUMOND.fields["radius"].d),color="red")
-    ax2.loglog(pot_NEWTONIAN.fields["radius"].d,np.gradient(pot_NEWTONIAN.fields["potential"].d,pot_NEWTONIAN.fields["radius"].d)**2/(unyt_array([1.2e-10],"m/s**2").to("kpc/Myr**2").d[0]*np.ones(pot_QUMOND.fields["radius"].d.size)))
-    ax2.loglog(pot_NEWTONIAN.fields["radius"].d,(unyt_array([1.2e-10],"m/s**2").to("kpc/Myr**2").d[0]*np.ones(pot_QUMOND.fields["radius"].d.size)))
+    ax2.loglog(pot_NEWTONIAN.fields["radius"],np.gradient(pot_NEWTONIAN.fields["potential"],pot_NEWTONIAN.fields["radius"]),color="black",ls="--")
+    ax2.loglog(pot_QUMOND.fields["radius"],np.gradient(pot_QUMOND.fields["potential"], pot_QUMOND.fields["radius"]),color="red",ls="-.")
+    ax2.loglog(pot_AQUAL.fields["radius"],np.gradient(pot_AQUAL.fields["potential"], pot_AQUAL.fields["radius"]),color="blue",ls=":")
+
+    ax2.loglog(pot_NEWTONIAN.fields["radius"],np.gradient(pot_NEWTONIAN.fields["potential"],pot_NEWTONIAN.fields["radius"])**2/(unyt_array([1.2e-10],"m/s**2").to("kpc/Myr**2").d[0]*np.ones(pot_QUMOND.fields["radius"].d.size)),"c--")
+    ax2.loglog(pot_NEWTONIAN.fields["radius"],(unyt_array([1.2e-10],"m/s**2").to("kpc/Myr**2").d[0]*np.ones(pot_QUMOND.fields["radius"].d.size)),"g:")
+
     ax2.set_xlabel("Radius (kpc)")
     ax2.set_ylim([10e-4,10e-2])
     ax2.set_ylabel(r"$\nabla \Phi,\;\;\left[\mathrm{\frac{kpc}{Myr^2}}\right]$")
@@ -64,6 +69,7 @@ def test_diff_mdr(answer_dir):
     ax1.set_title("Potential")
     figure.subplots_adjust(wspace=0.4,left=0.05,right=0.95)
     figure.savefig(os.path.join(answer_dir,"pot_compare.png"))
+    assert 1 == 0
 
 
 

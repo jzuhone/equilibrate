@@ -1,5 +1,28 @@
 """
-Methods for computations regarding gravity.
+Tools for working with gravitational potentials and alternative gravity theories.
+
+Available Gravity Theories
+==========================
+
++------------------+---------------------------------------+
+| Name             | Implementations                       |
++==================+=======================================+
+| Newtonian        | ``Newtonian``: standard gravity       |
++------------------+---------------------------------------+
+| MOND (classical) | - ``QUMOND``: Quasi-linear MOND [1]_  |
+|                  | - ``AQUAL``: Aquadratic MOND [2]_     |
++------------------+---------------------------------------+
+
+Notes
+-----
+
+Theory
+======
+
+References
+----------
+.. [1] Monthly Notices of the Royal Astronomical Society, Volume 403, Issue 2, pp. 886-895.
+.. [2] Astrophysical Journal, Part 1 (ISSN 0004-637X), vol. 286, Nov. 1, 1984, p. 7-14. Research supported by the MINERVA Foundation.
 """
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
@@ -15,25 +38,83 @@ from collections import OrderedDict
 # -------------------------------------------------------------------------------------------------------------------- #
 #  Default attributes================================================================================================= #
 # -------------------------------------------------------------------------------------------------------------------- #
-_default_interpolation_function = lambda x: x/(1+x)
-_default_a_0 = unyt_array(1.2e-10,"m/s**2")
+_default_interpolation_function = lambda x: x / (1 + (x ** 20)) ** (1 / 20)
+_default_a_0 = unyt_array(1.2e-10, "m/s**2")
+#: The factor of :math:`r_{\mathrm{max}}` at which spines are forced to begin converging.
+default_adj_boundary = 1.2
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # Functions ========================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
 class Potential:
-    """
-    The ``Potential`` class is used as a buffer between ``Model`` objects and ``Profile`` objects. The ``Potential`` houses
-    the various methodologies for computing the correct gravitational potential. This includes the ability to compute MOND potentials.
+    r"""
+    The ``Potential`` class is a wrapper for a set of modified 1-D poisson solvers which obtain the correct potential
+    of the initialized system for use in determining other criteria of the system.
+    
+    .. admonition:: Feature
+        
+        The ``Potential`` class can facilitate the use of MOND gravities through two implementations, ``AQUAL`` and ``QUMOND``.
 
-    Attributes
+    Parameters
     ----------
     fields: dict
-        The fields specified to the ``Potential`` object.
+        The fields specified to the ``Potential`` object. Depending on the methodology used to determine the
+        potential, certain fields must be specified. 
     gravity: str
         The type of gravity that is in use. Options are ``AQUAL``, ``QUMOND``, or ``Newtonian``.
-    self.num_elements: int
-        The number of points at which the profiles were sampled to generate the fields.
+    attrs: dict
+        Attributes to pass to the ``Potential``. These may contain a variety of pieces of information contained in the
+        table below:
+        
+        +---------------------+------------------------------------------+----------------+---------------------------------------------------+
+        | Attribute Name      | Description                              | Types          | Default                                           |
+        +=====================+==========================================+================+===================================================+
+        | ``interp_function`` | The MOND specific interpolation function | ``callable``   | :math:`\frac{x}{x+1}`                             |
+        +---------------------+------------------------------------------+----------------+---------------------------------------------------+
+        | ``a_0``             | The MOND acceleration constant.          | ``unyt float`` | :math:`1.2\times 10^{-10} \mathrm{\frac{m}{s^2}}` |
+        +---------------------+------------------------------------------+----------------+---------------------------------------------------+
 
+    Notes
+    -----
+
+    Examples
+    --------
+    >>> from cluster_generator.tests.utils import generate_mdr_potential
+    >>> import matplotlib.pyplot as plt
+    >>>
+    >>> m, d, r = generate_mdr_potential() #: Generating the profile from an SNFW profile
+    >>>
+    >>> #- Generating the potential class objects from fields -#
+    >>> pot_AQUAL = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="AQUAL")
+    >>> pot_NEWTONIAN = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="Newtonian")
+    >>> pot_QUMOND = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="QUMOND")
+    >>> #- Plotting
+    >>> figure = plt.figure(figsize=(8,5))
+    >>> ax = figure.add_subplot(121)
+    >>> ax2 = figure.add_subplot(122)
+    >>> _,_ = pot_AQUAL.plot(fig=figure,ax=ax,color="b",label="AQUAL")
+    >>> _,_ = pot_NEWTONIAN.plot(fig=figure,ax=ax,color="k",label="Newtonian")
+    >>> _,_ = pot_QUMOND.plot(fig=figure,ax=ax,color="r",label="QUMOND")
+    >>> _ = ax.legend()
+    >>> _ = ax2.loglog(pot_QUMOND["radius"].d,np.gradient(pot_QUMOND["potential"].d,pot_QUMOND["radius"].d),"r")
+    >>> _ = ax2.loglog(pot_AQUAL["radius"].d,np.gradient(pot_AQUAL["potential"].d,pot_AQUAL["radius"].d),"b")
+    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,np.gradient(pot_NEWTONIAN["potential"].d,pot_NEWTONIAN["radius"].d),"k")
+    >>> _ = ax2.hlines(y=_default_a_0.to("kpc/Myr**2").d,xmin=np.amin(r.d),xmax=np.amax(r.d),color="c",ls=":")
+    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,(np.gradient(pot_NEWTONIAN["potential"].d,pot_NEWTONIAN["radius"].d)**2)/_default_a_0.to("kpc/Myr**2").d,"r:")
+    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,(np.gradient(pot_NEWTONIAN["potential"].d,pot_NEWTONIAN["radius"].d)*_default_a_0.to("kpc/Myr**2").d)**(1/2),"b:")
+    >>> _ = ax2.set_xlabel("Radius [kpc]")
+    >>> _ = ax2.set_ylabel(r"$\left|a\right|,\;\;\left[\mathrm{\frac{kpc}{Myr^2}}\right]$")
+    >>> _ = ax.set_ylabel(r"$\left|\Phi\right|,\;\;\left[\mathrm{\frac{kpc^2}{Myr^2}}\right]$")
+    >>> _ = ax2.text(0.17,6e-2,r"$\frac{a_{\mathrm{newt}^2}}{a_0}$")
+    >>> _ = ax2.text(0.17,1.4e-2,r"$a_{\mathrm{newt}}$")
+    >>> _ = ax2.text(0.17,4e-3,r"$\sqrt{a_0a_{\mathrm{newt}}}$")
+    >>> _ = ax.set_title("Potential")
+    >>> _ = ax2.set_title("Acceleration")
+    >>> _ = plt.subplots_adjust(wspace=0.3)
+    >>> figure.savefig("../doc/source/_images/gravity/image1.png")
+
+    .. image:: ../_images/gravity/image1.png
     """
     _keep_units = ["entropy", "electron_number_density",
                    "magnetic_field_strength"]
@@ -41,6 +122,7 @@ class Potential:
     def __init__(self, fields, gravity, attrs):
         # - Initializing base attributes - #
         self.fields = fields
+
         self.gravity = gravity
 
         # - Derived attributes -#
@@ -127,7 +209,7 @@ class Potential:
 
         #  Computing Potential
         # ----------------------------------------------------------------------------------------------------------------- #
-        obj = cls(fields, gravity,kwargs)  # initialize the object
+        obj = Potential(fields, gravity, kwargs)  # initialize the object
         getattr(obj, f"_find_from_{_used_method}")()  # pass the computation off to subfunctions
 
         return obj
@@ -164,7 +246,7 @@ class Potential:
         for field in fnames:
             fields[field] = fields[field][mask]
 
-        model = cls(fields, gravity,{})
+        model = cls(fields, gravity, {})
         return model
 
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -195,8 +277,8 @@ class Potential:
                 f"The self.fields {list(self.fields.keys())} are not sufficient for a potential computation.")
         else:
             _used_method = \
-            [key for key, value in _methods.items() if all(req_field in self.fields for req_field in value)][
-                0]
+                [key for key, value in _methods.items() if all(req_field in self.fields for req_field in value)][
+                    0]
             mylog.info(f"Computation of potential is using {_used_method} for computation.")
 
         #  Computing Potential
@@ -233,51 +315,79 @@ class Potential:
             #  AQUAL Implementation                                                                                    #
             # -------------------------------------------------------------------------------------------------------- #
             mylog.info(f"Integrating gravitational potential profile. gravity={self.gravity}.")
+
             # - pulling arrays
             rr = self["radius"].d
             tmass = self["total_mass"].d
-            self.attrs["a_0"].to("kpc/Myr**2")
+            a_0 = self.attrs["a_0"].to("kpc/Myr**2").d
 
             # - Building the gamma function - #
-            gamma_func = InterpolatedUnivariateSpline(rr,G*tmass/(float(self.attrs["a_0"].d)*(rr**2)))
-            self["gamma"] = unyt_array(gamma_func(rr))
+            gamma_func = InterpolatedUnivariateSpline(rr, G.d * tmass / (a_0 * (rr ** 2)),k=2)
+
+            # -- Redefining with an adjusted spline approach to prevent asymptotes from forming ---#
+            # =====================================================================================#
+            r_bound = default_adj_boundary*rr[-1]
+            gamma_func__adjusted = lambda x: np.piecewise(x,
+                                                          [x <= r_bound,
+                                                           x > r_bound],
+                                                          [gamma_func, lambda l:  gamma_func(r_bound) * (r_bound / l) ** 2])
+
+            self["gamma"] = unyt_array(gamma_func__adjusted(rr))
+
 
             # - generating guess solution - #
             mylog.info(f"Creating AQUAL guess solution for implicit equation...")
 
-            Gamma_func = lambda x: (1/2)*(gamma_func(x)+np.sqrt(gamma_func(x)**2 + 4*gamma_func(x))) #-> big gamma del Phi / a_0
+            Gamma_func = lambda x: (1 / 2) * (
+                        gamma_func__adjusted(x) + np.sqrt(gamma_func__adjusted(x) ** 2 + 4 * gamma_func__adjusted(x)))  # -> big gamma del Phi / a_0
             _guess = Gamma_func(rr)
+
 
 
             # - solving - #
             mylog.info(f"Optimizing implicit solution...")
-            _fsolve_function = lambda x: x*self.attrs["interp_function"](x) - self["gamma"]
+            _fsolve_function = lambda x: x * self.attrs["interp_function"](x) - self["gamma"]
 
-            _Gamma_solution = fsolve(_fsolve_function,x0=_guess)
+            _Gamma_solution = fsolve(_fsolve_function, x0=_guess)
 
-            Gamma = InterpolatedUnivariateSpline(rr,_Gamma_solution)
+
+
+            Gamma = InterpolatedUnivariateSpline(rr, _Gamma_solution,k=2)
+
+            # ** Defining the adjusted Gamma solution to prevent issues with divergence of the spline. **
+            #
+            #
+            adj_Gamma = lambda x: np.piecewise(x, [x <= r_bound, x > r_bound],
+                                               [Gamma, lambda t: 4 * Gamma(r_bound) * (r_bound ** 2) / (t ** 2)])
+
 
             # - Performing the integration process - #
-            gpot2 = self.attrs["a_0"].d*unyt_array(integrate_toinf(Gamma, rr), "(kpc**2)/Myr**2")
+            gpot2 = a_0 * unyt_array(integrate_toinf(adj_Gamma, rr), "(kpc**2)/Myr**2")
 
             # - Finishing computation - #
             self.fields["potential"] = -gpot2
             self.fields["potential"].convert_to_units("kpc**2/Myr**2")
 
-            self["guess_potential"] = -self.attrs["a_0"].d*unyt_array(integrate_toinf(Gamma_func, rr), "(kpc**2)/Myr**2")
+            self["guess_potential"] = -a_0 * unyt_array(integrate_toinf(Gamma_func, rr), "(kpc**2)/Myr**2")
             self.fields["potential"].convert_to_units("kpc**2/Myr**2")
+
         elif self.gravity == "QUMOND":
             # -------------------------------------------------------------------------------------------------------- #
             #  QUMOND Implementation                                                                                   #
             # -------------------------------------------------------------------------------------------------------- #
             # - Pulling arrays
-            rr = self["radius"].d
-            tmass = self["total_mass"].d
+            rr = self["radius"].to("kpc").d
+            tmass = self["total_mass"].to("Msun").d
+            a_0 = self.attrs["a_0"].to("kpc/Myr**2").d
+
             ## -- Preparing for Execution -- ##
             mylog.info(f"Integrating gravitational potential profile. gravity={self.gravity}.")
-            gamma_func = InterpolatedUnivariateSpline(rr,G*tmass/(float(self.attrs["a_0"].d)*(rr**2)))
+
+            gamma_func = InterpolatedUnivariateSpline(rr, (G.d * tmass) / (a_0 * (rr ** 2)))
+
             self["gamma"] = unyt_array(gamma_func(rr))
-            gpot_profile = lambda r: - gamma_func(r) * float(self.attrs["a_0"].d) *self.attrs["interp_function"](gamma_func(r))
+
+            gpot_profile = lambda r: - gamma_func(r) * a_0 * self.attrs["interp_function"](gamma_func(r))
 
             # - Performing the integration process - #
             gpot2 = unyt_array(integrate_toinf(gpot_profile, rr), "(kpc**2)/Myr**2")
@@ -367,3 +477,21 @@ class Potential:
         if self.fields["potential"] is not None:
             fd = self.fields["potential"]
             fd.write_hdf5(output_filename, dataset_name="potential", group_name="fields")
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    from cluster_generator.tests.utils import generate_mdr_potential
+
+    m, d, r = generate_mdr_potential()
+    pot_AQUAL = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="AQUAL")
+    pot_NEWTONIAN = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="Newtonian")
+
+    figure = plt.figure()
+    ax = figure.add_subplot(121)
+    ax2 = figure.add_subplot(122)
+    pot_AQUAL.plot(fig=figure,ax=ax)
+    pot_NEWTONIAN.plot(fig=figure,ax=ax)
+    ax2.loglog(pot_AQUAL["radius"].d,np.gradient(pot_AQUAL["potential"].d,pot_AQUAL["radius"].d))
+    ax2.loglog(pot_NEWTONIAN["radius"].d,np.gradient(pot_NEWTONIAN["potential"].d,pot_NEWTONIAN["radius"].d))
+    plt.show()
