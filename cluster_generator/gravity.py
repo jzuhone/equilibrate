@@ -1,4 +1,4 @@
-"""
+r"""
 Tools for working with gravitational potentials and alternative gravity theories.
 
 Available Gravity Theories
@@ -18,6 +18,62 @@ Notes
 
 Theory
 ======
+**Newtonian Gravity**:
+The Newtonian potential solver is implemented in the standard fashion. Potentials for individual spherical shells are
+integrated, yielding an easily integrated equation for :math:`\Phi`:
+
+.. math::
+
+    \Phi = -4\pi G \left\{\frac{1}{r}\int_0^r \rho(r')r'^2 dr' + \int_r^\infty \rho(r') r' dr' \right\}.
+
+**MOND Gravity**:
+There are two implementations of MOND included in this package: AQUAL and QUMOND. In AQUAL, the equivalent Poisson equation
+is
+
+.. math::
+
+    \nabla \cdot \left[\mu\left(\frac{|\nabla \Phi|}{a_0}\right)\nabla \Phi\right] = 4\pi G \rho.
+
+From the divergence theorem,
+
+.. math::
+
+    \mu\left(\frac{|\nabla \Phi|}{a_0}\right)\nabla \Phi = \frac{GM_{\mathrm{dyn}}(<r)}{r^2}.
+
+This equation cannot be analytically solved. As such, we utilize the ``fsolve`` routine from ``SciPy`` to find an implicit solution
+for :math:`\nabla \Phi`. This solution is numerical in its basis and only extends to :math:`r_{max}`. Therefore, a 2nd order ``UniveriateSpline`` is
+fit to the curve. Because the resultant function must be integrable, beyond :math:`\alpha r_{max}` we alter the function
+so that
+
+.. math::
+
+    \nabla \Phi \sim \sqrt{a_0 a_{\mathrm{newt}}},
+
+which is the deep field behavior as $\mu(x) \to x$. Finally, we integrate from $\infty$ to provide the final potential.
+
+In the case of QUMOND, the process is simplified. The Lagrangian leads to two poisson equations:
+
+.. math::
+
+    \nabla^2\Psi = 4\pi G \rho,
+
+and
+
+.. math::
+
+    \nabla^2\Phi = 4\pi G \hat{\rho} = \nabla \cdot \left[\mu\left(\frac{|\nabla \psi|}{a_0}\right)\nabla \Psi\right].
+
+Letting :math:`\gamma = a_{\mathrm{newt}}/a_0`, :math:`\nabla \Psi = \gamma a_0`, and
+
+.. math::
+
+    \nabla \Phi = \mu(\gamma) \gamma a_0,
+
+Thus the potential is obtained by
+
+.. math::
+
+    \Psi = \int_r^\infty \mu(\gamma)\gamma a_0 dr'
 
 References
 ----------
@@ -38,7 +94,8 @@ from collections import OrderedDict
 # -------------------------------------------------------------------------------------------------------------------- #
 #  Default attributes================================================================================================= #
 # -------------------------------------------------------------------------------------------------------------------- #
-_default_interpolation_function = lambda x: x / (1 + (x ** 20)) ** (1 / 20)
+alpha = 1
+_default_interpolation_function = lambda x: x/(1+(x**alpha))**(1/alpha)
 _default_a_0 = unyt_array(1.2e-10, "m/s**2")
 #: The factor of :math:`r_{\mathrm{max}}` at which spines are forced to begin converging.
 default_adj_boundary = 1.2
@@ -97,19 +154,19 @@ class Potential:
     >>> _,_ = pot_NEWTONIAN.plot(fig=figure,ax=ax,color="k",label="Newtonian")
     >>> _,_ = pot_QUMOND.plot(fig=figure,ax=ax,color="r",label="QUMOND")
     >>> _ = ax.legend()
-    >>> _ = ax2.loglog(pot_QUMOND["radius"].d,np.gradient(pot_QUMOND["potential"].d,pot_QUMOND["radius"].d),"r")
-    >>> _ = ax2.loglog(pot_AQUAL["radius"].d,np.gradient(pot_AQUAL["potential"].d,pot_AQUAL["radius"].d),"b")
-    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,np.gradient(pot_NEWTONIAN["potential"].d,pot_NEWTONIAN["radius"].d),"k")
+    >>> _ = ax2.loglog(pot_QUMOND["radius"].d,np.gradient(pot_QUMOND["gravitational_potential"].d,pot_QUMOND["radius"].d),"r")
+    >>> _ = ax2.loglog(pot_AQUAL["radius"].d,np.gradient(pot_AQUAL["gravitational_potential"].d,pot_AQUAL["radius"].d),"b")
+    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,np.gradient(pot_NEWTONIAN["gravitational_potential"].d,pot_NEWTONIAN["radius"].d),"k")
     >>> _ = ax2.hlines(y=_default_a_0.to("kpc/Myr**2").d,xmin=np.amin(r.d),xmax=np.amax(r.d),color="c",ls=":")
-    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,(np.gradient(pot_NEWTONIAN["potential"].d,pot_NEWTONIAN["radius"].d)**2)/_default_a_0.to("kpc/Myr**2").d,"r:")
-    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,(np.gradient(pot_NEWTONIAN["potential"].d,pot_NEWTONIAN["radius"].d)*_default_a_0.to("kpc/Myr**2").d)**(1/2),"b:")
+    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,(np.gradient(pot_NEWTONIAN["gravitational_potential"].d,pot_NEWTONIAN["radius"].d)**2)/_default_a_0.to("kpc/Myr**2").d,"r:")
+    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,(np.gradient(pot_NEWTONIAN["gravitational_potential"].d,pot_NEWTONIAN["radius"].d)*_default_a_0.to("kpc/Myr**2").d)**(1/2),"b:")
     >>> _ = ax2.set_xlabel("Radius [kpc]")
     >>> _ = ax2.set_ylabel(r"$\left|a\right|,\;\;\left[\mathrm{\frac{kpc}{Myr^2}}\right]$")
     >>> _ = ax.set_ylabel(r"$\left|\Phi\right|,\;\;\left[\mathrm{\frac{kpc^2}{Myr^2}}\right]$")
     >>> _ = ax2.text(0.17,6e-2,r"$\frac{a_{\mathrm{newt}^2}}{a_0}$")
     >>> _ = ax2.text(0.17,1.4e-2,r"$a_{\mathrm{newt}}$")
     >>> _ = ax2.text(0.17,4e-3,r"$\sqrt{a_0a_{\mathrm{newt}}}$")
-    >>> _ = ax.set_title("Potential")
+    >>> _ = ax.set_title("gravitational_potential")
     >>> _ = ax2.set_title("Acceleration")
     >>> _ = plt.subplots_adjust(wspace=0.3)
 
@@ -127,10 +184,13 @@ class Potential:
         # - Derived attributes -#
         self.num_elements = len(self.fields["radius"])
 
-        if "potential" not in self.fields:
-            self.fields["potential"] = None
+        if "gravitational_potential" not in self.fields:
+            self.fields["gravitational_potential"] = None
 
-        self.attrs = attrs
+        if attrs is None:
+            self.attrs = {}
+        else:
+            self.attrs = attrs
 
         if gravity != "Newtonian":
             if "interp_function" not in self.attrs:
@@ -161,14 +221,14 @@ class Potential:
     @property
     def pot(self):
         """The potential array of the ``Potential``."""
-        if self.fields["potential"] is not None:
-            return self.fields["potential"]
+        if self.fields["gravitational_potential"] is not None:
+            return self.fields["gravitational_potential"]
         else:
             try:
                 self.potential()
-                return self.fields["potential"]
-            except ValueError:
-                raise ValueError("Failed to compute a potential from available fields.")
+                return self.fields["gravitational_potential"]
+            except ValueError as exception:
+                raise ValueError(f"Failed to compute a potential from available fields. Message = {exception.__repr__()}")
 
     # ---------------------------------------------------------------------------------------------------------------- #
     # Class Methods ================================================================================================== #
@@ -306,8 +366,8 @@ class Potential:
 
             # - Finishing computation - #
 
-            self.fields["potential"] = -G * (gpot1 + gpot2)
-            self.fields["potential"].convert_to_units("kpc**2/Myr**2")
+            self.fields["gravitational_potential"] = -G * (gpot1 + gpot2)
+            self.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
         elif self.gravity == "AQUAL":
             # -------------------------------------------------------------------------------------------------------- #
@@ -364,11 +424,11 @@ class Potential:
             gpot2 = a_0 * unyt_array(integrate_toinf(adj_Gamma, rr), "(kpc**2)/Myr**2")
 
             # - Finishing computation - #
-            self.fields["potential"] = -gpot2
-            self.fields["potential"].convert_to_units("kpc**2/Myr**2")
+            self.fields["gravitational_potential"] = -gpot2
+            self.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
             self["guess_potential"] = -a_0 * unyt_array(integrate_toinf(Gamma_func, rr), "(kpc**2)/Myr**2")
-            self.fields["potential"].convert_to_units("kpc**2/Myr**2")
+            self.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
         elif self.gravity == "QUMOND":
             # -------------------------------------------------------------------------------------------------------- #
@@ -392,8 +452,8 @@ class Potential:
             gpot2 = unyt_array(integrate_toinf(gpot_profile, rr), "(kpc**2)/Myr**2")
 
             # - Finishing computation - #
-            self.fields["potential"] = gpot2
-            self.fields["potential"].convert_to_units("kpc**2/Myr**2")
+            self.fields["gravitational_potential"] = gpot2
+            self.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
         else:
             raise ValueError(f"The gravity type {self.gravity} is not a valid gravity type.")
 
@@ -473,9 +533,9 @@ class Potential:
             fd.write_hdf5(output_filename, dataset_name=k,
                           group_name="fields")
 
-        if self.fields["potential"] is not None:
-            fd = self.fields["potential"]
-            fd.write_hdf5(output_filename, dataset_name="potential", group_name="fields")
+        if self.fields["gravitational_potential"] is not None:
+            fd = self.fields["gravitational_potential"]
+            fd.write_hdf5(output_filename, dataset_name="gravitational_potential", group_name="fields")
 
 
 if __name__ == '__main__':
@@ -491,6 +551,6 @@ if __name__ == '__main__':
     ax2 = figure.add_subplot(122)
     pot_AQUAL.plot(fig=figure,ax=ax)
     pot_NEWTONIAN.plot(fig=figure,ax=ax)
-    ax2.loglog(pot_AQUAL["radius"].d,np.gradient(pot_AQUAL["potential"].d,pot_AQUAL["radius"].d))
-    ax2.loglog(pot_NEWTONIAN["radius"].d,np.gradient(pot_NEWTONIAN["potential"].d,pot_NEWTONIAN["radius"].d))
+    ax2.loglog(pot_AQUAL["radius"].d,np.gradient(pot_AQUAL["gravitational_potential"].d,pot_AQUAL["radius"].d))
+    ax2.loglog(pot_NEWTONIAN["radius"].d,np.gradient(pot_NEWTONIAN["gravitational_potential"].d,pot_NEWTONIAN["radius"].d))
     plt.show()

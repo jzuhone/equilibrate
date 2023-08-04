@@ -9,7 +9,7 @@ API
     radial_profiles
     fields
     ics
-    models
+    model
     particles
     relations
     utils

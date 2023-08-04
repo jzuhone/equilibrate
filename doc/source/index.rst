@@ -38,8 +38,8 @@ Features
       <td>
       <ul>
       <li> Newtonian Gravity </li>
-      <li> AQUAL (MONDian) </li>
-      <li> QUMOND (MONDian) </li>
+      <li> <a href="https://en.wikipedia.org/wiki/AQUAL">AQUAL</a> (<a href="https://en.wikipedia.org/wiki/Modified_Newtonian_dynamics">MOND</a>ian) </li>
+      <li> <a href="https://watermark.silverchair.com/mnras0403-0886.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAA2UwggNhBgkqhkiG9w0BBwagggNSMIIDTgIBADCCA0cGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMGb-fef5Ctx7fV5WJAgEQgIIDGKepu4GZqp7A-i3x1gJbehOyxm4vG9kx4eohWE2ipnUGBf_25ORxOWVF3RG5-wVYger-KaprllV2wY4GHZ0wgwHvb21RfjhDFLkQH7iVLLR2PJTIIEXVfrdU1djeQtRmtcc-NbRF_iAAxoE6q3RDr3hhTndEaYnR_ElwbUhCctE9UcZHCqiD4-3MbwCfKmQm1NJRsI38vjiti9EoHbuz0VVT4-vyOrMIySssTS6A_qGUnW_r2Ar0yDBrtqbjJk5QkOhxG6ZtJQtLFWAJZ6rh5j66ifwBdmPpIaBlsPUM0FcctpFVi8BuvdhaQkE06WzsAvCm-etmIkzV83sNw0bT1G2l-YkZYMJ6IqqX8oqN4kzKxlwYp58CfHg4RNbIXtGwkwmw-FYIXRgbTlinbwlxa9pQO3XxtCySEjDbwFKGzQy-FtqNVDSWpAa4F87y1ie2XzU5pDZri7Fzw4Tw2W0izjptcb6hG1TPFFmQ_X-eXC48yToIXTaoVcdZrAiX3CtLWDLoXM2PbeaSs3ARJszpgZKavP3Et-kPnkhskV589iZSLKVGR4eR8uhCGXWu07sNFCixOMPA6KGkUOBrvukhhdcT0tjbX93SsPB_UH1MOyVowaKjJwkVGGUFEcb3LfYTsqBbs8PZWcu3Jomr6yd7zo5s6hExmHACfz_h_ic8kUZWSnAr3P2TlGNQgyX9DX9O6pghWMtkuhomWu4r9f6Mv2xMjVJ1A_ZCwGZIPm7SeBc70s1TaT4daMzLG6UDEQevzv8M3W7jkd4gYOWqBojvWz2JyR2SO7YWC_LHb4JD6VgrvsvAwZcrEoHyIGb_O25ULxEtgz2d8hd_cbmsO8XgE_VrTp2gz6Twp3c2J46_TpOJitrkKR7MUhr91MNHR5XypthZfQ5zxYR13fQ78TvE-RDe9enShgqlIYU0QQGmfSqocSx8LHFq8B1HPcQiCEMQl5-8tz39dANME-Hvmxn0a9XGblHeGeO5R6Dfgb-AyWW3oZJYJUmNHMpY2P-lS2Bpy8Fmhb_LthPyZqyqj7w2INBr6mWv2TkTpA">QUMOND</a> (<a href="https://en.wikipedia.org/wiki/Modified_Newtonian_dynamics">MOND</a>ian) </li>
       </ul>
       </td>
       <td>

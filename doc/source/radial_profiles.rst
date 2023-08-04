@@ -3,17 +3,26 @@
 Radial Profiles
 ---------------
 
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
+
 To set up a cluster model in spherical hydrostatic and/or virial equilibrium,
 one needs models for various quantities as a function of radius. 
-:class:`~cluster_generator.radial_profiles.RadialProfile` objects 
+:class:`~cluster_generator.radial_profiles.RadialProfile` objects provide a wrapper for the cluster profile of interest.
+There are ``RadialProfile`` objects for temperature, mass, density, and entropy profiles, all of which can be combined
+and used to generate a wide class of available galaxy clusters.
 
 The profiles available in ``cluster_generator`` will now be described, with
 the mathematical formulae given as well as an example instantiation.
 
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
+
 General Profiles
 ================
-
-These profiles are for general use.
+These profiles fall under a general class of useful profiles and can be used to model any physical quantity of interest.
 
 Constant Profile
 ++++++++++++++++
@@ -56,6 +65,10 @@ scale radius with units of kpc, and :math:`\alpha` is a power-law index.
     alpha = -3.0 # index parameter
     p = cg.power_law_profile(A, r_s, alpha)
 
+.. raw:: html
+
+   <hr style="height:3px;background-color:black">
+
 Density and Mass Profiles
 =========================
 
@@ -65,8 +78,7 @@ often used to model gas, DM, or total density/mass distributions.
 NFW Profile
 +++++++++++
 
-The Navarro-Frenk-White (NFW) profile from Navarro, J.F., Frenk, C.S.,
-& White, S.D.M. 1996, ApJ, 462, 563 is often used to model DM halos and
+The Navarro-Frenk-White (NFW) profile [1]_ is often used to model DM halos and
 total density/mass profiles.
 
 Density:
@@ -82,7 +94,12 @@ Mass:
     M_{\rm NFW}(<r) = 4\pi{\rho_s}{r_s^2}\left[\ln\left(1+\frac{r}{r_s}\right)-\frac{r}{r+r_s}\right]
 
 where :math:`\rho_s` is a scale density in units of :math:`{\rm M_\odot~kpc^{-3}}`,
-and :math:`r_s` is a scale radius in units of kpc. 
+and :math:`r_s` is a scale radius in units of kpc.
+
+.. admonition:: Mathematical Note
+
+    The function :math:`M_{\mathrm{NFW}}(<r)` is manifestly divergent as :math:`r\to \infty`. As such, it is typically
+    necessary to truncate the NFW profile at some maximal radius. See TNFW profile for more information.
 
 An NFW density profile function can be generated using 
 :func:`~cluster_generator.radial_profiles.nfw_density_profile`, and the NFW mass
@@ -101,13 +118,20 @@ If you want to determine the scale density using a given concentration parameter
 you can use the :func:`~cluster_generator.radial_profiles.nfw_scale_density`
 function to determine it:
 
+.. code-block:: python
+
+    import cluster_generator as cg
+    conc = 4.0 # - Example value for the concentration parameter.
+    z = 0.8
+    delta = 200
+    rho_s = cg.radial_profiles.nfw_scale_density(conc,z=z,delta=delta)
+
 
 
 "super-NFW" Profile
 +++++++++++++++++++
 
-The "super-NFW" profile from Lilley, E. J., Wyn Evans, N., & Sanders, J.L. 2018,
-MNRAS is similar to the NFW profile, except that it falls off faster at large
+The "super-NFW" profile [2]_ is similar to the NFW profile, except that it falls off faster at large
 radius and thus its mass profile is finite at infinity. 
 
 Density:
@@ -126,7 +150,7 @@ where :math:`M` is the total mass of the profile in units of
 :math:`{\rm M_\odot}`, and :math:`a` is a scale radius in units of kpc. 
 
 An sNFW density profile function can be generated using 
-:func:`~cluster_generator.radial_profiles.snfw_density_profile`, and the sNFW 
+:func:`~cluster_generator.radial_profiles.snfw_density_profile`, and the sNFW
 mass profile function can be generated using
 :func:`~cluster_generator.radial_profiles.snfw_mass_profile`:
 
@@ -140,6 +164,9 @@ mass profile function can be generated using
 
 Truncated NFW Profile
 +++++++++++++++++++++
+The Truncated NFW Profile (TNFW) is designed to fall off :math:`\sim r^{-2}` at radii beyond the truncation radius :math:`r_t`.
+This causes the total mass of the profile to become finite. Typically, :math:`r_t` is set at some radius beyond the virial radius of
+the cluster to minimize the impact that introducing the truncation has on the physics within the system of interest.
 
 .. math::
 
@@ -147,6 +174,9 @@ Truncated NFW Profile
 
 Hernquist Profile
 +++++++++++++++++
+The Hernquist Profile [3]_ is a standard profile choice when modeling stellar bulges and shperical galaxies. It is regularly
+used in the context of galaxy clusters to model the brightest central galaxy (BCG). The profile contains a logarithmic power-law slope
+determined by the parameter :math:`\alpha`.
 
 .. math::
 
@@ -158,6 +188,8 @@ Hernquist Profile
 
 Einasto Profile
 +++++++++++++++
+The Einasto Profile [4]_ is another typical profile used for modeling spherical galaxies, bulges, and BCGs. The profile contains a logarithmic power-law slope
+determined by the parameter :math:`\alpha`.
 
 .. math::
 
@@ -179,6 +211,11 @@ where
 
 Vikhlinin et al. 2006 Density Profile
 +++++++++++++++++++++++++++++++++++++
+The Vikhlinin Density Profile [5]_ is a modified version of the standard :math:`\beta`-model [6]_, which aims to
+replicate observed properties of clusters in the X-ray band. Modifications were made to create a cuspy core instead of a
+flat core, parameterized by the :math:`\alpha` value. The second factor in the first term is added to increase the power-law slope at
+large radii. Finally, the second term represents another :math:`\beta` model which increases the freedom of the model
+near cluster cores.
 
 .. math::
 
@@ -186,6 +223,8 @@ Vikhlinin et al. 2006 Density Profile
 
 Ascasibar & Markevitch 2006 Density Profile
 +++++++++++++++++++++++++++++++++++++++++++
+The AM06 Density Profile [7]_ may be derived as the hydrostatic equilibrium solution for a cluster having a temperature profile given
+by the AM06 temperature profile.
 
 .. math::
 
@@ -201,7 +240,10 @@ where
 
     \beta = 1-n\frac{1-a/a_c}{c-a/a_c}
 
-    
+.. raw:: html
+
+   <hr style="height:3px;background-color:black">
+
 Temperature Profiles
 ====================
 
@@ -229,6 +271,9 @@ Ascasibar & Markevitch 2006 Temperature Profile
 
     T_{\rm AM06}(r) = \frac{T_0}{1+r/a}\frac{c+r/a_c}{1+r/a_c}
 
+.. raw:: html
+
+   <hr style="height:3px;background-color:black">
 Entropy Profiles
 ================
 
@@ -238,3 +283,16 @@ Baseline Entropy Profile
 .. math::
 
     K(r) = K_0 + K_{200}\left(\frac{r}{r_{200}}\right)^\alpha
+
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
+References
+----------
+.. [1] Navarro, J.F., Frenk, C.S.,& White, S.D.M. 1996, ApJ, 462, 563
+.. [2] Lilley, E. J., Wyn Evans, N., & Sanders, J.L. 2018, MNRAS
+.. [3] Astrophysical Journal v.356, p.359
+.. [4] J. Einasto (1965), Kinematics and dynamics of stellar systems, Trudy Inst. Astrofiz. Alma-Ata 5, 87
+.. [5] Vikhlinin, A., Kravtsov, A., Forman, W., Jones, C., Markevitch, M., Murray, S. S., & Van Speybroeck, L. (2006). Chandra sample of nearby relaxed galaxy clusters: Mass, gas fraction, and mass-temperature relation. The Astrophysical Journal, 640(2), 691.
+.. [6] Cavaliere, A.&Fusco-Femiano, R.1978, A&A, 70, 677
+.. [7] Ascasibar, Y., & Markevitch, M. (2006). The origin of cold fronts in the cores of relaxed galaxy clusters. The Astrophysical Journal, 650(1), 102.
