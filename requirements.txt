@@ -1,3 +1,4 @@
+cython
 accessible-pygments==0.0.4
 alabaster==0.7.13
 astropy==5.2.2
