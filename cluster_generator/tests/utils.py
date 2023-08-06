@@ -9,7 +9,7 @@ from cluster_generator.radial_profiles import find_overdensity_radius, \
     rescale_profile_by_mass, find_radius_mass, snfw_mass_profile
 
 
-def generate_model():
+def generate_model(gravity="Newtonian",attrs=None):
     z = 0.1
     M200 = 1.5e15
     conc = 4.0
@@ -26,7 +26,7 @@ def generate_model():
     rmin = 0.1
     rmax = 10000.0
     m = ClusterModel.from_dens_and_tden(rmin, rmax, rhog, rhot,
-                                        stellar_density=rhos)
+                                        stellar_density=rhos,gravity=gravity,attrs=attrs)
     m.set_magnetic_field_from_beta(100.0, gaussian=True)
 
     return m

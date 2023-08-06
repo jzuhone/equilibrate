@@ -4,6 +4,7 @@ Complete models of galaxy clusters including hydrostatic equilibrium.
 import os
 from collections import OrderedDict
 
+import astropy.units
 import h5py
 import numpy as np
 from scipy.integrate import cumtrapz, quad
@@ -20,6 +21,8 @@ from cluster_generator.virial import \
     VirialEquilibrium
 from cluster_generator.gravity import Potential,_default_a_0,_default_interpolation_function
 from scipy.optimize import fsolve
+import astropy
+
 tt = 2.0 / 3.0
 mtt = -tt
 ft = 5.0 / 3.0
@@ -165,7 +168,10 @@ class ClusterModel(Potential):
         ----------
         filename : string
             The name of the file to read the model from.
-
+        r_min: float, optional
+            The minimum radius
+        r_max: float, optional
+            The maximal radius
         """
         from cluster_generator.virial import VirialEquilibrium
 
@@ -460,7 +466,7 @@ class ClusterModel(Potential):
 
     @classmethod
     def no_gas(cls, rmin, rmax, total_density, stellar_density=None,
-               num_points=1000,gravity="Newtonian"):
+               num_points=1000):
         """
         Generates the cluster without gas.
 
@@ -495,10 +501,12 @@ class ClusterModel(Potential):
         fields["total_mass"] = unyt_array(integrate_mass(total_density, rr),
                                           "Msun")
 
-        return cls._from_scratch(fields, stellar_density=stellar_density)
+        return cls._from_scratch(fields, stellar_density=stellar_density,gravity="Newtonian")
 
     #  Methods
     # ----------------------------------------------------------------------------------------------------------------- #
+    def keys(self):
+        return self.fields.keys()
     def set_rmax(self, r_max):
         mask = self.fields["radius"].d <= r_max
         fields = {}
@@ -508,8 +516,6 @@ class ClusterModel(Potential):
         return ClusterModel(num_elements, fields, dm_virial=self.dm_virial,
                             star_virial=self.star_virial)
 
-    def keys(self):
-        return self.fields.keys()
 
     def write_model_to_ascii(self, output_filename, in_cgs=False,
                              overwrite=False):
@@ -526,6 +532,16 @@ class ClusterModel(Potential):
             Whether to convert the units to cgs before writing. Default: False.
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default: False.
+
+        Examples
+        --------
+        >>> # - Imports - #
+        >>> from cluster_generator.tests.utils import generate_model
+        >>> import tempfile
+        >>> # Generating the model #
+        >>> mdl = generate_model(gravity="Newtonian")
+        >>> with tempfile.TemporaryDirectory() as temp_dir:
+        ...     mdl.write_model_to_ascii(os.path.join(temp_dir,"model.h5"),overwrite=True)
         """
         from astropy.table import QTable
         fields = {}
@@ -539,10 +555,20 @@ class ClusterModel(Potential):
                     fd = v
             else:
                 fd = v
-            fields[k] = fd.to_astropy()
+
+            # - Checking for dimension issues - #
+            if str(fd.units) == "dimensionless":
+                fields[k] = fd.d * astropy.units.dimensionless_unscaled
+            else:
+                fields[k] = fd.to_astropy()
         t = QTable(fields)
         t.meta['comments'] = f"unit_system={'cgs' if in_cgs else 'galactic'}"
-        t.write(output_filename, overwrite=overwrite)
+
+        # Adding all of the additional info #
+        t.meta["gravity"] = self.gravity
+        t.meta["attrs"] = self.attrs
+
+        t.write(output_filename, overwrite=overwrite,serialize_meta=True)
 
     def write_model_to_h5(self, output_filename, in_cgs=False, r_min=None,
                           r_max=None, overwrite=False):
@@ -557,6 +583,16 @@ class ClusterModel(Potential):
             Whether to convert the units to cgs before writing. Default False.
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
+
+        Examples
+        --------
+        >>> # - Imports - #
+        >>> from cluster_generator.tests.utils import generate_model
+        >>> import tempfile
+        >>> # Generating the model #
+        >>> mdl = generate_model(gravity="Newtonian")
+        >>> with tempfile.TemporaryDirectory() as temp_dir:
+        ...     mdl.write_model_to_h5(os.path.join(temp_dir,"model.h5"),overwrite=True)
         """
         if os.path.exists(output_filename) and not overwrite:
             raise IOError(f"Cannot create {output_filename}. It exists and "
@@ -593,6 +629,48 @@ class ClusterModel(Potential):
     def write_model_to_binary(self, output_filename, fields_to_write=None,
                               in_cgs=False, r_min=None, r_max=None,
                               overwrite=False):
+        """
+        writes the model to unformatted Fortran binary.
+
+        .. attention::
+
+            But why would you want Fortan binary??
+
+        .. warning::
+
+            This proceedure will lose all of the metadata from the ``self.gravity`` attribute and the ``self.attrs``
+            dictionary. As such, this should only be used in cases where the user can specify those properties manually
+            upon reopening the file.
+
+        Parameters
+        ----------
+        output_filename: str
+            The output filename.
+        fields_to_write: list
+            The list of field names to write.
+        in_cgs: bool
+            If ``True``, will write in cgs.
+        r_min: float
+            The minimum radius
+        r_max: float
+            The maximum radius
+        overwrite: bool
+            ``True`` will overwrite any existing file with the same path.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> # - Imports - #
+        >>> from cluster_generator.tests.utils import generate_model
+        >>> import tempfile
+        >>> # Generating the model #
+        >>> mdl = generate_model(gravity="Newtonian")
+        >>> with tempfile.TemporaryDirectory() as temp_dir:
+        ...     mdl.write_model_to_binary(os.path.join(temp_dir,"model.h5"),overwrite=True)
+        """
         if fields_to_write is None:
             fields_to_write = list(self.fields.keys())
         from scipy.io import FortranFile
@@ -655,9 +733,39 @@ class ClusterModel(Potential):
         chk : NumPy array
             An array containing the relative deviation from hydrostatic
             equilibrium as a function of radius.
+
+        Notes
+        -----
+        Recall that the hydrostatic vector :math:`\Gamma` is defined such that
+
+        .. math::
+
+            \Gamma = -\frac{\nabla P}{\rho_g} = \nabla \Phi,
+
+        Thus, in hydrostatic equilibrium, :math:`\nabla P + \nabla \Phi \rho_g = 0`. To produce a scale invariant quantity, we instead
+        report
+
+        .. math::
+
+            \alpha = \frac{\nabla P + \nabla \Phi \rho_g}{\nabla \Phi \rho_g}.
+
+        Examples
+        --------
+        >>> # - Imports - #
+        >>> from cluster_generator.tests.utils import generate_model
+        >>> import numpy as np
+        >>> from numpy.testing import assert_almost_equal
+        >>> # Generating the model #
+        >>> mdl = generate_model(gravity="Newtonian")
+        >>> # Checking HSE
+        >>> assert_almost_equal(np.amax(mdl.check_hse().d),0,decimal=3)
         """
+        #  Sanity Check
+        # ------------------------------------------------------------------------------------------------------------ #
         if "pressure" not in self.fields:
             raise RuntimeError("This ClusterModel contains no gas!")
+        #  Pulling necessary fields
+        # ----------------------------------------------------------------------------------------------------------------- #
         rr = self.fields["radius"].v
         pressure_spline = InterpolatedUnivariateSpline(
             rr, self.fields["pressure"].v)
@@ -793,33 +901,46 @@ class ClusterModel(Potential):
             which sets the seed based on the system time.
         """
         from cluster_generator.utils import parse_prng
+        #  Setup
+        # ------------------------------------------------------------------------------------------------------------ #
         prng = parse_prng(prng)
         mylog.info("We will be assigning %d particles." % num_particles)
-        mylog.info("Compute particle positions.")
 
+        mylog.info("\tComputing particle positions...")
+
+        # Determining the number of particles to partition into subsamples.
         num_particles_sub = num_particles // sub_sample
 
+        #  Sampling
+        # ------------------------------------------------------------------------------------------------------------ #
+        # ** --------------- Radii --------------------** #
+        # Inverse distribution sampling to get radii for particles and measure of total mass.
         radius_sub, mtot = generate_particle_radii(self["radius"].d,
                                                    self["gas_mass"].d,
                                                    num_particles_sub,
                                                    r_max=r_max, prng=prng)
-
+        # duplicating the radii sampled
         if sub_sample > 1:
             radius = np.tile(radius_sub, sub_sample)[:num_particles]
         else:
             radius = radius_sub
 
+        # ** ------------------ Angular Position --------------- ** #
         theta = np.arccos(prng.uniform(low=-1., high=1., size=num_particles))
         phi = 2. * np.pi * prng.uniform(size=num_particles)
 
+        #  Building the fields
+        # ------------------------------------------------------------------------------------------------------------ #
         fields = OrderedDict()
 
         fields["gas", "particle_position"] = unyt_array(
             [radius * np.sin(theta) * np.cos(phi), radius * np.sin(theta) * np.sin(phi),
              radius * np.cos(theta)], "kpc").T
 
-        mylog.info("Compute particle thermal energies, densities, and masses.")
+        mylog.info("Computing particle thermal energies, densities, and masses.")
 
+        # --- Fetching energy --- #
+        # ! Using equipartition theorem and ideal gas law.
         e_arr = 1.5 * self.fields["pressure"] / self.fields["density"]
         get_energy = InterpolatedUnivariateSpline(self.fields["radius"], e_arr)
 
@@ -829,6 +950,8 @@ class ClusterModel(Potential):
             energy = get_energy(radius)
 
         fields["gas", "thermal_energy"] = unyt_array(energy, "kpc**2/Myr**2")
+
+        # --- Fetching the particle mass --- #
         fields["gas", "particle_mass"] = unyt_array(
             [mtot / num_particles] * num_particles, "Msun")
 
@@ -843,11 +966,14 @@ class ClusterModel(Potential):
 
         fields["gas", "density"] = unyt_array(density, "Msun/kpc**3")
 
+        # --- Setting particle velocities --- #
+        # ! These are set to zero because they already have a thermally implied velocity
         mylog.info("Set particle velocities to zero.")
 
         fields["gas", "particle_velocity"] = unyt_array(
             np.zeros((num_particles, 3)), "kpc/Myr")
 
+        # --- Setting the potential if required --- #
         if compute_potential:
             energy_spline = InterpolatedUnivariateSpline(
                 self["radius"].d, -self["gravitational_potential"])
