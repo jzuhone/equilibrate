@@ -6,7 +6,7 @@ The functions in this module provide empirical relations between profile variabl
 """
 import numpy as np
 import unyt as u
-from .utils import mue
+from cluster_generator.utils import mue
 
 
 def f_gas(M500, hubble=0.7):

@@ -39,7 +39,7 @@ jobs:
         run: python3 -m pip install -r ./requirements.txt
 
       - run: |
-          cd ./doc
+          cd ./docs
           make html
 
       - name: Deploy

@@ -468,9 +468,6 @@ class VirialEquilibrium:
 
             # --- Generating the dispersion spline --- #
             dispersion_spline = InterpolatedUnivariateSpline(self.model["radius"],self.sigma)
-            import matplotlib.pyplot as plt
-            plt.loglog(self.model["radius"],dispersion_spline(self.model["radius"]))
-            plt.show()
             dispersion_array = dispersion_spline(radius_sub) # assigns the correct dispersion to each of the radii in the particle sample.
 
             # --- Computing the relevant escape velocities at each radius --- #
