@@ -1,7 +1,9 @@
 name: Tests
 
-on: [ push ]
-
+on:
+  push:
+  workflow_dispatch:
+    inputs:
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,6 +23,11 @@ jobs:
           pip3 install pytest pytest-cov pytest-subtests
           pip3 install coveralls
           pip3 install -r requirements.txt
+      - name: Setup
+        run: |
+          pip install -e .
       - name: Running pytest
         run: |
-          pytest --doctest-modules --cov=PyHPC --cov-report=xml
+          pytest cluster_generator --doctest-modules --answer_dir="./tmp" --answer_store
+          pytest cluster_generator --doctest-modules --cov=cluster_generator --cov-report=xml --answer_dir="./tmp"
+          COVERALLS_REPO_TOKEN=tQ0ra8kUn56CDx6Cjp7Wil8Pp5qA9vTdK coveralls

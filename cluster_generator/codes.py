@@ -1,3 +1,12 @@
+"""
+Code-specific utilities for the ``cluster_generator`` library.
+
+Available Softwares
+===================
+
+.. csv-table::
+    :file: ../docs/source/_images/tables/softwares.csv
+"""
 from cluster_generator.model import ClusterModel
 from cluster_generator.utils import mylog
 from unyt import uconcatenate

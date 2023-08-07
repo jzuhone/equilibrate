@@ -13,3 +13,4 @@ def test_particles(answer_store, answer_dir):
     hp = m.generate_gas_particles(100000, prng=prng)
     parts = hp+dp+sp
     particle_answer_testing(parts, "particles.h5", answer_store, answer_dir)
+

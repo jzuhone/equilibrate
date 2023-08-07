@@ -226,10 +226,6 @@ class ClusterParticles:
         filename : string
             The name of the file to read the model from.
 
-        Examples
-        --------
-        >>> from cluster_generator import ClusterParticles
-        >>> dm_particles = ClusterParticles.from_file("dm_particles.h5")
         """
         names = {}
         with h5py.File(filename, "r") as f:
@@ -271,11 +267,6 @@ class ClusterParticles:
             a single string or a list of strings. If None,
             all particle types will be read from the file.
 
-        Examples
-        --------
-        >>> from cluster_generator import ClusterParticles
-        >>> ptypes = ["gas", "dm"]
-        >>> particles = ClusterParticles.from_gadget_file("snapshot_060.h5", ptypes=ptypes)
         """
         fields = OrderedDict()
         f = h5py.File(filename, "r")

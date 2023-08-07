@@ -52,75 +52,132 @@ def compute_centers_for_binary(center, d, b, a=0.0):
 
 
 class ClusterICs:
+    """
+    The ``ClusterICs`` object is the user-side class containing the complete initial condition for a given simulation.
+
+    Parameters
+    ----------
+    basename: str
+        The base name of the initial condition. This can be more or less arbitrary.
+    num_halos: int
+        The number of halos included in the simulation.
+    profiles: list of str
+        List of path strings to the ``.h5`` files containing the cluster models for the given simulation.
+    center: unyt_array
+        The center of the various halos. This should be an ``m x 3`` array, where ``m`` is the number of halos.
+    velocity: unyt_array
+        The velocities of the various halos. This should be an ``m x 3`` array.
+    num_particles: dict
+        The number of each type of particle to include. Keys should be ``dm,star,gas``.
+    mag_file: str
+        The path to the magnetic field file.
+    particle_files: list of str
+        The paths to the additional particle files to include.
+    r_max: float
+        The maximal radius up to which data is permitted.
+
+    """
     def __init__(self, basename, num_halos, profiles, center,
                  velocity, num_particles=None, mag_file=None, 
                  particle_files=None, r_max=20000.0):
+        #  Managing parameters
+        # ------------------------------------------------------------------------------------------------------------ #
+        #: The name of the cluster initial conditions
         self.basename = basename
+        #: the number of halos included.
         self.num_halos = num_halos
+        #: the list of profile files.
         self.profiles = ensure_list(profiles)
+        #: the centers of the clusters.
         self.center = ensure_ytarray(center, "kpc")
+        #: The velocities of the clusters.
         self.velocity = ensure_ytarray(velocity, "kpc/Myr")
-        if self.num_halos == 1:
+
+        if self.num_halos == 1: #--> make sure (3,) sized arrays become (1,3)
             self.center = self.center.reshape(1, 3)
             self.velocity = self.velocity.reshape(1, 3)
+
+        #: The magnetic field file.
         self.mag_file = mag_file
+        #: The maximal allowed radius.
         self.r_max = r_max
+
         if num_particles is None:
+            #: dictionary containing the total numbers of all the particles.
             self.tot_np = {"dm": 0, "gas": 0, "star": 0}
         else:
             self.tot_np = num_particles
+
+        #  T
+        # ------------------------------------------------------------------------------------------------------------ #
         self._determine_num_particles()
         self.particle_files = [None]*3
         if particle_files is not None:
             self.particle_files[:num_halos] = particle_files[:]
 
     def _determine_num_particles(self):
+        """
+        Computes the number of particles and their allocations.
+        """
         from collections import defaultdict
+        # - Pre-allocation of arrays -------------------------------#
         dm_masses = []
         gas_masses = []
         star_masses = []
+
+        # - Analyzing models ---------------------------------------#
         for pf in self.profiles:
+            # Loading the cluster model object #
             p = ClusterModel.from_h5_file(pf)
-            idxs = p["radius"] < self.r_max
-            dm_masses.append(p["dark_matter_mass"][idxs][-1].value)
-            if "gas_mass" in p:
-                gmass = p["gas_mass"][idxs][-1].value
+            idxs = p["radius"] < self.r_max # These are the valid radii for our use.
+
+            # Determining allowable number.
+            for field_name,lst in zip(["dark_matter_mass","gas_mass","stellar_mass"],
+                                      [dm_masses,gas_masses,star_masses]):
+                if field_name in p:
+                    # We found a matching profile
+                    lst.append(p[field_name][idxs][-1].value)
             else:
-                gmass = 0.0
-            gas_masses.append(gmass)
-            if "stellar_mass" in p:
-                smass = p["stellar_mass"][idxs][-1].value
-            else:
-                smass = 0.0
-            star_masses.append(smass)
+                lst.append(0.0)
+
+        # - Finding true total masses - #
         tot_dm_mass = np.sum(dm_masses)
         tot_gas_mass = np.sum(gas_masses)
         tot_star_mass = np.sum(star_masses)
+
+        # Determining the necessary particles / halo distribution.
+        # ----------------------------------------------------------------------------------------------------------------- #
         self.num_particles = defaultdict(list)
         for i in range(self.num_halos):
-            if self.tot_np.get("dm", 0) > 0:
-                ndp = np.rint(
-                    self.tot_np["dm"]*dm_masses[i]/tot_dm_mass).astype("int")
-            else:
-                ndp = 0
-            self.num_particles["dm"].append(ndp)
-            if self.tot_np.get("gas", 0) > 0:
-                ngp = np.rint(
-                    self.tot_np["gas"]*gas_masses[i]/tot_gas_mass).astype("int")
-            else:
-                ngp = 0
-            self.num_particles["gas"].append(ngp)
-            if self.tot_np.get("star", 0) > 0:
-                nsp = np.rint(
-                    self.tot_np["star"]*star_masses[i]/tot_star_mass).astype("int")
-            else:
-                nsp = 0
-            self.num_particles["star"].append(nsp)
+            for ptype,pmasses,ptmass in zip(["dm","gas","star"],
+                                            [dm_masses,gas_masses,star_masses],
+                                            [tot_dm_mass,tot_gas_mass,tot_star_mass]):
+                if self.tot_np.get(ptype,0) > 0:
+                    _n = np.rint(self.tot_np[ptype]*pmasses[i]/ptmass).astype("int")
+                else:
+                    _n = 0
+                self.num_particles[ptype].append(_n)
+
 
     def _generate_particles(self, regenerate_particles=False, prng=None):
+        """
+        Generates the particles for the ``ClusterIC`` object.
+        Parameters
+        ----------
+        regenerate_particles: bool
+            Make ``True`` to regenerate particles instead of looking for them in the particle files.
+
+        Returns
+        -------
+
+        """
+        #  Setup
+        # ------------------------------------------------------------------------------------------------------------ #
         prng = parse_prng(prng)
         parts = []
+
         for i, pf in enumerate(self.profiles):
+            # -- Cycle through each halo and generate the corresponding particles -- #
             if regenerate_particles or self.particle_files[i] is None:
                 m = ClusterModel.from_h5_file(pf)
                 p = m.generate_dm_particles(
@@ -140,6 +197,7 @@ class ClusterICs:
                 p.write_particles(outfile, overwrite=True)
                 self.particle_files[i] = outfile
             else:
+                # Regenerate particles is false and we found a file, we can make the particles from file.
                 p = ClusterParticles.from_file(self.particle_files[i])
                 parts.append(p)
         return parts
@@ -391,3 +449,15 @@ class ClusterICs:
         return load_uniform_grid(data, domain_dimensions, length_unit="kpc", 
                                  bbox=bbox, mass_unit="Msun", time_unit="Myr",
                                  **kwargs)
+if __name__ == '__main__':
+    test = ClusterICs(
+        "test",
+        2,
+        ["/home/ediggins/test/Newtonian_model.h5","/home/ediggins/test/AQUAL_model.h5"],
+        [0,0,0],
+        [0,0,0],
+        num_particles={"dm":2e4}
+
+    )
+
+    test.setup_particle_ics()

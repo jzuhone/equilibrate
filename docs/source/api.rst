@@ -9,8 +9,10 @@ API
     radial_profiles
     fields
     ics
-    models
+    model
     particles
     relations
     utils
     virial
+    gravity
+    codes
