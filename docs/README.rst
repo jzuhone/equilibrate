@@ -1,9 +1,3 @@
-.. cluster_generator documentation master file, created by
-   sphinx-quickstart on Mon Jul 27 14:41:05 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-
 
 cluster_generator
 =================
@@ -58,9 +52,8 @@ Features
    </tr>
    </table>
 
-
 Installing ``cluster_generator``
---------------------------------
+================================
 In this guide are instructions on the installation of the ``cluster_generator`` library. If you encounter any issues during
 the installation process, please visit the **ISSUES** page of the github and report the issue. We will attempt to provide
 support as quickly as possible.
@@ -69,10 +62,12 @@ support as quickly as possible.
 
    <hr style="height:10px;background-color:black">
 
+
 Getting the Package
 ===================
 From PyPI
 +++++++++
+
 .. attention::
 
     This package is not yet published on PyPI
@@ -93,7 +88,6 @@ Once the git clone has finished, there should be a directory ``./cluster_generat
 .. raw:: html
 
    <hr style="height:3px;background-color:black">
-
 
 Dependencies
 ============
