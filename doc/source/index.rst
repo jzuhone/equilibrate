@@ -67,6 +67,7 @@ Contents
 .. toctree::
    :maxdepth: 1
 
+   install
    introduction
    radial_profiles
    models

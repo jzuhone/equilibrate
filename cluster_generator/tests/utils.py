@@ -31,7 +31,27 @@ def generate_model(gravity="Newtonian",attrs=None):
 
     return m
 
-
+def generate_model_dens_tdens(gravity="Newtonian",attrs=None):
+    """Generates a model test for dens/tdens initialization as a model."""
+    z= 0.1
+    M200 = 1.5e15
+    conc = 4.0
+    r200 = find_overdensity_radius(M200, 200.0, z=z)
+    a = r200 / conc
+    M = snfw_total_mass(M200, r200, a)
+    rhot = snfw_density_profile(M, a)
+    Mt = snfw_mass_profile(M, a)
+    r500, M500 = find_radius_mass(Mt, z=z, delta=500.0)
+    f_g = 0.12
+    rhog = vikhlinin_density_profile(1.0, 100.0, r200, 1.0, 0.67, 3)
+    rhog = rescale_profile_by_mass(rhog, f_g * M500, r500)
+    rhos = 0.02 * rhot
+    rmin = 0.1
+    rmax = 10000.0
+    m = ClusterModel.from_dens_and_tden(rmin, rmax, rhog, rhot,
+                                        stellar_density=rhos,gravity=gravity,attrs=attrs)
+    m.set_magnetic_field_from_beta(100.0, gaussian=True)
+    return m
 def generate_mdr_potential():
     z = 0.1
     M200 = 1.5e15

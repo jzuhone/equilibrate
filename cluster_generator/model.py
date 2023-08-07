@@ -58,7 +58,7 @@ class ClusterModel(Potential):
         +---------------------+------------------------------------------+----------------+---------------------------------------------------+
 
     gravity: str
-        The gravity theory to apply. Options are ``["Newtonian,AQUAL,QUMOND]``.
+        The gravity theory to apply. Options are ``[Newtonian,AQUAL,QUMOND]``.
 
     Notes
     -----
@@ -89,6 +89,8 @@ class ClusterModel(Potential):
         # - Super Initialization - #
         super().__init__(fields,gravity,attrs)
 
+        self.virialization_method = ("eddington" if gravity == "Newtonian" else "lma")
+
     def __repr__(self):
         return f"ClusterModel object; gravity={self.gravity}"
 
@@ -100,16 +102,14 @@ class ClusterModel(Potential):
 
     @property
     def dm_virial(self):
-        #TODO: THIS GETS CHANGED
         if self._dm_virial is None:
-            self._dm_virial = VirialEquilibrium(self, "dark_matter",gravity=self.gravity) #TODO: this needs local maxwellian check
+            self._dm_virial = VirialEquilibrium(self, "dark_matter",type=self.virialization_method)
         return self._dm_virial
 
     @property
     def star_virial(self):
-        #TODO: THIS GETS CHANGED
         if self._star_virial is None and "stellar_density" in self:
-            self._star_virial = VirialEquilibrium(self, "stellar",gravity=self.gravity) #TODO: this check needs local maxwellian check.
+            self._star_virial = VirialEquilibrium(self, "stellar",type=self.virialization_method)
         return self._star_virial
 
     #  Class Methods
@@ -178,8 +178,8 @@ class ClusterModel(Potential):
         # - Grabbing base data -#
         with h5py.File(filename, "r") as f:
             fnames = list(f['fields'].keys())
-            get_dm_virial = 'dm_df' in f #TODO: CHECK THIS
-            get_star_virial = 'star_df' in f #TODO:CHECK THIS
+            get_dm_virial = 'dm_df' in f
+            get_star_virial = 'star_df' in f
 
             # Grabbing additional attributes #
             _attrs = dict(f.attrs)
@@ -214,21 +214,29 @@ class ClusterModel(Potential):
         model = cls(fields, attrs=_attrs,gravity=_grav)
 
         # - Virializing -#
-        if get_dm_virial: #TODO:CHECK
+        if get_dm_virial:
             mask = np.logical_and(fields["radius"].d >= r_min,
                                   fields["radius"].d <= r_max)
             df = unyt_array.from_hdf5(
                 filename, dataset_name="dm_df")[mask]
-            model._dm_virial = VirialEquilibrium(
+            if model.gravity == "Newtonian":
+                model._star_virial = VirialEquilibrium(
                 model, ptype="dark_matter", df=df)
+            else:
+                model._star_virial = VirialEquilibrium(
+                model, ptype="dark_matter", sigma2=df)
 
-        if get_star_virial: #TODO:CHECK
+        if get_star_virial:
             mask = np.logical_and(fields["radius"].d >= r_min,
                                   fields["radius"].d <= r_max)
             df = unyt_array.from_hdf5(
                 filename, dataset_name="star_df")[mask]
-            model._star_virial = VirialEquilibrium(
+            if model.gravity == "Newtonian":
+                model._star_virial = VirialEquilibrium(
                 model, ptype="stellar", df=df)
+            else:
+                model._star_virial = VirialEquilibrium(
+                model, ptype="stellar", sigma2=df)
 
         return model
 
@@ -600,6 +608,7 @@ class ClusterModel(Potential):
         f = h5py.File(output_filename, "w")
         f.create_dataset("num_elements", data=self.num_elements)
         f.attrs["unit_system"] = "cgs" if in_cgs else "galactic"
+        f.attrs["gravity"] = self.gravity
         f.close()
         if r_min is None:
             r_min = 0.0
@@ -1178,8 +1187,18 @@ def _compute_total_mass(fields,gravity,attrs):
     return _output
 
 if __name__ == '__main__':
-    from cluster_generator.tests.utils import generate_mdr_potential
-    m,d,r = generate_mdr_potential()
-    model = ClusterModel({"total_mass":m,"radius":r,"total_density":d},gravity="QUMOND")
-    print(model.pot.units)
-    print(model)
+    from cluster_generator.tests.utils import generate_model_dens_tdens
+
+    model = generate_model_dens_tdens()
+    model.virialization_method = "lma"
+    vir = model.dm_virial
+    q = vir.generate_particles(2000000)
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
+    x,y = q["dm","particle_position"][:,0],q["dm","particle_position"][:,1]
+    v = [np.linalg.norm(i) for i in q["dm","particle_velocity"]]
+
+    n = mpl.colors.LogNorm(vmin=np.amin(v),vmax=np.amax(v))
+    c = n(np.array(v))
+    plt.scatter(x,y,c=c,alpha=0.5)
+    plt.show()

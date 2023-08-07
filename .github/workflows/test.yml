@@ -12,10 +12,9 @@ jobs:
         python-version: [ "3.8" ]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-          cache: 'pip' # caching pip dependencies
+      - name: Set up Python ${{ matrix.python-version }}
+        run: |
+          sudo apt-get install python3
       - name: Install dependencies
         run: |
           sudo apt-get install build-essential  python3-dev
