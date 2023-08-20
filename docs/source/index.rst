@@ -24,6 +24,7 @@ assumptions, and non-Newtonian gravity options.
 
 Features
 ========
+- **Exhaustive versatility in available gravity theories and built-in profiles for a variety of purposes.**
 
 .. raw:: html
 
@@ -44,19 +45,30 @@ Features
       </td>
       <td>
       <ul>
-      <li> [T/S]-NFW  </li>
-      <li> Hernquist [cored / uncored] </li>
-      <li> Einasto </li>
-      <li> Power Law </li>
-      <li> Beta Model </li>
-      <li> am06 </li>
-      <li> Vikhlinin (density) </li>
-      <li> Vikhlinin (temperature) </li>
+      <li> NFW Profiles [Normal, Truncated, Super]  </li>
+      <li> Hernquist Profiles [cored / uncored] </li>
+      <li> Einasto Profile</li>
+      <li> Power Law Profile</li>
+      <li> Beta Model Profile</li>
+      <li> Ascasibar & Markevitch (2006) [density, temperature]</li>
+      <li> Vikhlinin (2006) [density,temperature]</li>
       <li> Entropy [baseline, broken, walker] </li>
       </ul>
       </td>
    </tr>
    </table>
+
+- **Compatibility with many of the most common simulation softwares for pain-free simulation setup**
+   - :ref:`RAMSES <ramses>`
+   - :ref:`ATHENA++ <athena>`
+   - :ref:`AREPO <arepo>`
+   - :ref:`GAMER <gamer>`
+   - :ref:`FLASH <flash>`
+   - :ref:`GIZMO <gizmo>`
+   - :ref:`ENZO <enzo>`
+
+- **Magnetic field implementations**
+- **Multiple virialization methods**
 
 Contents
 ========

@@ -47,6 +47,21 @@ X_H = 0.76
 mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
 mue = 1.0/(X_H+0.5*(1.0-X_H))
 
+#  Settings
+# ----------------------------------------------------------------------------------------------------------------- #
+#TODO: This could read from a bin file
+#: parameters for cluster generator.
+cg_params = {
+    ("mond","interp_alpha"): 1,
+    ("mond","a_0"): unyt_quantity(1.2e-10,"m/s**2"),
+    ("mond","QUMOND_interp"): None,
+    ("mond","AQUAL_interp"): None,
+    ("util","adj_factor"): 1.2
+}
+
+cg_params["mond","QUMOND_interp"] = lambda x: ((1/2)*(np.sqrt(1+(4/x**cg_params["mond","interp_alpha"])) + 1))**(1/cg_params["mond","interp_alpha"])
+cg_params["mond","AQUAL_interp"] = lambda x: x/(1+x**(cg_params["mond","interp_alpha"]))**(1/cg_params["mond","interp_alpha"])
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # Type Assertions ==================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -107,7 +122,7 @@ def integrate_mass(profile, rr):
     return mass
 
 
-def integrate(profile, rr):
+def integrate(profile, rr,rmax=None):
     """
     Integrates the profile ``profile`` cumulatively over the radial array ``rr``.
     Parameters
@@ -130,8 +145,10 @@ def integrate(profile, rr):
         This function may be costly if run over a large array because each integral is computed individually instead
         of by increment.
     """
+    if rmax is None:
+        rmax = rr[-1]
+
     ret = np.zeros(rr.shape)
-    rmax = rr[-1]
     for i, r in enumerate(rr):
         ret[i] = quad(profile, r, rmax)[0]
     return ret

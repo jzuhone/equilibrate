@@ -2,11 +2,28 @@
 
 Cluster Models
 --------------
+The :py:class:`model.ClusterModel` class is one of the core structures available in ``cluster_generator``. These objects hold all of
+the data related to a single cluster being modeled. The user can use a :py:class:`model.ClusterModel` object to generate particle distributions,
+enforce hydrostatic equilibrium, virialize halos, and generate intial conditions. Furthermore, the user can generate
+:py:class:`model.ClusterModel` objects using a variety of pre-built protocols using :py:class:`radial_profiles.RadialProfile` objects to provide necessary fields of data.
+
+.. raw:: html
+
+   <hr style="color:black">
+
+.. contents::
+
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
 
 .. _math_overview_models:
 
 Cluster Models: Mathematical Overview
 =====================================
+.. admonition:: Reader Suggestion
+
+    To learn more about the various gravity theories discussed here, see the :ref:`gravity` page.
 
 Assuming the intracluster medium of galaxy clusters can be modeled as an
 ideal fluid, the momentum density :math:`\rho{\bf v}` of the
@@ -98,14 +115,14 @@ In QUMOND, the situation is more complex. The necessary equation becomes
 
 .. math::
 
-    \mu\left(\frac{|\nabla \Psi |}{a_0}\right)\nabla \Psi = \Gamma,\;\;\nabla \Psi = \frac{GM_{\mathrm{dyn}}}{r^2}
+    \nu\left(\frac{|\nabla \Psi |}{a_0}\right)\nabla \Psi = \Gamma,\;\;\nabla \Psi = \frac{GM_{\mathrm{dyn}}}{r^2}
 
 This form is not analytically solvable for general :math:`\mu`; however, implicit solutions can be found numerically which provide the
-dynamical mass distribution. Again, in the DMR, the equation simplifies to the form
+dynamical mass distribution. In the DMR, :math:`\nu(x) \to x^{-1/2}`, so
 
 .. math::
 
-    \frac{G^2M_{\mathrm{dyn}}^2}{r^4 a_0} = \Gamma \implies M_{\mathrm{dyn}} \sim r^2 \sqrt{\Gamma} \sim \sqrt{r{3+\beta}},
+    (a_0\nabla \Psi)^{1/2} = \Gamma \implies M_{\mathrm{dyn}} \sim r^2 \Gamma^2 \sim r^{2\beta},
 
 Thus, :math:`T(r) \sim r^{-3}` at large radii for a stable dynamical mass profile. These results are summarized in the table below.
 
@@ -118,60 +135,167 @@ Thus, :math:`T(r) \sim r^{-3}` at large radii for a stable dynamical mass profil
 | AQUAL        | :math:`\mu\left(\frac{|\Gamma|}{a_0}\right)\Gamma = GM_{\mathrm{dyn}}(<r)/r^2`    | :math:`T\sim r^{0}`        |
 |              |                                                                                   |                            |
 +--------------+-----------------------------------------------------------------------------------+----------------------------+
-| QUMOND       | :math:`\Gamma = \mu\left(\frac{|\nabla \Psi|}{a_0}\right) \nabla \Psi` where      | :math:`T\sim r^{-3}`       |
+| QUMOND       | :math:`\Gamma = \nu\left(\frac{|\nabla \Psi|}{a_0}\right) \nabla \Psi` where      | :math:`T\sim r^{0}`        |
 |              | :math:`\nabla \Psi = GM_{\mathrm{dyn}}(<r)/r^2`                                   |                            |
 +--------------+-----------------------------------------------------------------------------------+----------------------------+
 
-Dealing With Non-Convergent Mass Profiles
-+++++++++++++++++++++++++++++++++++++++++
-It is entirely possible to consider clusters wherein :math:`T` does not behave in the correct way at large radii to be
-assymptotically consistent with the chosen gravity theory. In cases where :math:`\beta < \beta_0` (where :math:`\beta_0` is the
-necessary stable behavior of :math:`T`) the temperature drops off too quickly and
-the dynamical mass profile will reach a maxima at some :math:`r_{\mathrm{max}}` before falling to 0. Beyond this maxima, the system is
-clearly non-physical and could not possibly be initialized in a simulation.
+.. raw:: html
 
-Similarly, if :math:`\beta > \beta_0`, the dynamical mass will fail to converge and instead increase monotonically.
+   <hr style="height:10px;background-color:black">
 
-.. attention::
+Generating a :py:class:`model.ClusterModel` Using Radial Profiles
+=================================================================
 
-    To solve this issue, the ``cluster_generator`` package will impose an artificial constraint on the system. At
-    :math:`r_{\mathrm{truncate}} = 2r_{200}`, the temperature profile is altered (for the dynamical mass computation only) such that
+Based on the mathematics above, there are a variety of ways to produce :py:class:`model.ClusterModel` objects. Most of the common approaches
+that see use in practice are built into the ``cluster_generator`` package; however, the :py:meth:`~model.ClusterModel.from_arrays` class method can
+be used to generate a :py:class:`model.ClusterModel` object manually. The available generation approaches are listed as follows:
 
-    .. math::
-
-        T_{\mathrm{truncated}}(r) = T(r) \cdot \left(\frac{r}{r_{\mathrm{truncate}}}\right)^{\beta_0 - \beta}
-
-    Which will induce asymptotic convergence.
-
-.. warning::
-
-    If the user specifies the ``change_T`` kwarg in the ``ClusterModel`` object, then the altered :math:`T` will be
-    used as the consistent temperature profile of the entire model, thus saving HSE to a perfect degree, but changing the
-    user's intended temperature profile. If ``change_T == False`` (default), the cluster's temperature profile remains the same, but
-    the dynamical mass is computed using the altered temperature profile. Thus the user's configuration is saved, but the
-    resultant cluster may not be in perfect HSE.
-
-
-
-Generating a ``ClusterModel`` Using Radial Profiles
-===================================================
-
-The above equations can be solved for in a number of ways, 
-depending on what the initial assumptions are. 
++---------------------------------+--------------------------------------------------------------------------+------------------------------------------------------------------+
+| Method                          |                                 Function                                 | Description                                                      |
++=================================+==========================================================================+==================================================================+
+| From :math:`\rho_g`             | :py:meth:`~model.ClusterModel.from_dens_and_tden`                        | Generates the galaxy cluster from the gas and dynamical density  |
+| and :math:`\rho_{\mathrm{dyn}}` |                                                                          | profiles. Computes temperature / grav. field.                    |
++---------------------------------+--------------------------------------------------------------------------+------------------------------------------------------------------+
+| From :math:`\rho_g`             | :py:meth:`~model.ClusterModel.from_dens_and_temp`                        | Generates the galaxy cluster from the gas density and temperature|
+| and :math:`T_g`                 |                                                                          | profiles. Computes total mass, dm, stellar etc.                  |
++---------------------------------+--------------------------------------------------------------------------+------------------------------------------------------------------+
+| From :math:`\rho_g`             |  :py:meth:`~model.ClusterModel.from_dens_and_entr`                       | Generates the galaxy cluster from the gas density and entropy    |
+| and :math:`\rho_{\mathrm{dyn}}` |                                                                          | profiles. Computes total mass, dm, stellar etc.                  |
++---------------------------------+--------------------------------------------------------------------------+------------------------------------------------------------------+
 
 ``ClusterModel`` from Gas Density and Gas Temperature Profiles
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-When the gas density and gas temperature are specified, the condition of hydrostatic equilibrium can be used to
-provide the necessary halo. From the Euler momentum equation, :math:`-\nabla P / \rho_g = \Gamma(T,\rho_g) = \nabla \Phi`. As such
-the relationship between :math:`\nabla \Phi` and :math:`\Gamma` is exploited to determine the total dynamical mass of the system. From
-the dynamical mass profile, the necessary dark matter profile becomes
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+The user may generate a :py:class:`model.ClusterModel` from the :py:meth:`ClusterModel.from_dens_and_temp` method, which requires :py:class:`radial_profiles.RadialProfile` objects
+for the temperature and the gas density. Using the condition of hydrostatic equilibrium, the potential, pressure, dynamical mass, and other
+necessary fields are automatically computed based on the chosen gravity theory.
+
+The pressure :math:`P(r)` is provided via the ideal gas law:
+
+.. math::
+
+    P(r) = \frac{\rho_g(r) k_b T(r)}{m_p \eta},
+
+where :math:`\eta` is the mean-molecular mass (generally 0.6 for galaxy clusters).
+
+Once the pressure is determined, Euler's Equations can be used for an incompressible fluid, yielding
+
+.. math::
+
+    \Gamma = \frac{-\nabla P(r)}{\rho_g} = \nabla \Phi
+
+Once the potential has been determined, the corresponding gravity theory is applied to determine the dynamical mass of the system and
+by extension determine the necessary halo component.
 
 .. math::
 
     M_{dm} = M_{\mathrm{dyn}} - M_{\mathrm{bary}}.
 
++-----------------------+-----------------------------------+
+|Provided               | Computed                          |
++=======================+===================================+
+| :math:`T_g`           | :math:`\rho_{dm}, M_{dm}, M_{dyn}`|
+| :math:`\rho_{g}`      | :math:`S, \Phi, \nabla \Phi, P`   |
+| :math:`\rho_{\star}`  |                                   |
++-----------------------+-----------------------------------+
+
+Additional Notes
+................
+.. attention::
+
+    In general, this approach will yield a dark matter halo component regardless of the chosen gravity theory. As such,
+    if the user is studying a MOND theory outside of the context of MOND + DM, this approach will not generally be viable
+    unless it has already been confirmed that the dynamical mass determined by the hydrostatic equilibrium condition matches
+    that contributed by :math:`\rho_\star` and :math:`\rho_g`.
+
+Non-Physical Profiles
+`````````````````````
+In many situations, a galaxy cluster may be **mathematically** constructed using pathological, incomplete, or ill-determined profiles which
+create (in the case of generation from density and temperature) similarly pathological values for the resulting fields. Because the aim of ``cluster_generator`` is to
+reasonably produce realizable galaxy cluster initial conditions, these pathological cases can interfere with the underlying mathematics used in initial condition generation
+from determining particle velocities to sampling profiles. Nonetheless, ``cluster_generator`` will not prevent the user from generating a :py:class:`model.ClusterModel` which is non-physical.
+Such :py:class:`model.ClusterModel` objects are most easily generated from temperature and density profiles, as their behavior at large and small radii has immediate implications for the
+dynamical variables which are derived during generation.
+
+As an example, consider the following :py:class:`model.ClusterModel` object:
+
+.. highlight:: python
+.. code-block:: python
+    :force:
+    :linenos:
+
+    from cluster_generator.model import ClusterModel
+    from cluster_generator.radial_profiles import find_overdensity_radius, \
+        snfw_density_profile, snfw_total_mass, vikhlinin_density_profile, vikhlinin_temperature_profile, \
+        rescale_profile_by_mass, find_radius_mass, snfw_mass_profile
+
+    # Configuring pathological model
+    #------------------------------------
+    # - Parameters
+    z = 0.1
+    M200 = 1.5e15
+    conc = 4.0
+
+    # - Constructing the density profile
+    r200 = find_overdensity_radius(M200, 200.0, z=z)
+    a = r200 / conc
+    M = snfw_total_mass(M200, r200, a)
+    rhot = snfw_density_profile(M, a)
+    Mt = snfw_mass_profile(M, a)
+    r500, M500 = find_radius_mass(Mt, z=z, delta=500.0)
+    f_g = 0.12
+    rhog = vikhlinin_density_profile(1.0, 100.0, r200, 1.0, 0.67, 3)
+    rhog = rescale_profile_by_mass(rhog, f_g * M500, r500)
+
+    # - Constructing the temperature profile
+    temp = vikhlinin_temperature_profile(2.42,-0.02,5.00,1.1,350,1,19,2)
+    rhos = 0.02 * rhot
+    rmin = 0.1
+    rmax = 10000.0
+
+    # - Producing the model
+    m = ClusterModel.from_dens_and_temp(rmin, rmax, rhog, temp,
+                                        stellar_density=rhos)
+    m.set_magnetic_field_from_beta(100.0, gaussian=True)
+
+.. figure:: _images/model/non-physical-example.png
+
+    The resulting profiles after the :py:class:`model.ClusterModel` object has been generated. Notice that
+    even thought the gas density and temperature profiles are reasonable, the dynamical mass and
+    halo mass have non-physical behaviors.
+
+**How does ``cluster_generator`` handle this?**
+
+The user can specify the ``require_physical`` kwarg when generating a :py:class:`model.ClusterModel`. There are 3 values of the
+``require_physical`` parameter:
+
+1. ``False``: If ``require_physical == False``, then the :py:class:`model.ClusterModel` object will make no attempt to correct these errors.
+2. ``True``: If ``require_physical == True``, then the :py:class:`model.ClusterModel` will **force** all of the density profiles to
+   be corrected so that everywhere than :math:`\rho_i < 0`, :math:`\rho_i' = 0`.
+
+   This is the simplest approach for correction. Each of the altered density profiles will then be integrated to determine the total mass profile.
+
+   .. warning::
+
+        This choice for ``require_physical`` does **not** change the temperature profile, meaning that depending on the degree
+        of the non-physicalities faced by your system, the deviation from hydrostatic equilibrium may be significant.
+3. ``"rebuild"``: This is the most comprehensive choice. The profiles are fixed as if ``require_physical == True``; however, a new :py:class:`model.ClusterModel` object is
+   instead generated which uses the :py:meth:`~model.ClusterModel.from_dens_tdens` approach to rebuild the corrected temperature / entropy profiles.
+
+.. figure:: _uml/uml_flow--non-phys.drawio.png
+
+    UML activity diagram showing the steps for regeneration after non-physicality is caught.
+
+.. figure:: _images/model/non-physical-fixed.png
+
+    The result of setting ``require_physical`` during model generation. Here **magenta** is the original model without
+    any restriction of physical viability. The profiles for halo (dm) density, and dynamical (total) density clearly have
+    regions of non-physical behavior. The **forest-green** corresponds to ``require_physical == True``, and thus removes all
+    of the non-physical regions of the density and mass profiles; however, leaves the temperature profile the same. Finally,
+    **teal** corresponds to ``require_physical == "rebuild"``, which entirely recomputes the temperature profile after fixing non-physical regions.
+
+
 ``ClusterModel`` from Gas Density and Total Density Profiles
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 In the case where the dynamical density is already known, the halo mass function is trivially obtained from
 
 .. math::
@@ -200,62 +324,86 @@ The most efficient approach here is to take :math:`r_0 = \infty`, in which case,
 From this, the temperature profile is obtained.
 
 ``ClusterModel`` from Gas Density and Gas Entropy Profiles
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Users may also generate a :py:class:`model.ClusterModel` object from an entropy profile instead of the corresponding temperature profile.
+There is a 1-to-1 correspondence between entropy and temperature given that the gas density is fixed, therefore, the procedure
+follows exactly from the previous section; however, the entropy is converted first to a temperature profile using the widely accepted formula
+
+.. math::
+
+    S(r) = k_b T_g(r)n_e(r)^{-2/3}.
+
 
 ``ClusterModel`` Without Gas
-++++++++++++++++++++++++++++
-
-If you want to model a dark matter halo without gas (but potentially with stars), 
-set up a total density profile using the 
-:meth:`~cluster_generator.cluster_model.Cluster_model.no_gas` method:
-
-.. code-block:: python
-
-    import cluster_generator as cg
-    # Create a Hernquist total density profile
-    M_0 = 5e14 # units of Msun
-    a = 500.0 # units of kpc
-    total_density = cg.hernquist_density_profile(M_0, a)
-    # Create the virial model
-    rmin = 0.1 # minimum radius in kpc
-    rmax = 10000.0 # maximum radius in kpc
-    num_points = 1000 # the number of samples along the radial profile, optional
-    p = cg.ClusterModel.no_gas(rmin, rmax, total_density, 
-                               num_points=num_points)
-                                            
-If there are stars in the cluster model (and not dark matter only) then it is 
-possible to supply a stellar mass density profile as well via the 
-``stellar_density`` argument:
-
-.. code-block:: python
-    
-    import cluster_generator as cg
-    # Create a Hernquist total density profile
-    M_0 = 5e14 # units of Msun
-    a = 500.0 # units of kpc
-    total_density = cg.hernquist_density_profile(M_0, a)
-    # Create the virial model
-    rmin = 0.1 # minimum radius in kpc
-    rmax = 10000.0 # maximum radius in kpc
-    num_points = 1000 # the number of samples along the radial profile, optional    
-    # Create a Hernquist stellar density profile
-    M_star = 5.0e12 # units of Msun
-    a_star = 50.0 # units of kpc
-    stellar_density = cg.hernquist_density_profile(M_star, a_star)
-    p = cg.ClusterModel.no_gas(rmin, rmax, total_density, 
-                               stellar_density=stellar_density)
+++++++++++++++++++++++++++++++++++++++++++
+Not all of the :py:class:`model.ClusterModel` objects are generated with a gas density profile. If one wants to produce a gas-less model,
+the :py:meth:`model.ClusterModel.no_gas` method is available. Users must provide a dynamical density profile, and are optionally allowed
+to provide a stellar component. See the API reference for syntactical information.
 
 Checking the Hydrostatic Equilibrium
 ====================================
+In the vast majority of cases, the aim of the :py:class:`model.ClusterModel` object is to produce a model which is in hydrostatic equilibrium. To check how successful the algorithm was in
+generating a hydrostatic galaxy cluster, one can use the :py:meth:`model.ClusterModel.check_hse` method, which will provide the maximal relative deviation of the system from hydrostatic equilibrium.
 
+This is done by recalling that the hydrostatic equilibrium condition requires that
+
+.. math::
+
+    -\frac{\nabla P}{\rho_g} = \nabla \Phi.
+
+This, we define the hydrostatic variable :math:`\xi` such that
+
+.. math::
+
+    \xi = \frac{\nabla \Phi \rho_g + \nabla \Phi}{\nabla \Phi \rho_g}.
+
+clearly, :math:`\xi \approx 0` indicates a successfully equilibrated cluster.
 
 Setting a Magnetic Field Strength Profile
 =========================================
+Magnetic fields play a major role in the dynamics of the ionized plasma modeled in hydro simulations of galaxy clusters. In ``cluster_generator``, there
+are currently two approaches for generating a magnetic field for a galaxy cluster.
+
+Setting a Magnetic Field from :math:`\beta`
++++++++++++++++++++++++++++++++++++++++++++
+Users can specify the magnetic field profile using the :py:meth:`~model.ClusterModel.set_magnetic_field_from_beta`, which allows the user
+to specify the magnetic pressure factor :math:`\beta`, which is defined such that
+
+.. math::
+
+    \beta = \frac{p_{\mathrm{thermal}}}{p_{\mathrm{magnetic}}}.
+
+Setting a Magnetic Field from plasma density
+++++++++++++++++++++++++++++++++++++++++++++
+Another common approach for initializing magnetic fields is to let the magnetic field be proportional to a power of the gas density. Most commonly, this value is
+:math:`\eta = \frac{2}{3}`; however, the user may specify whichever exponent they choose. To initialize a cluster with a magnetic field using this approach, use the :py:meth:`~model.ClusterModel.set_magnetic_field_from_density`.
 
 Adding Other Fields
 ===================
+Users may add additional fields to the :py:class`~model.ClusterModel` instance using the :py:meth:`~model.ClusterModel.set_field` method, which takes a
+``name`` and ``value`` and loads the corresponding field into the model.
 
-Reading and Writing ``ClusterModel`` Objects to and from Disk
-=============================================================
+.. attention::
 
+    User's should be aware that ``value``'s being attributed as fields must be ``unyt_array``'s, not generic ``list`` types or ``np.ndarray``. Furthermore,
+    the length of the value being specified must match ``ClusterModel.num_elements``.
 
+Reading and Writing :py:class:`model.ClusterModel` Objects to and from Disk
+===========================================================================
+.. admonition:: User Advice
+
+    Generating :py:class:`model.ClusterModel` instances can be **slow**. As many cases as possible, it is worthwhile to
+    write models to disk in one of the formats discussed below so that they can be read more easily.
+
+Many different protocols for writing and reading :py:class:`model.ClusterModel` instances to / from disk have been implemented. The following table summarizes the
+options available; however, we advice consulting the API reference for each of the methods to get more information about specifics regarding each of the available formats.
+
++---------------+--------------------------------------------------------+-----------------------------------------------------+-----------------------------------+
+| Format        | Write Method                                           | Read Method                                         | Notes                             |
++===============+========================================================+=====================================================+===================================+
+| ASCII         | :py:meth:`~model.ClusterModel.write_model_to_ascii`    | **Not Yet Implemented**                             | None                              |
++---------------+--------------------------------------------------------+-----------------------------------------------------+-----------------------------------+
+| HDF5          | :py:meth:`~model.ClusterModel.write_model_to_h5`       | :py:meth:`~model.ClusterModel.from_h5_file`         | None                              |
++---------------+--------------------------------------------------------+-----------------------------------------------------+-----------------------------------+
+| BINARY        | :py:meth:`~model.ClusterModel.write_model_to_binary`   | **Not Yet Implemented**                             | None                              |
++---------------+--------------------------------------------------------+-----------------------------------------------------+-----------------------------------+

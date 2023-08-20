@@ -6,13 +6,13 @@ API
     :recursive:
     :template: module.rst
 
+    utils
     radial_profiles
     fields
     ics
     model
     particles
     relations
-    utils
     virial
     gravity
     codes

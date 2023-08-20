@@ -13,6 +13,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../../cluster_generator'))
+sys.path.insert(0, os.path.abspath('../..'))
 print(sys.path)
 
 # -- Project information -----------------------------------------------------
@@ -49,13 +50,13 @@ print(os.getcwd())
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = 'pydata_sphinx_theme'
+pygments_style = 'colorful'
 autosummary_generate = True
 
 # Add any paths that contain custom static files (such as style sheets) here,

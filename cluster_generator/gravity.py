@@ -1,84 +1,5 @@
 r"""
 Tools for working with gravitational potentials and alternative gravity theories.
-
-Available Gravity Theories
-==========================
-
-+------------------+---------------------------------------+
-| Name             | Implementations                       |
-+==================+=======================================+
-| Newtonian        | ``Newtonian``: standard gravity       |
-+------------------+---------------------------------------+
-| MOND (classical) | - ``QUMOND``: Quasi-linear MOND [1]_  |
-|                  | - ``AQUAL``: Aquadratic MOND [2]_     |
-+------------------+---------------------------------------+
-
-Notes
------
-
-Theory
-======
-**Newtonian Gravity**:
-The Newtonian potential solver is implemented in the standard fashion. Potentials for individual spherical shells are
-integrated, yielding an easily integrated equation for :math:`\Phi`:
-
-.. math::
-
-    \Phi = -4\pi G \left\{\frac{1}{r}\int_0^r \rho(r')r'^2 dr' + \int_r^\infty \rho(r') r' dr' \right\}.
-
-**MOND Gravity**:
-There are two implementations of MOND included in this package: AQUAL and QUMOND. In AQUAL, the equivalent Poisson equation
-is
-
-.. math::
-
-    \nabla \cdot \left[\mu\left(\frac{|\nabla \Phi|}{a_0}\right)\nabla \Phi\right] = 4\pi G \rho.
-
-From the divergence theorem,
-
-.. math::
-
-    \mu\left(\frac{|\nabla \Phi|}{a_0}\right)\nabla \Phi = \frac{GM_{\mathrm{dyn}}(<r)}{r^2}.
-
-This equation cannot be analytically solved. As such, we utilize the ``fsolve`` routine from ``SciPy`` to find an implicit solution
-for :math:`\nabla \Phi`. This solution is numerical in its basis and only extends to :math:`r_{max}`. Therefore, a 2nd order ``UniveriateSpline`` is
-fit to the curve. Because the resultant function must be integrable, beyond :math:`\alpha r_{max}` we alter the function
-so that
-
-.. math::
-
-    \nabla \Phi \sim \sqrt{a_0 a_{\mathrm{newt}}},
-
-which is the deep field behavior as $\mu(x) \to x$. Finally, we integrate from $\infty$ to provide the final potential.
-
-In the case of QUMOND, the process is simplified. The Lagrangian leads to two poisson equations:
-
-.. math::
-
-    \nabla^2\Psi = 4\pi G \rho,
-
-and
-
-.. math::
-
-    \nabla^2\Phi = 4\pi G \hat{\rho} = \nabla \cdot \left[\mu\left(\frac{|\nabla \psi|}{a_0}\right)\nabla \Psi\right].
-
-Letting :math:`\gamma = a_{\mathrm{newt}}/a_0`, :math:`\nabla \Psi = \gamma a_0`, and
-
-.. math::
-
-    \nabla \Phi = \mu(\gamma) \gamma a_0,
-
-Thus the potential is obtained by
-
-.. math::
-
-    \Psi = \int_r^\infty \mu(\gamma)\gamma a_0 dr'
-
-References
-----------
-.. [1] Monthly Notices of the Royal Astronomical Society, Volume 403, Issue 2, pp. 886-895.
-.. [2] Astrophysical Journal, Part 1 (ISSN 0004-637X), vol. 286, Nov. 1, 1984, p. 7-14. Research supported by the MINERVA Foundation.
 """
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
@@ -86,20 +7,10 @@ from scipy.optimize import fsolve
 from unyt import unyt_array
 
 from cluster_generator.utils import \
-    integrate, mylog, G, integrate_toinf
+    integrate, mylog, G, integrate_toinf, cg_params
 import os
 import h5py
 from collections import OrderedDict
-
-# -------------------------------------------------------------------------------------------------------------------- #
-#  Default attributes================================================================================================= #
-# -------------------------------------------------------------------------------------------------------------------- #
-alpha = 1
-_default_interpolation_function = lambda x: x/(1+(x**alpha))**(1/alpha)
-_default_a_0 = unyt_array(1.2e-10, "m/s**2")
-#: The factor of :math:`r_{\mathrm{max}}` at which spines are forced to begin converging.
-default_adj_boundary = 1.2
-
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Functions ========================================================================================================== #
@@ -195,10 +106,10 @@ class Potential:
         if gravity != "Newtonian":
             if "interp_function" not in self.attrs:
                 mylog.warning(f"Gravity {self.gravity} requires kwarg `interp_function`. Setting to default...")
-                self.attrs["interp_function"] = _default_interpolation_function
+                self.attrs["interp_function"] = cg_params["mond",f"{gravity}_interp"]
             if "a_0" not in self.attrs:
                 mylog.warning(f"Gravity {self.gravity} requires kwarg `a_0`. Setting to default...")
-                self.attrs["a_0"] = _default_a_0
+                self.attrs["a_0"] = cg_params["mond","a_0"]
 
     def __repr__(self):
         return f"Potential object; gravity={self.gravity}"
@@ -385,7 +296,7 @@ class Potential:
 
             # -- Redefining with an adjusted spline approach to prevent asymptotes from forming ---#
             # =====================================================================================#
-            r_bound = default_adj_boundary*rr[-1]
+            r_bound = cg_params["util","adj_factor"]*rr[-1]
             gamma_func__adjusted = lambda x: np.piecewise(x,
                                                           [x <= r_bound,
                                                            x > r_bound],
@@ -433,23 +344,27 @@ class Potential:
         elif self.gravity == "QUMOND":
             # -------------------------------------------------------------------------------------------------------- #
             #  QUMOND Implementation                                                                                   #
+            # ------------------------#                                                                                #
+            # In the far field, the acceleration in QUMOND goes as 1/r, which is not integrable. As such, our scheme   #
+            # is to set the gauge at 2*rmax and then integrate out to it. Because we only need the potential out to rr #
+            # its fine to not have an entirely integrated curve.                                                       #
             # -------------------------------------------------------------------------------------------------------- #
             # - Pulling arrays
             rr = self["radius"].to("kpc").d
+            rr_max = 2 * rr[-1]
             tmass = self["total_mass"].to("Msun").d
             a_0 = self.attrs["a_0"].to("kpc/Myr**2").d
 
             ## -- Preparing for Execution -- ##
             mylog.info(f"Integrating gravitational potential profile. gravity={self.gravity}.")
 
-            gamma_func = InterpolatedUnivariateSpline(rr, (G.d * tmass) / (a_0 * (rr ** 2)))
-
+            _gamma_func = InterpolatedUnivariateSpline(rr, (G.d * tmass) / (a_0 * (rr ** 2)), k=2)
+            gamma_func = lambda r: _gamma_func(r) * (1 / (1 + (r / rr_max) ** 4))
             self["gamma"] = unyt_array(gamma_func(rr))
 
             gpot_profile = lambda r: - gamma_func(r) * a_0 * self.attrs["interp_function"](gamma_func(r))
-
             # - Performing the integration process - #
-            gpot2 = unyt_array(integrate_toinf(gpot_profile, rr), "(kpc**2)/Myr**2")
+            gpot2 = unyt_array(integrate(gpot_profile, rr, 2 * rr[-1]), "(kpc**2)/Myr**2")
 
             # - Finishing computation - #
             self.fields["gravitational_potential"] = gpot2
