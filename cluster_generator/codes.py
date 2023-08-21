@@ -168,10 +168,6 @@ def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
         print(line)
 
 
-def setup_arepo_ics(ics):
-    pass
-
-
 def setup_athena_ics(ics):
     r"""
     Parameters
@@ -208,17 +204,6 @@ def setup_ramses_ics(ics, regenerate_particles=False):
     hses = [ClusterModel.from_h5_file(hf) for hf in ics.profiles]
     parts = ics._generate_particles(
         regenerate_particles=regenerate_particles)
-    parts[0].add_offsets(ics.center[0], ics.velocity[0], ptypes=["dm"])
-    particles = parts[0]
-    if ics.num_halos > 1:
-        parts[1].add_offsets(ics.center[1], ics.velocity[1], ptypes=["dm"])
-        particles += parts[1]
-    if ics.num_halos > 2:
-        parts[2].add_offsets(ics.center[2], ics.velocity[2], ptypes=["dm"])
-        particles += parts[2]
-    particle_file = "cg_dhalo.dat"
-    write_amr_particles(particles, particle_file, ["dm"], {"dm": 1}, 
-                        format="fortran")
     fields_to_write = ["radius", "density", "pressure"]
     for i in range(ics.num_halos):
         if i > 0:
@@ -236,11 +221,17 @@ def setup_ramses_ics(ics, regenerate_particles=False):
             f"vy_cen[kms]    ={vel[1]:16.6e}",
             f"vz_cen[kms]    ={vel[2]:16.6e}"
         ]
+        write_amr_particles(parts[i], f"halo{i+1}_part.dat", ["dm"], {"dm": 1},
+                            format="fortran", in_cgs=True)
     mylog.info(f"Simulation setups saved to Merger_Config.txt.")
     np.savetxt("Merger_Config.txt", config_lines, fmt="%s")
 
 
-def make_gizmo_funcs(ics):
+def setup_arepo_ics(ics):
+    pass
+
+
+def setup_gizmo_ics(ics):
     r"""
     Parameters
     ----------
