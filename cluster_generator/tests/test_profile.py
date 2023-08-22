@@ -28,7 +28,7 @@ def standard_models_dens_tdens(answer_dir, answer_store):
         if os.path.exists(f"{answer_dir}/{grav}_model_dens_tdens.h5") and not answer_store:
             models[grav] = ClusterModel.from_h5_file(f"{answer_dir}/{grav}_model_dens_tdens.h5")
         else:
-            models[grav] = generate_model_dens_tdens(gravity=grav, attrs={})
+            models[grav] = generate_model_dens_tdens(gravity=grav)
             models[grav].write_model_to_h5(f"{answer_dir}/{grav}_model_dens_tdens.h5", overwrite=True)
     return models
 
@@ -41,7 +41,7 @@ def asymptotic_models_dens_tdens(answer_dir, answer_store):
         if os.path.exists(f"{answer_dir}/asymptotic_{grav}_model_dens_tdens.h5") and not answer_store:
             models[grav] = ClusterModel.from_h5_file(f"{answer_dir}/asymptotic_{grav}_model_dens_tdens.h5")
         else:
-            models[grav] = generate_model_dens_tdens(gravity=grav, attrs={"interp_function": lambda x: 1})
+            models[grav] = generate_model_dens_tdens(gravity=grav, interp_function= lambda x: 1)
             models[grav].write_model_to_h5(f"{answer_dir}/asymptotic_{grav}_model_dens_tdens.h5", overwrite=True)
     return models
 
@@ -54,7 +54,7 @@ def standard_models_dens_temp(answer_dir, answer_store):
         if os.path.exists(f"{answer_dir}/{grav}_model_dens_temp.h5") and not answer_store:
             models[grav] = ClusterModel.from_h5_file(f"{answer_dir}/{grav}_model_dens_temp.h5")
         else:
-            models[grav] = generate_model_dens_temp(gravity=grav, attrs={})
+            models[grav] = generate_model_dens_temp(gravity=grav)
             models[grav].write_model_to_h5(f"{answer_dir}/{grav}_model_dens_temp.h5", overwrite=True)
     return models
 
@@ -67,7 +67,7 @@ def asymptotic_models_dens_temp(answer_dir, answer_store):
         if os.path.exists(f"{answer_dir}/asymptotic_{grav}_model_dens_temp.h5") and not answer_store:
             models[grav] = ClusterModel.from_h5_file(f"{answer_dir}/asymptotic_{grav}_model_dens_temp.h5")
         else:
-            models[grav] = generate_model_dens_temp(gravity=grav, attrs={"interp_function": lambda x: 1})
+            models[grav] = generate_model_dens_temp(gravity=grav, interp_function= lambda x: 1)
             models[grav].write_model_to_h5(f"{answer_dir}/asymptotic_{grav}_model_dens_temp.h5", overwrite=True)
     return models
 
@@ -117,7 +117,6 @@ def test_model_generation_dens_tdens(answer_store, answer_dir):
     """
     for idn, grav in enumerate(["Newtonian", "QUMOND", "AQUAL"]):
         model = generate_model_dens_tdens(gravity=grav, attrs={})
-
         model_answer_testing(model, f"{answer_dir}/{grav}_model.h5", answer_store, answer_dir)
 
 
@@ -126,10 +125,48 @@ def test_model_generation_dens_temp(answer_store, answer_dir):
     Tests the generation of the models and checks them against existing copies if ``answer_store`` is ``False``.
     """
     for idn, grav in enumerate(["Newtonian", "QUMOND", "AQUAL"]):
-        model = generate_model_dens_temp(gravity=grav, attrs={})
-
+        model = generate_model_dens_temp(gravity=grav, attrs={},require_physical="rebuild")
         model_answer_testing(model, f"{answer_dir}/{grav}_model.h5", answer_store, answer_dir)
 
+def test_rebuild(answer_store,answer_dir):
+    """Test that the rebuilding system actually works"""
+    models = [generate_model_dens_temp(require_physical=i) for i in [True,False,"rebuild"]]
+
+    figure, axes = plt.subplots(6,4,gridspec_kw={"hspace":0,"wspace":0.3},height_ratios=[1,0.1,1,0.1,1,0.1],figsize=(20,20))
+    plt.subplots_adjust(left=0.1,right=.99,bottom=0.1,top=.99)
+    colors = ["forestgreen","black","magenta"]
+    ls = ["-.",":","-"]
+    fields = ["gas_mass","dark_matter_mass","stellar_mass","total_mass",
+              "density","dark_matter_density","stellar_density","total_density",
+              "temperature","hse","gravitational_potential","gravitational_field"]
+
+    for ax,rax,f in zip(axes[::2,:].ravel(),axes[1::2,:].ravel(),fields):
+        # - plotting - #
+        if f != "hse":
+            ax.set_ylabel(f"{f} / {models[0][f].units}")
+            rax.set_ylabel(f"res. [dex]")
+
+            for i,model in enumerate(models):
+
+                ax.loglog(model["radius"].d,model[f].d,color=colors[i],ls=ls[i],alpha=0.85)
+                rax.loglog(model["radius"].d,(model[f].d - models[1][f].d)/models[1][f].d,color=colors[i],ls=ls[i],alpha=0.85)
+
+                if np.any(model[f].d < 0):
+                    ax.set_yscale("symlog")
+
+                rax.set_yscale("symlog")
+                rax.set_yticks([-10,-1,0,1,10])
+                rax.set_ylim([-10,10])
+
+        else:
+            ax.set_ylabel(f"{f}")
+            rax.set_ylabel(f"res. [dex]")
+            ax.set_ylim([-1,1])
+            for i, model in enumerate(models):
+                ax.loglog(model["radius"].d, model.check_hse(), color=colors[i], ls=ls[i], alpha=0.85)
+
+                ax.set_yscale("symlog")
+    plt.savefig(f"{answer_dir}/rebuild_comp.png")
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Hydrostatic Equilibrium Tests ====================================================================================== #
@@ -140,7 +177,7 @@ def test_asym_dens_temp(answer_store, answer_dir, asymptotic_models_dens_temp):
     """checks for consistency between"""
     sames = ["density", "entropy", "gravitational_field", "temperature", "total_mass"]
     dat = plot_models(asymptotic_models_dens_temp, np.array([["density", "entropy", "gravitational_field"],
-                                                             ["temperature", "total_mass", "gravitational_potential"]])
+                                              ["temperature", "total_mass", "gravitational_potential"]])
                       , f"{answer_dir}/asym_dens_temp.png", diff=True)
 
     for k, v in dat.items():

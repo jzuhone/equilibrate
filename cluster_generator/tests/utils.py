@@ -10,7 +10,7 @@ from cluster_generator.radial_profiles import find_overdensity_radius, \
     rescale_profile_by_mass, find_radius_mass, snfw_mass_profile
 
 
-def generate_model(gravity="Newtonian",attrs=None):
+def generate_model(gravity="Newtonian",**kwargs):
     z = 0.1
     M200 = 1.5e15
     conc = 4.0
@@ -27,12 +27,12 @@ def generate_model(gravity="Newtonian",attrs=None):
     rmin = 0.1
     rmax = 10000.0
     m = ClusterModel.from_dens_and_tden(rmin, rmax, rhog, rhot,
-                                        stellar_density=rhos,gravity=gravity,attrs=attrs)
+                                        stellar_density=rhos,gravity=gravity,**kwargs)
     m.set_magnetic_field_from_beta(100.0, gaussian=True)
 
     return m
 
-def generate_model_dens_tdens(gravity="Newtonian",attrs=None):
+def generate_model_dens_tdens(gravity="Newtonian",**kwargs):
     """Generates a model test for dens/tdens initialization as a model."""
     z= 0.1
     M200 = 1.5e15
@@ -50,30 +50,17 @@ def generate_model_dens_tdens(gravity="Newtonian",attrs=None):
     rmin = 0.1
     rmax = 10000.0
     m = ClusterModel.from_dens_and_tden(rmin, rmax, rhog, rhot,
-                                        stellar_density=rhos,gravity=gravity,attrs=attrs)
+                                        stellar_density=rhos,gravity=gravity,**kwargs)
     m.set_magnetic_field_from_beta(100.0, gaussian=True)
     return m
 
-def generate_model_dens_temp(gravity="Newtonian",attrs=None):
-    z = 0.1
-    M200 = 1.5e15
-    conc = 4.0
-    r200 = find_overdensity_radius(M200, 200.0, z=z)
-    a = r200 / conc
-    M = snfw_total_mass(M200, r200, a)
-    rhot = snfw_density_profile(M, a)
-    Mt = snfw_mass_profile(M, a)
-    r500, M500 = find_radius_mass(Mt, z=z, delta=500.0)
-    f_g = 0.12
-    rhog = vikhlinin_density_profile(1.0, 100.0, r200, 1.0, 0.67, 3)
-    rhog = rescale_profile_by_mass(rhog, f_g * M500, r500)
-
+def generate_model_dens_temp(gravity="Newtonian",**kwargs):
+    """modeled off of """
+    rhog = vikhlinin_density_profile(190459,94.6,1239.9,0.916,0.526,4.943,3)
     temp = vikhlinin_temperature_profile(2.42,-0.02,5.00,1.1,350,1,19,2)
-    rhos = 0.02 * rhot
-    rmin = 0.1
-    rmax = 10000.0
-    m = ClusterModel.from_dens_and_temp(rmin, rmax, rhog, temp,
-                                        stellar_density=rhos, gravity=gravity, attrs=attrs)
+
+    m = ClusterModel.from_dens_and_temp(1,5000, rhog, temp,
+                                        stellar_density=0.02*rhog, gravity=gravity,**kwargs)
     m.set_magnetic_field_from_beta(100.0, gaussian=True)
     return m
 
@@ -98,15 +85,23 @@ def generate_mdr_potential():
 # -------------------------------------------------------------------------------------------------------------------- #
 def model_answer_testing(model, filename, answer_store, answer_dir):
     p = Path(answer_dir) / filename
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.semilogx(model["radius"],model.check_hse())
     if answer_store:
         model.write_model_to_h5(p, overwrite=True)
     else:
         old_model = ClusterModel.from_h5_file(p)
+        ax.semilogx(old_model["radius"], old_model.check_hse())
         for field in old_model.fields:
             assert_equal(old_model[field], model[field])
         assert_equal(old_model.dm_virial.df, model.dm_virial.df)
         assert_equal(old_model.star_virial.df, model.star_virial.df)
-
+    ax.set_yscale("symlog")
+    ax.set_ylim([-1,1])
+    plt.savefig(f"{answer_dir}/Comparison_{Path(filename).name}.png")
 
 def particle_answer_testing(parts, filename, answer_store, answer_dir):
     p = Path(answer_dir) / filename

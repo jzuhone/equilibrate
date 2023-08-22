@@ -1,115 +1,92 @@
 r"""
-Tools for working with gravitational potentials and alternative gravity theories.
+Gravity
+=======
+The :py:mod:`gravity` module contains the :py:class:`gravity.Potential` class, which essentially acts as a wrapper for
+solving the Poisson equation in each of the available gravitational theories. Potential objects contain ``fields`` and
+can be written to / read from binary files.
+
+.. attention::
+
+    It is easy to confuse the :py:class:`gravity.Potential` class and the :py:class:`model.ClusterModel` class. The :py:class:`gravity.Potential` class is inherited by
+    the :py:class:`model.ClusterModel` class and holds all of the core data (``fields``, ``gravity`` , ``attributes`` , etc.); however, :py:class:`gravity.Potential` objects
+    **do not** have the capacity to generate particles, be virialized, or be checked against hydrostatic equilibrium.
+
+    In general, it is only rarely useful to initialize a ``Potential`` instance instead of simply using the ``ClusterModel`` instance.
 """
+import os
+from collections import OrderedDict
 import numpy as np
+import h5py
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.optimize import fsolve
 from unyt import unyt_array
-
+from halo import Halo
 from cluster_generator.utils import \
-    integrate, mylog, G, integrate_toinf, cg_params
-import os
-import h5py
-from collections import OrderedDict
+    integrate, mylog, G, integrate_toinf, cg_params,truncate_spline,log_string
+import sys
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Functions ========================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
 class Potential:
     r"""
-    The ``Potential`` class is a wrapper for a set of modified 1-D poisson solvers which obtain the correct potential
-    of the initialized system for use in determining other criteria of the system.
-    
-    .. admonition:: Feature
-        
-        The ``Potential`` class can facilitate the use of MOND gravities through two implementations, ``AQUAL`` and ``QUMOND``.
+    The :py:class:`gravity.Potential` class underlies all of the galaxy cluster models used in the ``cluster_generator`` library. This underlying
+    structure is used to contain / manage ``fields`` (data profiles) and compute potentials from them using a variety of gravities.
 
     Parameters
     ----------
-    fields: dict
-        The fields specified to the ``Potential`` object. Depending on the methodology used to determine the
-        potential, certain fields must be specified. 
+    fields: dict of {str: unyt_array}
+        The fields parameter should include ``unyt_array`` objects for each of the fields the user wants to implement. Any field name is valid; however,
+        standard names should be used for fields that are necessary for generation / manipulation of the data.
     gravity: str
-        The type of gravity that is in use. Options are ``AQUAL``, ``QUMOND``, or ``Newtonian``.
-    attrs: dict
-        Attributes to pass to the ``Potential``. These may contain a variety of pieces of information contained in the
-        table below:
-        
-        +---------------------+------------------------------------------+----------------+---------------------------------------------------+
-        | Attribute Name      | Description                              | Types          | Default                                           |
-        +=====================+==========================================+================+===================================================+
-        | ``interp_function`` | The MOND specific interpolation function | ``callable``   | :math:`\frac{x}{x+1}`                             |
-        +---------------------+------------------------------------------+----------------+---------------------------------------------------+
-        | ``a_0``             | The MOND acceleration constant.          | ``unyt float`` | :math:`1.2\times 10^{-10} \mathrm{\frac{m}{s^2}}` |
-        +---------------------+------------------------------------------+----------------+---------------------------------------------------+
+        The gravity theory to use. The list of available gravitational theories can be found at :ref:`gravity`.
+    **kwargs
+        Additional parameters may be passed to the :py:class:`gravity.Potential` instance through the use of ``**kwargs``. Generally these are not necessary, or are
+        automatically generated as necessary behind the scenes; however, some special kwargs do exist of which the user should be aware:
 
-    Notes
-    -----
-
-    Examples
-    --------
-    >>> from cluster_generator.tests.utils import generate_mdr_potential
-    >>> import matplotlib.pyplot as plt
-    >>>
-    >>> m, d, r = generate_mdr_potential() #: Generating the profile from an SNFW profile
-    >>>
-    >>> #- Generating the potential class objects from fields -#
-    >>> pot_AQUAL = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="AQUAL")
-    >>> pot_NEWTONIAN = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="Newtonian")
-    >>> pot_QUMOND = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="QUMOND")
-    >>> #- Plotting
-    >>> figure = plt.figure(figsize=(8,5))
-    >>> ax = figure.add_subplot(121)
-    >>> ax2 = figure.add_subplot(122)
-    >>> _,_ = pot_AQUAL.plot(fig=figure,ax=ax,color="b",label="AQUAL")
-    >>> _,_ = pot_NEWTONIAN.plot(fig=figure,ax=ax,color="k",label="Newtonian")
-    >>> _,_ = pot_QUMOND.plot(fig=figure,ax=ax,color="r",label="QUMOND")
-    >>> _ = ax.legend()
-    >>> _ = ax2.loglog(pot_QUMOND["radius"].d,np.gradient(pot_QUMOND["gravitational_potential"].d,pot_QUMOND["radius"].d),"r")
-    >>> _ = ax2.loglog(pot_AQUAL["radius"].d,np.gradient(pot_AQUAL["gravitational_potential"].d,pot_AQUAL["radius"].d),"b")
-    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,np.gradient(pot_NEWTONIAN["gravitational_potential"].d,pot_NEWTONIAN["radius"].d),"k")
-    >>> _ = ax2.hlines(y=_default_a_0.to("kpc/Myr**2").d,xmin=np.amin(r.d),xmax=np.amax(r.d),color="c",ls=":")
-    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,(np.gradient(pot_NEWTONIAN["gravitational_potential"].d,pot_NEWTONIAN["radius"].d)**2)/_default_a_0.to("kpc/Myr**2").d,"r:")
-    >>> _ = ax2.loglog(pot_NEWTONIAN["radius"].d,(np.gradient(pot_NEWTONIAN["gravitational_potential"].d,pot_NEWTONIAN["radius"].d)*_default_a_0.to("kpc/Myr**2").d)**(1/2),"b:")
-    >>> _ = ax2.set_xlabel("Radius [kpc]")
-    >>> _ = ax2.set_ylabel(r"$\left|a\right|,\;\;\left[\mathrm{\frac{kpc}{Myr^2}}\right]$")
-    >>> _ = ax.set_ylabel(r"$\left|\Phi\right|,\;\;\left[\mathrm{\frac{kpc^2}{Myr^2}}\right]$")
-    >>> _ = ax2.text(0.17,6e-2,r"$\frac{a_{\mathrm{newt}^2}}{a_0}$")
-    >>> _ = ax2.text(0.17,1.4e-2,r"$a_{\mathrm{newt}}$")
-    >>> _ = ax2.text(0.17,4e-3,r"$\sqrt{a_0a_{\mathrm{newt}}}$")
-    >>> _ = ax.set_title("gravitational_potential")
-    >>> _ = ax2.set_title("Acceleration")
-    >>> _ = plt.subplots_adjust(wspace=0.3)
-
-    .. image:: ../_images/gravity/image1.png
+        +---------------------------------+-----------------------------------------+------------------------------------+----------------------------------------------------------------------------------------------------+
+        | kwarg name                      | kwarg                                   | Description                        | Has Default?                                                                                       |
+        +=================================+=========================================+====================================+====================================================================================================+
+        | Interpolation Function          | ``interp_function``                     | The MONDian interpolation function |                                                                                                    |
+        |                                 |                                         |                                    |AQUAL: :math:`\mu(x)=x/(1+x^\alpha)^{1/\alpha}`                                                     |
+        |                                 |                                         |                                    |QUMOND: :math:`\nu(x)=\left[\frac{1}{2}\left(1+\sqrt{1+\frac{4}{x^\alpha}}\right)\right]^{1/\alpha}`|
+        +---------------------------------+-----------------------------------------+------------------------------------+----------------------------------------------------------------------------------------------------+
+        | :math:`a_0`                     | ``a_0``                                 | The MONDian :math:`a_0` constant   | ``True``: :math:`a_0 = 1.2 \times 10^{-10} \mathrm{m\;s^{-2}}`                                     |
+        +---------------------------------+-----------------------------------------+------------------------------------+----------------------------------------------------------------------------------------------------+
     """
     _keep_units = ["entropy", "electron_number_density",
                    "magnetic_field_strength"]
+    _methods = {
+        "mdr": ["radius", "total_mass", "total_density"]
+    }
 
-    def __init__(self, fields, gravity, attrs):
+    def __init__(self, fields, gravity, **kwargs):
         # - Initializing base attributes - #
+        #: The ``fields`` associated with the ``Potential`` object.
         self.fields = fields
 
+        #: The gravity type of the ``Potential`` instance.
         self.gravity = gravity
 
         # - Derived attributes -#
+        #: The number of elements in each ``field`` array.
         self.num_elements = len(self.fields["radius"])
 
         if "gravitational_potential" not in self.fields:
             self.fields["gravitational_potential"] = None
 
-        if attrs is None:
-            self.attrs = {}
-        else:
-            self.attrs = attrs
+        #: Additional attributes associated with the object. Derived from ``**kwargs``.
+        self.attrs = kwargs
 
+        #  Managing forced attributes for MONDian gravity theories
+        # ------------------------------------------------------------------------------------------------------------ #
         if gravity != "Newtonian":
             if "interp_function" not in self.attrs:
                 mylog.warning(f"Gravity {self.gravity} requires kwarg `interp_function`. Setting to default...")
-                self.attrs["interp_function"] = cg_params["mond",f"{gravity}_interp"]
+                self.attrs["interp_function"] = cg_params["mond", f"{gravity}_interp"]
             if "a_0" not in self.attrs:
                 mylog.warning(f"Gravity {self.gravity} requires kwarg `a_0`. Setting to default...")
-                self.attrs["a_0"] = cg_params["mond","a_0"]
+                self.attrs["a_0"] = cg_params["mond", "a_0"]
 
     def __repr__(self):
         return f"Potential object; gravity={self.gravity}"
@@ -131,7 +108,9 @@ class Potential:
     # ---------------------------------------------------------------------------------------------------------------- #
     @property
     def pot(self):
-        """The potential array of the ``Potential``."""
+        """The gravitational potential of the system. Equivalent to ``self.fields["gravitational_potential"]`` or ``self["gravitational_potential"]``.
+            If the ``self["gravitational_potential"]`` field is ``None``, calling ``self.pot`` will automatically attempt to generate a potential.
+            """
         if self.fields["gravitational_potential"] is not None:
             return self.fields["gravitational_potential"]
         else:
@@ -139,7 +118,8 @@ class Potential:
                 self.potential()
                 return self.fields["gravitational_potential"]
             except ValueError as exception:
-                raise ValueError(f"Failed to compute a potential from available fields. Message = {exception.__repr__()}")
+                raise ValueError(
+                    f"Failed to compute a potential from available fields. Message = {exception.__repr__()}")
 
     # ---------------------------------------------------------------------------------------------------------------- #
     # Class Methods ================================================================================================== #
@@ -147,7 +127,13 @@ class Potential:
     @classmethod
     def from_fields(cls, fields, gravity="Newtonian", **kwargs):
         """
-        Initializes a ``Potential`` object from raw input fields ``fields``.
+        Initializes a :py:class:`gravity.Potential` object from its constituent fields.
+
+        .. attention::
+
+            The :py:meth:`gravity.Potential.from_fields` is entirely equivalent to simply generating an instance from the
+            ``.__init__()``  method; however, :py:meth:`gravity.Potential.from_fields` generates the potential automatically, without
+            requiring the user to call ``_ = self.pot`` to generate the potential.
 
         Parameters
         ----------
@@ -155,31 +141,30 @@ class Potential:
             The fields of data from which to generate the ``Potential`` object.
         gravity: str, optional, default="Newtonian"
             The type of gravity to use in computations. Options are ``Newtonian``,``AQUAL``, or ``QUMOND``.
-    
+        **kwargs:
+            Additional key-word arguments to be parsed to ``self.attrs`` after instantiation.
         Returns
         -------
         Potential
             The resultant potential.
         """
-        _methods = {
-            "mdr": ["radius", "total_mass", "total_density"]
-        }
         #  Logging
         # ----------------------------------------------------------------------------------------------------------------- #
-        mylog.info(f"Computing model potential in {gravity} gravity.")
+        mylog.info(f"Computing gravitational potential from fields. gravity={gravity}.")
 
         #  Sanity Check
         # ----------------------------------------------------------------------------------------------------------------- #
-        if all(any(field not in fields for field in req_fields) for req_fields in list(_methods.values())):
+        if all(any(field not in fields for field in req_fields) for req_fields in list(cls._methods.values())):
             raise ValueError(f"The fields {list(fields.keys())} are not sufficient for a potential computation.")
         else:
-            _used_method = [key for key, value in _methods.items() if all(req_field in fields for req_field in value)][
+            _used_method = \
+            [key for key, value in cls._methods.items() if all(req_field in fields for req_field in value)][
                 0]
             mylog.info(f"Computation of potential is using {_used_method} for computation.")
 
         #  Computing Potential
         # ----------------------------------------------------------------------------------------------------------------- #
-        obj = Potential(fields, gravity, kwargs)  # initialize the object
+        obj = Potential(fields, gravity, **kwargs)  # initialize the object
         getattr(obj, f"_find_from_{_used_method}")()  # pass the computation off to subfunctions
 
         return obj
@@ -193,11 +178,30 @@ class Potential:
         ----------
         filename : string
             The name of the file to read the ``Potential`` from.
+
+        Notes
+        -----
+        .. warning::
+
+            The :py:meth:`gravity.Potential.from_h5_file` method will attempt to load both the ``HDF5`` file ``filename``, but will
+            also look for a ``filename.pkl`` file, containing the serialized version of the ``self.attrs`` dictionary. If it fails to find the
+            attribute file, the data will still be loaded, but attributes may be lost.
+
         """
+        import dill as pickle
         # - Grabbing base data -#
         with h5py.File(filename, "r") as f:
             fnames = list(f['fields'].keys())
-            gravity = f.attrs["gravity"]
+
+        # - reading attributes - #
+        atr_path = f"{filename}.pkl"
+
+        if os.path.exists(atr_path):
+            with open(atr_path, "rb") as atf:
+                attrs = pickle.load(atf)
+        else:
+            mylog.warning(f"[[HDF5]] Failed to locate the pkl attribute file for {filename}.")
+            attrs = {"gravity": "Newtonian"}
 
         fields = OrderedDict()
         mylog.info(f"Found {len(fnames)} in {filename}: {fnames}")
@@ -216,39 +220,57 @@ class Potential:
         for field in fnames:
             fields[field] = fields[field][mask]
 
-        model = cls(fields, gravity, {})
+        gravity = attrs["gravity"]
+        del attrs["gravity"]
+        model = cls(fields, gravity, **attrs)
         return model
 
     # ---------------------------------------------------------------------------------------------------------------- #
     # Methods ======================================================================================================== #
     # ---------------------------------------------------------------------------------------------------------------- # 
 
-    def potential(self):
+    def potential(self, method=None):
         """
-        Computes the potential from available fields.
+        Computes the potential of the ``Potential`` object using any of a number of methods.
 
+        Parameters
+        ----------
+        method: str, default=None
+            The preferred method for computing the potential. If ``None``, then the easiest available option fitting
+            the available fields will be used.
 
         Returns
         -------
-        Potential
-            The resultant potential.
+        None
+
+        Notes
+        -----
+
+        Available Methods
+        +++++++++++++++++
+
+        .. admonition:: TODO
+
+            Write this documentation
+
         """
-        _methods = {
-            "mdr": ["radius", "total_mass", "total_density"]
-        }
         #  Logging
         # ----------------------------------------------------------------------------------------------------------------- #
-        mylog.info(f"Computing model potential in {self.gravity} gravity.")
+        mylog.info(f"Computing gravitational potential of {self.__repr__()}. gravity={self.gravity}.")
 
         #  Sanity Check
         # ----------------------------------------------------------------------------------------------------------------- #
-        if all(any(field not in self.fields for field in req_fields) for req_fields in list(_methods.values())):
+        if all(any(field not in self.fields for field in req_fields) for req_fields in list(self._methods.values())):
             raise ValueError(
                 f"The self.fields {list(self.fields.keys())} are not sufficient for a potential computation.")
         else:
-            _used_method = \
-                [key for key, value in _methods.items() if all(req_field in self.fields for req_field in value)][
-                    0]
+            if method:
+                _used_method = method
+            else:
+                _used_method = \
+                    [key for key, value in self._methods.items() if
+                     all(req_field in self.fields for req_field in value)][
+                        0]
             mylog.info(f"Computation of potential is using {_used_method} for computation.")
 
         #  Computing Potential
@@ -266,7 +288,7 @@ class Potential:
             # - Pulling arrays 
             rr = self.fields["radius"].d
 
-            mylog.info(f"Integrating gravitational potential profile. gravity={self.gravity}.")
+            mylog.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={self.gravity}.")
             tdens_func = InterpolatedUnivariateSpline(rr, self.fields["total_density"].d)
 
             # - Computing - #
@@ -284,7 +306,7 @@ class Potential:
             # -------------------------------------------------------------------------------------------------------- #
             #  AQUAL Implementation                                                                                    #
             # -------------------------------------------------------------------------------------------------------- #
-            mylog.info(f"Integrating gravitational potential profile. gravity={self.gravity}.")
+            mylog.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={self.gravity}.")
 
             # - pulling arrays
             rr = self["radius"].d
@@ -292,54 +314,48 @@ class Potential:
             a_0 = self.attrs["a_0"].to("kpc/Myr**2").d
 
             # - Building the gamma function - #
-            gamma_func = InterpolatedUnivariateSpline(rr, G.d * tmass / (a_0 * (rr ** 2)),k=2)
+            gamma_func = InterpolatedUnivariateSpline(rr, G.d * tmass / (a_0 * (rr ** 2)), k=2)
 
             # -- Redefining with an adjusted spline approach to prevent asymptotes from forming ---#
             # =====================================================================================#
-            r_bound = cg_params["util","adj_factor"]*rr[-1]
+            r_bound = cg_params["util", "adj_factor"] * rr[-1]
             gamma_func__adjusted = lambda x: np.piecewise(x,
                                                           [x <= r_bound,
                                                            x > r_bound],
-                                                          [gamma_func, lambda l:  gamma_func(r_bound) * (r_bound / l) ** 2])
+                                                          [gamma_func,
+                                                           lambda l: gamma_func(r_bound) * (r_bound / l) ** 2])
 
             self["gamma"] = unyt_array(gamma_func__adjusted(rr))
 
-
             # - generating guess solution - #
-            mylog.info(f"Creating AQUAL guess solution for implicit equation...")
+            mylog.debug(f"[[Potential]] Creating AQUAL guess solution for implicit equation...")
 
             Gamma_func = lambda x: (1 / 2) * (
-                        gamma_func__adjusted(x) + np.sqrt(gamma_func__adjusted(x) ** 2 + 4 * gamma_func__adjusted(x)))  # -> big gamma del Phi / a_0
+                    gamma_func__adjusted(x) + np.sqrt(
+                gamma_func__adjusted(x) ** 2 + 4 * gamma_func__adjusted(x)))  # -> big gamma del Phi / a_0
             _guess = Gamma_func(rr)
 
-
-
             # - solving - #
-            mylog.info(f"Optimizing implicit solution...")
+            mylog.debug(f"[[Potential]] Optimizing implicit solution...")
             _fsolve_function = lambda x: x * self.attrs["interp_function"](x) - self["gamma"]
 
             _Gamma_solution = fsolve(_fsolve_function, x0=_guess)
 
-
-
-            Gamma = InterpolatedUnivariateSpline(rr, _Gamma_solution,k=2)
+            Gamma = InterpolatedUnivariateSpline(rr, _Gamma_solution, k=2)
 
             # ** Defining the adjusted Gamma solution to prevent issues with divergence of the spline. **
             #
             #
-            adj_Gamma = lambda x: np.piecewise(x, [x <= r_bound, x > r_bound],
-                                               [Gamma, lambda t: 4 * Gamma(r_bound) * (r_bound ** 2) / (t ** 2)])
-
+            adj_Gamma = truncate_spline(Gamma,0.95*rr[-1],7)
 
             # - Performing the integration process - #
-            gpot2 = a_0 * unyt_array(integrate_toinf(adj_Gamma, rr), "(kpc**2)/Myr**2")
-
+            with Halo(text=log_string("Integrating Gamma profile..."),spinner="dots",stream=sys.stderr,animation="marquee") as h:
+                gpot2 = a_0 * unyt_array(integrate_toinf(adj_Gamma, rr), "(kpc**2)/Myr**2")
+                h.succeed(text=log_string("Integrated Gamma profile."))
             # - Finishing computation - #
             self.fields["gravitational_potential"] = -gpot2
             self.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
-            self["guess_potential"] = -a_0 * unyt_array(integrate_toinf(Gamma_func, rr), "(kpc**2)/Myr**2")
-            self.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
         elif self.gravity == "QUMOND":
             # -------------------------------------------------------------------------------------------------------- #
@@ -356,7 +372,7 @@ class Potential:
             a_0 = self.attrs["a_0"].to("kpc/Myr**2").d
 
             ## -- Preparing for Execution -- ##
-            mylog.info(f"Integrating gravitational potential profile. gravity={self.gravity}.")
+            mylog.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={self.gravity}.")
 
             _gamma_func = InterpolatedUnivariateSpline(rr, (G.d * tmass) / (a_0 * (rr ** 2)), k=2)
             gamma_func = lambda r: _gamma_func(r) * (1 / (1 + (r / rr_max) ** 4))
@@ -411,7 +427,7 @@ class Potential:
 
     def write_potential_to_h5(self, output_filename, in_cgs=False, overwrite=False):
         r"""
-        Write the ``Potential`` object to an ``h5`` file.
+        Write an instance of :py:class:`gravity.Potential` to an ``HDF5`` file.
 
         Parameters
         ----------
@@ -421,21 +437,45 @@ class Potential:
             Whether to convert the units to cgs before writing. Default False.
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
+
+        Notes
+        -----
+        .. warning::
+
+            The :py:meth:`gravity.Potential.write_potential_to_h5` method will attempt to write both the ``HDF5`` file ``filename``, and will
+            also write a ``filename.pkl`` file, containing the serialized version of the ``self.attrs`` dictionary.
+
         """
+        import dill as pickle
+        #  Managing paths
+        # ------------------------------------------------------------------------------------------------------------ #
+        mylog.info(f"Writing {self} to {output_filename} in HDF5 format.")
         if os.path.exists(output_filename) and not overwrite:
             raise IOError(f"Cannot create {output_filename}. It exists and "
                           f"overwrite=False.")
+
+        #  Writing IO
+        # ------------------------------------------------------------------------------------------------------------ #
         f = h5py.File(output_filename, "w")
         f.create_dataset("num_elements", data=self.num_elements)
-        f.attrs["unit_system"] = "cgs" if in_cgs else "galactic"
-        f.attrs["gravity"] = self.gravity
         f.close()
+
+        # -- Managing the attributes -- #
+        self.attrs["unit_system"] = "cgs" if in_cgs else "galactic"
+        self.attrs["gravity"] = self.gravity
+
+        with open(f"{output_filename}.pkl", "wb") as atf:
+            pickle.dump(self.attrs, atf)
+
+        # -- Writing main datasets -- #
+
         r_min = 0.0
         r_max = self.fields["radius"][-1].d * 2
         mask = np.logical_and(self.fields["radius"].d >= r_min,
                               self.fields["radius"].d <= r_max)
 
         for k, v in self.fields.items():
+            mylog.debug(f"[[HDF5]] Writing field {k} to file.")
             if in_cgs:
                 if k == "temperature":
                     fd = v[mask].to_equivalent("K", "thermal")
@@ -449,23 +489,38 @@ class Potential:
                           group_name="fields")
 
         if self.fields["gravitational_potential"] is not None:
+            mylog.debug(f"[[HDF5]] Writing field 'gravitational_potential' to file.")
             fd = self.fields["gravitational_potential"]
             fd.write_hdf5(output_filename, dataset_name="gravitational_potential", group_name="fields")
 
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from cluster_generator.tests.utils import generate_mdr_potential
+    from cluster_generator.radial_profiles import *
+    import logging
+
+    logger = logging.getLogger()
+    logger.setLevel("DEBUG")
+
+
+    def generate_mdr_potential():
+        z = 0.1
+        M200 = 1.5e15
+        conc = 4.0
+        r200 = find_overdensity_radius(M200, 200.0, z=z)
+        a = r200 / conc
+        M = snfw_total_mass(M200, r200, a)
+        rhot = snfw_density_profile(M, a)
+        m = snfw_mass_profile(M, a)
+
+        rmin, rmax = 0.1, 2 * r200
+        r = np.geomspace(rmin, rmax, 1000)
+        return unyt_array(m(r), "Msun"), unyt_array(rhot(r), "Msun/kpc**3"), unyt_array(r, "kpc")
+
 
     m, d, r = generate_mdr_potential()
-    pot_AQUAL = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="AQUAL")
-    pot_NEWTONIAN = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="Newtonian")
+    p = Potential.from_fields({"total_mass": m, "total_density": d, "radius": r}, gravity="AQUAL")
+    p.write_potential_to_h5("test.h5")
 
-    figure = plt.figure()
-    ax = figure.add_subplot(121)
-    ax2 = figure.add_subplot(122)
-    pot_AQUAL.plot(fig=figure,ax=ax)
-    pot_NEWTONIAN.plot(fig=figure,ax=ax)
-    ax2.loglog(pot_AQUAL["radius"].d,np.gradient(pot_AQUAL["gravitational_potential"].d,pot_AQUAL["radius"].d))
-    ax2.loglog(pot_NEWTONIAN["radius"].d,np.gradient(pot_NEWTONIAN["gravitational_potential"].d,pot_NEWTONIAN["radius"].d))
-    plt.show()
+    pot = Potential.from_h5_file("test.h5")
+    print(pot.attrs)

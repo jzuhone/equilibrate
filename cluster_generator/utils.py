@@ -8,11 +8,12 @@ from more_itertools import always_iterable
 from unyt import unyt_array, unyt_quantity, kpc
 from unyt import physical_constants as pc
 from numpy.random import RandomState
-
-
+import time
+import warnings
 # -------------------------------------------------------------------------------------------------------------------- #
 # Constructing the Logger ============================================================================================ #
 # -------------------------------------------------------------------------------------------------------------------- #
+warnings.filterwarnings("ignore")
 cgLogger = logging.getLogger("cluster_generator")
 
 ufstring = "%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s"
@@ -29,6 +30,8 @@ cgLogger.propagate = False
 
 mylog = cgLogger
 
+def log_string(message):
+    return ufstring%{"name":"cluster_generator","asctime":time.asctime(),"message":message,"levelname":"INFO"}
 # -------------------------------------------------------------------------------------------------------------------- #
 # Units and Constants ================================================================================================ #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -47,6 +50,8 @@ X_H = 0.76
 mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
 mue = 1.0/(X_H+0.5*(1.0-X_H))
 
+# -- Utility functions -- #
+_truncator_function = lambda a,r,x: 1/(1+(x/r)**a)
 #  Settings
 # ----------------------------------------------------------------------------------------------------------------- #
 #TODO: This could read from a bin file
@@ -87,6 +92,47 @@ def parse_prng(prng):
 def ensure_list(x):
     return list(always_iterable(x))
 
+def truncate_spline(f,r_t,a):
+    """
+    Takes the function ``f`` and returns a truncated equivalent of it, which becomes
+
+    .. math::
+
+    f'(x) = f(r_t) \left(\frac{x}{r_t}\right)**(r_t*df/dx(r_t)/f(r_t))
+
+    This preserves the slope and continuity of the function be yields a monotonic power law at large :math:`r`.
+    Parameters
+    ----------
+    f: InterpolatedUnivariateSpline
+        The function to truncate
+    r_t: float
+        The scale radius
+    a: float
+        Truncation rate. Higher values cause transition more quickly about :math:`r_t`.
+
+    Returns
+    -------
+    callable
+        The new function.
+
+    Examples
+    --------
+    >>> from cluster_generator.radial_profiles import hernquist_density_profile
+    >>> from scipy.interpolate import InterpolatedUnivariateSpline
+    >>> import matplotlib.pyplot as plt
+    >>> x = np.geomspace(0.1,1000,1000)
+    >>> rho = hernquist_density_profile(1e6,1000)(x)
+    >>> rho_spline = InterpolatedUnivariateSpline(x,rho)
+    >>> xl = np.geomspace(0.1,1e7,1000)
+    >>> _rho_trunc = truncate_spline(rho_spline,1000,7)
+    >>> plt.figure()
+    >>> plt.loglog(x,rho,"k-",lw=3)
+    >>> plt.loglog(xl,rho_spline(xl),"k:")
+    >>> plt.loglog(xl,_rho_trunc(xl),"r-.")
+    >>> plt.show()
+    """
+    _gamma = r_t*f(r_t,1)/f(r_t) # This is the slope.
+    return lambda x,g=_gamma,a=a,r=r_t: f(x)*_truncator_function(a,r,x) + (1-_truncator_function(a,r,x))*(f(r)*_truncator_function(-g,r,x))
 # -------------------------------------------------------------------------------------------------------------------- #
 # Math Utilities ===================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -184,7 +230,8 @@ def integrate_toinf(profile, rr):
     ret[:] += quad(profile, rmax, np.inf, limit=100)[0]
     return ret
 
-
+def moving_average(array,n):
+    return np.convolve(array,np.ones(n),"same") / n
 def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     r"""
     Generates an array of sampled radii for ``num_particles`` particles subject to the mass distribution defined by ``r`` and ``m``.

@@ -2,7 +2,11 @@
 ===============
 Radial Profiles
 ===============
-Radial profiles for use in cluster generation.
+Radial profiles, as instantiated through the :py:class:`radial_profiles.RadialProfile` class are wrappers for standard ``lambda`` functions
+which are used to provide additional structure for radial profiles of temperature, density, cumulative mass, and entropy in galaxy clusters.
+
+Each ``RadialProfile`` object has attached methods for altering the profile to add cores, truncate the profile, and a variety of other tasks.
+
 """
 import numpy as np
 
@@ -147,6 +151,48 @@ class RadialProfile:
         from scipy.interpolate import UnivariateSpline
         f = UnivariateSpline(r, f_r)
         return cls(f)
+
+    @classmethod
+    def from_binary(cls,f):
+        """
+        Loads a specific instance of a ``RadialProfile`` object from the serialized version of the instance saved to disk.
+
+        Parameters
+        ----------
+        f: str
+            The filename to open. Should be a valid ``.rp`` file type.
+
+        Returns
+        -------
+        RadialProfile
+            The ``RadialProfile`` object on disk.
+
+        Notes
+        -----
+        The serialization of the ``RadialProfile`` object is done using the ``pickle`` library.
+        """
+        import dill as pickle
+        with open(f,"rb") as bf:
+            return pickle.load(bf)
+
+    def to_binary(self,f):
+        """
+        Sends the ``RadialProfile`` instance to a serialized binary file.
+
+        Parameters
+        ----------
+        f: str
+            The preferred filename. For consistency, binary files should have ``.rp`` extension; however, this is not required.
+
+        Returns
+        -------
+        None
+
+        """
+        import dill as pickle
+        with open(f,"wb") as bf:
+
+            pickle.dump(self,bf)
 
     def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None,
              lw=2, **kwargs):
@@ -954,3 +1000,13 @@ def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
     f = lambda r: 3.0*m_r(r)/(4.*np.pi*r**3) - delta*rho_crit
     r_delta = bisect(f, 0.01, 10000.0)
     return r_delta, m_r(r_delta)
+
+if __name__ == '__main__':
+    u = power_law_profile(1,2,3)
+    u.to_binary("test.rp")
+    print(u(5000))
+    del u
+
+    u = RadialProfile.from_binary("test.rp")
+    print(u)
+    print(u(5000))

@@ -91,3 +91,5 @@ webcolors==1.13
 widgetsnbextension==4.0.8
 yt==4.2.1
 zipp==3.16.2
+halo
+dill
