@@ -1,16 +1,19 @@
+.. _quickstart:
 
-Installing ``cluster_generator``
---------------------------------
-In this guide are instructions on the installation of the ``cluster_generator`` library. If you encounter any issues during
-the installation process, please visit the **ISSUES** page of the github and report the issue. We will attempt to provide
-support as quickly as possible.
+Quickstart Guide
+----------------
+This quickstart guide will provide the basic tools necessary to successfully produce the initial conditions for whichever
+code you choose to use for your simulations. Below, you'll find instructions on installing ``cluster_generator``.
 
 .. raw:: html
 
    <hr style="height:10px;background-color:black">
 
+.. _installation:
+
 Getting the Package
 ===================
+
 From PyPI
 +++++++++
 .. attention::
@@ -36,7 +39,7 @@ Once the git clone has finished, there should be a directory ``./cluster_generat
 
 
 Dependencies
-============
+++++++++++++
 
 ``cluster_generator`` is compatible with Python 3.8+, and requires the following
 Python packages:
@@ -58,7 +61,7 @@ These will be installed automatically if you use ``pip`` or ``conda`` as detaile
     ``cluster_generator``.
 
 Installation
-============
+++++++++++++
 
 ``cluster_generator`` can be installed in a few different ways. The simplest way
 is via the conda package if you have the 
@@ -85,5 +88,18 @@ Alternatively, to install into your Python distribution from
     
     [~]$ git clone https://github.com/jzuhone/cluster_generator
     [~]$ cd cluster_generator
-    [~]$ python -m pip install . 
+    [~]$ python -m pip install .
+
+Getting Started
+---------------
+Now that you have ``cluster_generator`` installed, we're ready to start using the software. The guides below contain all of the
+info new users need to get started using ``cluster_generator``'s API.
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Guides:
+
+    quick_notebooks/book_1
+    quick_notebooks/book_2
+    quick_notebooks/book_3
 

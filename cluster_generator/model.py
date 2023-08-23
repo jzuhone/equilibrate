@@ -592,14 +592,14 @@ class ClusterModel(Potential):
 
             # -- Check 1: non-neg -- #
             for f in _phys_check_fields:
-                if f in self.fields:
+                if f in self.fields and self.fields[f] is not None:
                     non_phys_radii[np.where(self[f].d < 0)] = 1
 
             # -- Check 2: satisfactory sum -- #
             _sum_field = np.zeros(self["radius"].d.size)
 
             for f in _phys_check_fields[:-1]:
-                if f in self.fields:
+                if f in self.fields and self.fields[f] is not None:
                     _sum_field += self[f].d
 
             diff = np.abs(_sum_field-self["total_density"].d)/self["total_density"].d
@@ -902,9 +902,22 @@ class ClusterModel(Potential):
         Returns
         -------
         None
+
+        Notes
+        -----
+
+        Method
+        ++++++
+        The general approach used here is that for any of the density profiles in the :py:class:`model.ClusterModel` instance, if :math:`\rho_i < 0`, the profile will be non-physical. Therefore,
+        we make the generic substitution :math:`\rho _i \to 0, \;\;\text{when}\;\; \rho_i < 0`.
+
+        All of the dependent quantities (Temperature, entropy, gravitational field, etc.) must be recomputed after the initial stage of fixing the density profiles. To do so, we recompute the the temperature manually and then
+        re-initialize the new system using the corrected density and temperature profiles.
         """
         from copy import deepcopy
-        from cluster_generator.utils import moving_average
+        from cluster_generator.utils import truncate_spline
+        #  Making the profile corrections
+        # ------------------------------------------------------------------------------------------------------------ #
         with Halo(text=log_string(f"Rebuilding {self.__repr__()} for physicality..."), spinner="dots", stream=sys.stderr,
                   animation="marquee") as h:
             #  Sanity Check
@@ -958,8 +971,48 @@ class ClusterModel(Potential):
                 # -- Adding to total mass -- #
                 self.fields["total_density"] += self.fields[f"{fd}density"]
                 self.fields["total_mass"] += self.fields[f"{fm}mass"]
-        h.succeed()
 
+
+        #  Recomputing temperature field from new system
+        # ------------------------------------------------------------------------------------------------------------ #
+
+        # - Sanity Check - #
+        if "density" not in self.fields:
+            raise TypeError(f"The system [{self.__repr__()}] has no `density` field. If it is non-physical, it is likely a product of user error and should be corrected manually.")
+
+        # - Regenerating the base object for potential comptation - #
+        obj = self.__class__.from_arrays(deepcopy(self.fields), stellar_density=(self["stellar_density"] if "stellar_density" in self.fields else None), gravity=self.gravity, **self.attrs)
+
+        # - Getting the potential - #
+        _ = obj.pot
+        _potential_spine = InterpolatedUnivariateSpline(obj["radius"].d, obj.pot.to("kpc**2/Myr**2").d)
+        obj["gravitational_field"] = unyt_array(-_potential_spine(obj["radius"].d, 1), units="kpc/Myr**2")
+
+        # - Computing temperature - #
+        g = obj["gravitational_field"].in_units("kpc/Myr**2").v
+        g_r = InterpolatedUnivariateSpline(obj["radius"].d, g)
+
+        # -- Managing the density profile -- #
+        if "profiles" in obj.attrs and ("density" in obj.attrs["profiles"]):
+            dens_func = obj.attrs["profiles"]["density"]
+        else:
+            _dens_func = InterpolatedUnivariateSpline(obj["radius"].d,obj["density"].d)
+            dens_func = truncate_spline(_dens_func,obj["radius"].d,10)
+
+        dPdr_int = lambda r: dens_func(r) * g_r(r)
+        mylog.info("Integrating pressure profile.")
+        P = -integrate(dPdr_int, obj["radius"].d)
+        dPdr_int2 = lambda r: dens_func(r) * g[-1] * (obj["radius"].d[-1] / r) ** 2
+        P -= quad(dPdr_int2, obj["radius"].d[-1], np.inf, limit=100)[0]
+        obj.fields["pressure"] = unyt_array(P, "Msun/kpc/Myr**2")
+        obj.fields["temperature"] = obj.fields["pressure"] * mu * mp / obj.fields["density"]
+        obj.fields["temperature"].convert_to_units("keV")
+
+        h.succeed()
+        return self.__class__._from_scratch(deepcopy(obj.fields),
+                                            stellar_density=None,
+                                            gravity=obj.gravity,
+                                            **obj.attrs)
 
     def check_dm_virial(self):
         return self.dm_virial.check_virial()
@@ -1383,8 +1436,8 @@ if __name__ == '__main__':
 
     m1,m2 = ClusterModel.from_h5_file("test.h5"),ClusterModel.from_h5_file("test2.h5")
     print(m1.__repr__(),m2.__repr__())
-
-    a = [m1[q] for q in ["total_mass","total_density","stellar_density","dark_matter_density"]]
+    m1.check_hse()
+    a = [m1[q] for q in ["total_mass","total_density","temperature","dark_matter_density"]]
 
     fig,axes = plt.subplots(2,2)
 
@@ -1396,11 +1449,12 @@ if __name__ == '__main__':
 
     m1.rebuild_physical()
     m1.is_physical()
-    a = [m1[q] for q in ["total_mass","dark_matter_mass","stellar_density","dark_matter_density"]]
+    a = [m1[q] for q in ["total_mass","dark_matter_mass","temperature","dark_matter_density"]]
     for ax,q in zip(axes.ravel(),a):
         ax.loglog(m1["radius"].d,q.d,"r")
         ax.set_yscale("symlog")
 
     plt.show()
+    m1.check_hse()
 
 

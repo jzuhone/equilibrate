@@ -70,6 +70,16 @@ Features
 - **Magnetic field implementations**
 - **Multiple virialization methods**
 
+Getting Started
+===============
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
+
+To get started using the ``cluster_generator`` package, begin by following the installation instructions located on the :ref:`installation` page.
+Once the package is installed, you can get started making clusters! We suggest first-time users check out our :ref:`quickstart` page, which has a load
+of simple recipies to get your feet wet. Also check out the :ref:`examples` page for a more comprehensive set of examples for completing tasks in ``cluster_generator``.
+
 Contents
 ========
 .. raw:: html
@@ -79,7 +89,7 @@ Contents
 .. toctree::
    :maxdepth: 1
 
-   install
+   Getting_Started
    introduction
    radial_profiles
    models
