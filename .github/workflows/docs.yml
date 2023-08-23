@@ -38,8 +38,10 @@ jobs:
       - name: Install dependencies
         run: python3 -m pip install -r ./requirements.txt
 
+      - name: pandoc
+        uses: docker://pandoc/core:2.15
+
       - name: run
-        uses: docker://pandoc/core:2.9
         run: |
           cd ./docs
           make html
