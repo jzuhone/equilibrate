@@ -90,7 +90,6 @@ Contents
    :maxdepth: 1
 
    Getting_Started
-   introduction
    radial_profiles
    models
    particles

@@ -9,16 +9,16 @@ Each ``RadialProfile`` object has attached methods for altering the profile to a
 
 """
 import numpy as np
-
+import inspect
 #  Minor Functions
 # ----------------------------------------------------------------------------------------------------------------- #
 #: Alternative factor for rho(r) in NFW profiles. See `the wiki<https://en.wikipedia.org/wiki/Navarro%E2%80%93Frenk%E2%80%93White_profile>`_
-_nfw_factor = lambda conc: 1.0/(np.log(conc+1.0)-conc/(1.0+conc))
+_nfw_factor = lambda conc: 1.0 / (np.log(conc + 1.0) - conc / (1.0 + conc))
 
 
 #  Classes
 # ----------------------------------------------------------------------------------------------------------------- #
-class RadialProfile:
+class RadialProfile(object):
     r"""
     The ``RadialProfile`` class is a container class for all of the radial profiles in ``cluster_generator``.
 
@@ -34,7 +34,35 @@ class RadialProfile:
             the new ``RadialProfile`` object has the same profile as the previous one.
 
     """
-    def __init__(self, profile):
+    #: The built-in options for ``RadialProfile`` objects.
+    builtin = ["constant_profile",
+               "power_law_profile",
+               "beta_model_profile",
+               'hernquist_density_profile',
+               'cored_hernquist_density_profile',
+               'hernquist_mass_profile',
+               'nfw_density_profile',
+               'nfw_mass_profile',
+               'tnfw_density_profile',
+               'tnfw_mass_profile',
+               'snfw_density_profile',
+               'snfw_mass_profile',
+               'cored_snfw_density_profile',
+               'cored_snfw_mass_profile',
+               'cored_snfw_total_mass',
+               'einasto_density_profile',
+               'einasto_mass_profile',
+               'am06_density_profile',
+               'vikhlinin_density_profile',
+               'vikhlinin_temperature_profile',
+               'am06_temperature_profile',
+               'baseline_entropy_profile',
+               'broken_entropy_profile',
+               'walker_entropy_profile',
+               'rescale_profile_by_mass']
+
+    def __init__(self, profile,name=None):
+        self.name = name
         if isinstance(profile, RadialProfile):
             # Consistency check for profile type consistency.
             self.profile = profile.profile
@@ -43,6 +71,18 @@ class RadialProfile:
 
     def __call__(self, r):
         return self.profile(r)
+
+    def __str__(self):
+        if self.name is None:
+            return object.__str__(self)
+        else:
+            return f"RadialProfile; type={self.name}."
+
+    def __repr__(self):
+        if self.name is None:
+            return object.__repr__(self)
+        else:
+            return f"RadialProfile; type={self.name}."
 
     def _do_op(self, other, op):
         # Allows for operations between profiles.
@@ -64,7 +104,7 @@ class RadialProfile:
     __rmul__ = __mul__
 
     def __pow__(self, power):
-        p = lambda r: self.profile(r)**power
+        p = lambda r: self.profile(r) ** power
         return RadialProfile(p)
 
     def add_core(self, r_core, alpha):
@@ -89,10 +129,12 @@ class RadialProfile:
         This will cause any cuspy profile (i.e. one for which :math:`\left.\frac{d}{dr} f(r)\right|_{r=0} > 0` and which grows
         faster than the exponential term added to instead contain a core and go to 0 in its limit.
         """
+
         def _core(r):
-            x = r/r_core
-            ret = 1.0-np.exp(-x**alpha)
-            return self.profile(r)*ret
+            x = r / r_core
+            ret = 1.0 - np.exp(-x ** alpha)
+            return self.profile(r) * ret
+
         return RadialProfile(_core)
 
     def cutoff(self, r_cut, k=5):
@@ -119,15 +161,17 @@ class RadialProfile:
 
             1-\frac{1}{1+\exp\left(-2k\left(\frac{r}{r_{cut}}\right)\right)}.
         """
+
         def _cutoff(r):
-            x = r/r_cut
-            step = 1.0/(1.0+np.exp(-2*k*(x-1)))
-            p = self.profile(r)*(1.0-step)
+            x = r / r_cut
+            step = 1.0 / (1.0 + np.exp(-2 * k * (x - 1)))
+            p = self.profile(r) * (1.0 - step)
             return p
+
         return RadialProfile(_cutoff)
 
     @classmethod
-    def from_array(cls, r, f_r):
+    def from_array(cls, r, f_r,**kwargs):
         """
         Generate a callable radial profile using an array of radii
         and an array of values. 
@@ -150,10 +194,17 @@ class RadialProfile:
         """
         from scipy.interpolate import UnivariateSpline
         f = UnivariateSpline(r, f_r)
-        return cls(f)
+        return cls(f,**kwargs)
 
     @classmethod
-    def from_binary(cls,f):
+    def built_in(cls,name,*args):
+        """Initializes a ``RadialProfile`` from the specified name and given args."""
+        if name in cls.builtin:
+            return globals()[name](*args)
+        else:
+            raise ValueError(f"The name {name} is either not builtin or is incorrect.")
+    @classmethod
+    def from_binary(cls, f):
         """
         Loads a specific instance of a ``RadialProfile`` object from the serialized version of the instance saved to disk.
 
@@ -172,10 +223,10 @@ class RadialProfile:
         The serialization of the ``RadialProfile`` object is done using the ``pickle`` library.
         """
         import dill as pickle
-        with open(f,"rb") as bf:
+        with open(f, "rb") as bf:
             return pickle.load(bf)
 
-    def to_binary(self,f):
+    def to_binary(self, f):
         """
         Sends the ``RadialProfile`` instance to a serialized binary file.
 
@@ -190,9 +241,8 @@ class RadialProfile:
 
         """
         import dill as pickle
-        with open(f,"wb") as bf:
-
-            pickle.dump(self,bf)
+        with open(f, "wb") as bf:
+            pickle.dump(self, bf)
 
     def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None,
              lw=2, **kwargs):
@@ -219,7 +269,7 @@ class RadialProfile:
         plt.rc("font", size=18)
         plt.rc("axes", linewidth=2)
         if fig is None:
-            fig = plt.figure(figsize=(10,10))
+            fig = plt.figure(figsize=(10, 10))
         if ax is None:
             ax = fig.add_subplot(111)
         rr = np.logspace(np.log10(rmin), np.log10(rmax),
@@ -241,7 +291,7 @@ def constant_profile(const):
         The value of the constant.
     """
     p = lambda r: const
-    return RadialProfile(p)
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def power_law_profile(A, r_s, alpha):
@@ -261,8 +311,8 @@ def power_law_profile(A, r_s, alpha):
     alpha : float
         Power-law index of the profile.
     """
-    p = lambda r: A*(r/r_s)**alpha
-    return RadialProfile(p)
+    p = lambda r: A * (r / r_s) ** alpha
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def beta_model_profile(rho_c, r_c, beta):
@@ -287,8 +337,8 @@ def beta_model_profile(rho_c, r_c, beta):
     ----------
     .. [1] (Cavaliere A.,Fusco-Femiano R., 1976, A&A, 49, 137).
     """
-    p = lambda r: rho_c*((1+(r/r_c)**2)**(-1.5*beta))
-    return RadialProfile(p)
+    p = lambda r: rho_c * ((1 + (r / r_c) ** 2) ** (-1.5 * beta))
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def hernquist_density_profile(M_0, a):
@@ -311,8 +361,8 @@ def hernquist_density_profile(M_0, a):
     ----------
     .. [1] (Hernquist, L. 1990, ApJ, 356, 359).
     """
-    p = lambda r: M_0/(2.*np.pi*a**3)/((r/a)*(1.+r/a)**3)
-    return RadialProfile(p)
+    p = lambda r: M_0 / (2. * np.pi * a ** 3) / ((r / a) * (1. + r / a) ** 3)
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def cored_hernquist_density_profile(M_0, a, b):
@@ -333,8 +383,8 @@ def cored_hernquist_density_profile(M_0, a, b):
     RadialProfile
         The corresponding radial profile object.
     """
-    p = lambda r: M_0*b/(2.*np.pi*a**3)/((1.+b*r/a)*(1.+r/a)**3)
-    return RadialProfile(p)
+    p = lambda r: M_0 * b / (2. * np.pi * a ** 3) / ((1. + b * r / a) * (1. + r / a) ** 3)
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def hernquist_mass_profile(M_0, a):
@@ -354,8 +404,8 @@ def hernquist_mass_profile(M_0, a):
     RadialProfile
         The corresponding radial profile object.
     """
-    p = lambda r: M_0*r**2/(r+a)**2
-    return RadialProfile(p)
+    p = lambda r: M_0 * r ** 2 / (r + a) ** 2
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def convert_nfw_to_hernquist(M_200, r_200, conc):
@@ -379,8 +429,8 @@ def convert_nfw_to_hernquist(M_200, r_200, conc):
     RadialProfile
         The corresponding radial profile object.
     """
-    a = r_200/(np.sqrt(0.5*conc*conc*_nfw_factor(conc))-1.0)
-    M0 = M_200*(r_200+a)**2/r_200**2
+    a = r_200 / (np.sqrt(0.5 * conc * conc * _nfw_factor(conc)) - 1.0)
+    M0 = M_200 * (r_200 + a) ** 2 / r_200 ** 2
     return M0, a
 
 
@@ -401,8 +451,8 @@ def nfw_density_profile(rho_s, r_s):
     RadialProfile
         The corresponding radial profile object.
     """
-    p = lambda r: rho_s/((r/r_s)*(1.0+r/r_s)**2)
-    return RadialProfile(p)
+    p = lambda r: rho_s / ((r / r_s) * (1.0 + r / r_s) ** 2)
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def nfw_mass_profile(rho_s, r_s):
@@ -422,10 +472,12 @@ def nfw_mass_profile(rho_s, r_s):
     RadialProfile
         The corresponding radial profile object.
     """
+
     def _nfw(r):
-        x = r/r_s
-        return 4*np.pi*rho_s*r_s**3*(np.log(1+x)-x/(1+x))
-    return RadialProfile(_nfw)
+        x = r / r_s
+        return 4 * np.pi * rho_s * r_s ** 3 * (np.log(1 + x) - x / (1 + x))
+
+    return RadialProfile(_nfw,name=inspect.stack()[0][3])
 
 
 def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
@@ -459,7 +511,7 @@ def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
     if cosmo is None:
         cosmo = Cosmology()
     rho_crit = cosmo.critical_density(z).to_value("Msun/kpc**3")
-    rho_s = delta*rho_crit*conc**3*_nfw_factor(conc)/3.
+    rho_s = delta * rho_crit * conc ** 3 * _nfw_factor(conc) / 3.
     return rho_s
 
 
@@ -482,11 +534,13 @@ def tnfw_density_profile(rho_s, r_s, r_t):
     RadialProfile
         The corresponding radial profile object.
     """
+
     def _tnfw(r):
-        profile = rho_s/((r/r_s)*(1+r/r_s)**2)
-        profile /= (1+(r/r_t)**2)
+        profile = rho_s / ((r / r_s) * (1 + r / r_s) ** 2)
+        profile /= (1 + (r / r_t) ** 2)
         return profile
-    return RadialProfile(_tnfw)
+
+    return RadialProfile(_tnfw,name=inspect.stack()[0][3])
 
 
 def tnfw_mass_profile(rho_s, r_s, r_t):
@@ -512,13 +566,15 @@ def tnfw_mass_profile(rho_s, r_s, r_t):
     xx = Symbol("x")
     aa = Symbol("a")
     yy = Symbol("y")
-    f = integrate(xx**2/(xx*(1+xx)**2)/(1+(xx/aa)**2), (xx, 0, yy))
+    f = integrate(xx ** 2 / (xx * (1 + xx) ** 2) / (1 + (xx / aa) ** 2), (xx, 0, yy))
     fl = lambdify((yy, aa), f, modules="numpy")
+
     def _tnfw(r):
         x = r / r_s
         a = r_t / r_s
-        return 4*np.pi*rho_s*r_s**3*fl(x, a).astype('float64')
-    return RadialProfile(_tnfw)
+        return 4 * np.pi * rho_s * r_s ** 3 * fl(x, a).astype('float64')
+
+    return RadialProfile(_tnfw,name=inspect.stack()[0][3])
 
 
 def snfw_density_profile(M, a):
@@ -538,10 +594,12 @@ def snfw_density_profile(M, a):
     RadialProfile
         The corresponding radial profile object.
     """
+
     def _snfw(r):
-        x = r/a
-        return 3.*M/(16.*np.pi*a**3)/(x*(1.+x)**2.5)
-    return RadialProfile(_snfw)
+        x = r / a
+        return 3. * M / (16. * np.pi * a ** 3) / (x * (1. + x) ** 2.5)
+
+    return RadialProfile(_snfw,name=inspect.stack()[0][3])
 
 
 def snfw_mass_profile(M, a):
@@ -561,10 +619,12 @@ def snfw_mass_profile(M, a):
     RadialProfile
         The corresponding radial profile object.
     """
+
     def _snfw(r):
-        x = r/a
-        return M*(1.-(2.+3.*x)/(2.*(1.+x)**1.5))
-    return RadialProfile(_snfw)
+        x = r / a
+        return M * (1. - (2. + 3. * x) / (2. * (1. + x) ** 1.5))
+
+    return RadialProfile(_snfw,name=inspect.stack()[0][3])
 
 
 def snfw_total_mass(mass, radius, a):
@@ -588,7 +648,7 @@ def snfw_total_mass(mass, radius, a):
         The corresponding radial profile object.
     """
     mp = snfw_mass_profile(1.0, a)
-    return mass/mp(radius)
+    return mass / mp(radius)
 
 
 def cored_snfw_density_profile(M, a, r_c):
@@ -610,11 +670,13 @@ def cored_snfw_density_profile(M, a, r_c):
     RadialProfile
         The corresponding radial profile object.
     """
-    b = a/r_c
+    b = a / r_c
+
     def _snfw(r):
-        x = r/a
-        return 3.*M*b/(16.*np.pi*a**3)/((1.+b*x)*(1.+x)**2.5)
-    return RadialProfile(_snfw)
+        x = r / a
+        return 3. * M * b / (16. * np.pi * a ** 3) / ((1. + b * x) * (1. + x) ** 2.5)
+
+    return RadialProfile(_snfw,name=inspect.stack()[0][3])
 
 
 def cored_snfw_mass_profile(M, a, r_c):
@@ -636,17 +698,19 @@ def cored_snfw_mass_profile(M, a, r_c):
     RadialProfile
         The corresponding radial profile object.
     """
-    b = a/r_c
+    b = a / r_c
+
     def _snfw(r):
-        x = r/a
-        y = np.complex128(np.sqrt(x+1.))
-        d = np.sqrt(np.complex128(b/(1.0-b)))
-        e = b*(b-1.)**2
-        ret = (1.0-1.0/y)*(b-2.)/(b-1.)**2
-        ret += (1.0/y**3-1.0)/(3.*(b-1.))
-        ret += d*(np.arctan(y*d)-np.arctan(d))/e
-        return 1.5*M*b*ret.astype("float64")
-    return RadialProfile(_snfw)
+        x = r / a
+        y = np.complex128(np.sqrt(x + 1.))
+        d = np.sqrt(np.complex128(b / (1.0 - b)))
+        e = b * (b - 1.) ** 2
+        ret = (1.0 - 1.0 / y) * (b - 2.) / (b - 1.) ** 2
+        ret += (1.0 / y ** 3 - 1.0) / (3. * (b - 1.))
+        ret += d * (np.arctan(y * d) - np.arctan(d)) / e
+        return 1.5 * M * b * ret.astype("float64")
+
+    return RadialProfile(_snfw,name=inspect.stack()[0][3])
 
 
 def snfw_conc(conc_nfw):
@@ -666,7 +730,7 @@ def snfw_conc(conc_nfw):
     RadialProfile
         The corresponding radial profile object.
     """
-    return 0.76*conc_nfw+1.36
+    return 0.76 * conc_nfw + 1.36
 
 
 def cored_snfw_total_mass(mass, radius, a, r_c):
@@ -692,10 +756,10 @@ def cored_snfw_total_mass(mass, radius, a, r_c):
         The corresponding radial profile object.
     """
     mp = cored_snfw_mass_profile(1.0, a, r_c)
-    return mass/mp(radius)
+    return mass / mp(radius)
 
 
-_dn = lambda n: 3.0*n - 1./3. + 8.0/(1215.*n) + 184.0/(229635.*n*n)
+_dn = lambda n: 3.0 * n - 1. / 3. + 8.0 / (1215. * n) + 184.0 / (229635. * n * n)
 
 
 def einasto_density_profile(M, r_s, n):
@@ -719,13 +783,15 @@ def einasto_density_profile(M, r_s, n):
         The corresponding radial profile object.
     """
     from scipy.special import gamma
-    alpha = 1.0/n
-    h = r_s/_dn(n)**n
-    rho_0 = M/(4.0*np.pi*h**3*n*gamma(3.0*n))
+    alpha = 1.0 / n
+    h = r_s / _dn(n) ** n
+    rho_0 = M / (4.0 * np.pi * h ** 3 * n * gamma(3.0 * n))
+
     def _einasto(r):
-        s = r/h
-        return rho_0*np.exp(-s**alpha)
-    return RadialProfile(_einasto)
+        s = r / h
+        return rho_0 * np.exp(-s ** alpha)
+
+    return RadialProfile(_einasto,name=inspect.stack()[0][3])
 
 
 def einasto_mass_profile(M, r_s, n):
@@ -749,12 +815,14 @@ def einasto_mass_profile(M, r_s, n):
         The corresponding radial profile object.
     """
     from scipy.special import gammaincc
-    alpha = 1.0/n
-    h = r_s/_dn(n)**n
+    alpha = 1.0 / n
+    h = r_s / _dn(n) ** n
+
     def _einasto(r):
-        s = r/h
-        return M*(1.0-gammaincc(3.0*n, s**alpha))
-    return RadialProfile(_einasto)
+        s = r / h
+        return M * (1.0 - gammaincc(3.0 * n, s ** alpha))
+
+    return RadialProfile(_einasto,name=inspect.stack()[0][3])
 
 
 def am06_density_profile(rho_0, a, a_c, c, n):
@@ -780,10 +848,10 @@ def am06_density_profile(rho_0, a, a_c, c, n):
     RadialProfile
         The corresponding radial profile object.
     """
-    alpha = -1.-n*(c-1.)/(c-a/a_c)
-    beta = 1.-n*(1.-a/a_c)/(c-a/a_c)
-    p = lambda r: rho_0*(1.+r/a_c)*(1.+r/a_c/c)**alpha*(1.+r/a)**beta
-    return RadialProfile(p)
+    alpha = -1. - n * (c - 1.) / (c - a / a_c)
+    beta = 1. - n * (1. - a / a_c) / (c - a / a_c)
+    p = lambda r: rho_0 * (1. + r / a_c) * (1. + r / a_c / c) ** alpha * (1. + r / a) ** beta
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta,
@@ -818,10 +886,10 @@ def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta,
     """
     if gamma is None:
         gamma = 3.0
-    profile = lambda r: rho_0*(r/r_c)**(-0.5*alpha) * \
-                        (1.+(r/r_c)**2)**(-1.5*beta+0.25*alpha) * \
-                        (1.+(r/r_s)**gamma)**(-0.5*epsilon/gamma)
-    return RadialProfile(profile)
+    profile = lambda r: rho_0 * (r / r_c) ** (-0.5 * alpha) * \
+                        (1. + (r / r_c) ** 2) ** (-1.5 * beta + 0.25 * alpha) * \
+                        (1. + (r / r_s) ** gamma) ** (-0.5 * epsilon / gamma)
+    return RadialProfile(profile,name=inspect.stack()[0][3])
 
 
 def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min,
@@ -855,11 +923,13 @@ def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min,
     RadialProfile
         The corresponding radial profile object.
     """
+
     def _temp(r):
-        x = (r/r_cool)**a_cool
-        t = (r/r_t)**(-a)/((1.+(r/r_t)**b)**(c/b))
-        return T_0*t*(x+T_min/T_0)/(x+1)
-    return RadialProfile(_temp)
+        x = (r / r_cool) ** a_cool
+        t = (r / r_t) ** (-a) / ((1. + (r / r_t) ** b) ** (c / b))
+        return T_0 * t * (x + T_min / T_0) / (x + 1)
+
+    return RadialProfile(_temp,name=inspect.stack()[0][3])
 
 
 def am06_temperature_profile(T_0, a, a_c, c):
@@ -884,8 +954,8 @@ def am06_temperature_profile(T_0, a, a_c, c):
     RadialProfile
         The corresponding radial profile object.
     """
-    p = lambda r: T_0/(1.+r/a)*(c+r/a_c)/(1.+r/a_c)
-    return RadialProfile(p)
+    p = lambda r: T_0 / (1. + r / a) * (c + r / a_c) / (1. + r / a_c)
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def baseline_entropy_profile(K_0, K_200, r_200, alpha):
@@ -909,23 +979,25 @@ def baseline_entropy_profile(K_0, K_200, r_200, alpha):
     RadialProfile
         The corresponding radial profile object.
     """
-    p = lambda r: K_0 + K_200*(r/r_200)**alpha
-    return RadialProfile(p)
+    p = lambda r: K_0 + K_200 * (r / r_200) ** alpha
+    return RadialProfile(p,name=inspect.stack()[0][3])
 
 
 def broken_entropy_profile(r_s, K_scale, alpha, K_0=0.0):
     def _entr(r):
-        x = r/r_s
-        ret = (x**alpha)*(1.+x**5)**(0.2*(1.1-alpha))
-        return K_scale*(K_0+ret)
-    return RadialProfile(_entr)
+        x = r / r_s
+        ret = (x ** alpha) * (1. + x ** 5) ** (0.2 * (1.1 - alpha))
+        return K_scale * (K_0 + ret)
+
+    return RadialProfile(_entr,name=inspect.stack()[0][3])
 
 
 def walker_entropy_profile(r_200, A, B, K_scale, alpha=1.1):
     def _entr(r):
-        x = r/r_200
-        return K_scale*(A*x**alpha)*np.exp(-(x/B)**2)
-    return RadialProfile(_entr)
+        x = r / r_200
+        return K_scale * (A * x ** alpha) * np.exp(-(x / B) ** 2)
+
+    return RadialProfile(_entr,name=inspect.stack()[0][3])
 
 
 def rescale_profile_by_mass(profile, mass, radius):
@@ -944,9 +1016,9 @@ def rescale_profile_by_mass(profile, mass, radius):
 
     """
     from scipy.integrate import quad
-    mass_int = lambda r: profile(r)*r*r
-    rescale = mass/(4.*np.pi*quad(mass_int, 0.0, radius)[0])
-    return rescale*profile
+    mass_int = lambda r: profile(r) * r * r
+    rescale = mass / (4. * np.pi * quad(mass_int, 0.0, radius)[0])
+    return rescale * profile
 
 
 def find_overdensity_radius(m, delta, z=0.0, cosmo=None):
@@ -971,7 +1043,7 @@ def find_overdensity_radius(m, delta, z=0.0, cosmo=None):
     if cosmo is None:
         cosmo = Cosmology()
     rho_crit = cosmo.critical_density(z).to_value("Msun/kpc**3")
-    return (3.0*m/(4.0*np.pi*delta*rho_crit))**(1./3.)
+    return (3.0 * m / (4.0 * np.pi * delta * rho_crit)) ** (1. / 3.)
 
 
 def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
@@ -997,12 +1069,14 @@ def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
     if cosmo is None:
         cosmo = Cosmology()
     rho_crit = cosmo.critical_density(z).to_value("Msun/kpc**3")
-    f = lambda r: 3.0*m_r(r)/(4.*np.pi*r**3) - delta*rho_crit
+    f = lambda r: 3.0 * m_r(r) / (4. * np.pi * r ** 3) - delta * rho_crit
     r_delta = bisect(f, 0.01, 10000.0)
     return r_delta, m_r(r_delta)
 
+
 if __name__ == '__main__':
-    u = power_law_profile(1,2,3)
+    print(globals().keys())
+    u = power_law_profile(1, 2, 3)
     u.to_binary("test.rp")
     print(u(5000))
     del u
