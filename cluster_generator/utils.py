@@ -52,20 +52,6 @@ mue = 1.0/(X_H+0.5*(1.0-X_H))
 
 # -- Utility functions -- #
 _truncator_function = lambda a,r,x: 1/(1+(x/r)**a)
-#  Settings
-# ----------------------------------------------------------------------------------------------------------------- #
-#TODO: This could read from a bin file
-#: parameters for cluster generator.
-cg_params = {
-    ("mond","interp_alpha"): 1,
-    ("mond","a_0"): unyt_quantity(1.2e-10,"m/s**2"),
-    ("mond","QUMOND_interp"): None,
-    ("mond","AQUAL_interp"): None,
-    ("util","adj_factor"): 1.2
-}
-
-cg_params["mond","QUMOND_interp"] = lambda x: ((1/2)*(np.sqrt(1+(4/x**cg_params["mond","interp_alpha"])) + 1))**(1/cg_params["mond","interp_alpha"])
-cg_params["mond","AQUAL_interp"] = lambda x: x/(1+x**(cg_params["mond","interp_alpha"]))**(1/cg_params["mond","interp_alpha"])
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Type Assertions ==================================================================================================== #
