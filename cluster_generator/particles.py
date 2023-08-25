@@ -71,6 +71,11 @@ class ClusterParticles:
 
     def __setitem__(self, key, value):
         self.fields[key] = value
+    def __repr__(self):
+        return f"Cluster Particles [{self.particle_types}]; N={self.num_particles}."
+
+    def __str__(self):
+        return f"Cluster Particles [{self.particle_types}]; N={self.num_particles}."
 
     def keys(self):
         return self.fields.keys()
