@@ -3,7 +3,7 @@ Galaxy Cluster Models
 =====================
 Similar to the :py:class:`gravity.Potential` class, the :py:class:`model.ClusterModel` class is the ``cluster_generator`` code's
 base object for fully realized models of galaxy clusters. These objects contain fields (``ClusterModel.fields``) just as the :py:class:`gravity.Potential` objects do;
-however, ``ClusterModel`` objects can be virialized, may have particles generated from them, and can have HSE checked.
+however, :py:class:`model.ClusterModel` objects can be virialized, may have particles generated from them, and can have HSE checked.
 
 """
 import logging
@@ -19,13 +19,13 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.optimize import fsolve
 from unyt import unyt_array
 
-from cluster_generator.gravity import Potential
+from cluster_generator.gravity import available_gravities
 from cluster_generator.particles import \
     ClusterParticles
 from cluster_generator.utils import \
     integrate, mylog, integrate_mass, \
     mp, G, generate_particle_radii, mu, mue, \
-    ensure_ytquantity, kpc_to_cm, cg_params, log_string
+    ensure_ytquantity, kpc_to_cm, log_string
 from cluster_generator.virial import \
     VirialEquilibrium
 from halo import Halo
@@ -41,9 +41,9 @@ et = 8.0 / 3.0
 te = 3.0 / 8.0
 
 
-class ClusterModel(Potential):
+class ClusterModel:
     r"""
-    The ``ClusterModel`` class is a comprehensive representation of the cluster being modeled and can be used to generate
+    The :py:class:`model.ClusterModel` class is a comprehensive representation of the cluster being modeled and can be used to generate
     accurate initial conditions. The class is predicated on a fixed number of sample radii in the cluster.
 
     Parameters
@@ -51,7 +51,7 @@ class ClusterModel(Potential):
     num_elements: int
         The number of elements included. This is equivalent to the number of radii at which the model is sampled.
     fields: dict[str,unyt_array]
-        The fields to attribute to the ``ClusterModel``.
+        The fields to attribute to the :py:class:`model.ClusterModel`.
     gravity: str
         The gravity theory to apply. Options are ``[Newtonian,AQUAL,QUMOND]``.
     **kwargs:
@@ -83,8 +83,41 @@ class ClusterModel(Potential):
     def __init__(self, fields, gravity="Newtonian", **kwargs):
         #  Setting basic attributes
         # ------------------------------------------------------------------------------------------------------------ #
-        # - Super Initialization - #
-        super().__init__(fields, gravity, **kwargs)
+        # - Initializing base attributes - #
+        #: The ``fields`` associated with the ``Potential`` object.
+        self.fields = fields
+
+        # - managing gravity initialization - #
+        if isinstance(gravity,str):
+            # Gravity comes in as string, we try to look it up
+            try:
+                self.gravity = available_gravities[gravity](self)
+            except KeyError:
+                raise ValueError(
+                    f"The gravity option {gravity} doesn't exist. Configured options are {available_gravities.keys()}")
+
+        elif any([isinstance(gravity,i) for i in available_gravities.values()]):
+            # The gravity passed in is already a gravity object.
+            if gravity.model != self:
+                mylog.warning(f"Tried to assign {gravity} object to {self} but it was already assigned to {gravity.model}. Generating fresh instance.")
+                self.gravity = gravity.__class__(self)
+            else:
+                pass
+        elif any([gravity is i for i in available_gravities.values()]):
+            self.gravity = gravity(self)
+        else:
+            raise TypeError("The entity passed as gravity is not a recognized type for this parameter.")
+
+        #  Determining derived attributes
+        # ------------------------------------------------------------------------------------------------------------ #
+        #: The number of elements in each ``field`` array.
+        self.num_elements = len(self.fields["radius"])
+
+        if "gravitational_potential" not in self.fields:
+            self.fields["gravitational_potential"] = None
+
+        #: Additional attributes associated with the object. Derived from ``**kwargs``.
+        self.attrs = kwargs
 
         #  Managing additional parameters
         # ----------------------------------------------------------------------------------------------------------------- #
@@ -93,16 +126,31 @@ class ClusterModel(Potential):
             mylog.info(f"ClusterModel [{self.__repr__()}] has no virialization method. Setting to default = {('eddington' if self.gravity == 'Newtonian' else 'lma')}")
             self.attrs["virialization_method"] = ("eddington" if self.gravity == "Newtonian" else "lma")
 
-
     def __repr__(self):
-        return f"ClusterModel object; gravity={self.gravity}"
+        return f"ClusterModel object; gravity={self.gravity._classname}"
 
     def __str__(self):
-        return f"ClusterModel object; gravity={self.gravity}, fields={list(self.fields.keys())}"
+        return f"ClusterModel object; gravity={self.gravity._classname}, fields={list(self.fields.keys())}"
+
+    def __contains__(self,item):
+        return item in self.fields
+
+    def __getitem__(self, item):
+        return self.fields[item]
+
+    def __setitem__(self, key, value):
+        self.fields[key] = value
 
     #  Properties
     # ----------------------------------------------------------------------------------------------------------------- #
-
+    @property
+    def pot(self):
+        """The potential of the :py:class:`model.ClusterModel` object."""
+        if self.gravity.is_calculated:
+            return self.fields["gravitational_potential"]
+        else:
+            self.gravity.potential()
+            return self.fields["gravitational_potential"]
     @property
     def dm_virial(self):
         if self._dm_virial is None:
@@ -124,7 +172,7 @@ class ClusterModel(Potential):
     @classmethod
     def from_arrays(cls, fields, **kwargs):
         """
-        Initialize the ``ClusterModel`` from ``fields`` alone.
+        Initialize the :py:class:`model.ClusterModel` from ``fields`` alone.
 
         Parameters
         ----------
@@ -165,6 +213,7 @@ class ClusterModel(Potential):
 
         .. image:: ../_images/model/from_arrays_plot.png
         """
+
         if "stellar_density" in kwargs:
             fields["stellar_density"] = kwargs["stellar_density"]
             del kwargs["stellar_density"]
@@ -190,13 +239,13 @@ class ClusterModel(Potential):
         .. attention::
 
             The :py:meth:`model.ClusterModel.from_h5_file` method will seek both ``filename`` and ``filename.pkl``. If
-            the later cannot be found, the ``ClusterModel`` will lose its attributes and issue a warning.
+            the later cannot be found, the :py:class:`model.ClusterModel` will lose its attributes and issue a warning.
 
         """
         import dill as pickle
         from cluster_generator.virial import VirialEquilibrium
 
-        mylog.info(f"Loading ClusterModel from {filename}.")
+        mylog.info(f"Loading ClusterModel instance from {filename}.")
         # Preloading the correct fields from the HDF5 file
         # ------------------------------------------------------------------------------------------------------------ #
         with h5py.File(filename, "r") as f:
@@ -351,7 +400,7 @@ class ClusterModel(Potential):
     def from_dens_and_temp(cls, rmin, rmax, density, temperature, num_points=1000,
                            stellar_density=None, gravity="Newtonian", **kwargs):
         """
-        Computes the ``ClusterModel`` from gas density and temperature.
+        Computes the :py:class:`model.ClusterModel` from gas density and temperature.
 
         Parameters
         ----------
@@ -384,6 +433,17 @@ class ClusterModel(Potential):
         """
         mylog.info(f"Constructing ClusterModel. Method='from_dens_and_temp', gravity={gravity}.")
 
+        #  Sanity Checks
+        # ------------------------------------------------------------------------------------------------------------ #
+        if isinstance(gravity,str):
+            try:
+                gravity = available_gravities[gravity]
+            except KeyError:
+                raise ValueError(
+                    f"The gravity option {gravity} doesn't exist. Configured options are {available_gravities.keys()}")
+        else:
+            gravity = gravity.__class__
+
         #  Building the radius array
         # ------------------------------------------------------------------------------------------------------------ #
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
@@ -412,7 +472,7 @@ class ClusterModel(Potential):
         # - Integrating to get gas mass - #
         fields["gas_mass"] = unyt_array(integrate_mass(density, rr), "Msun")
 
-        fields["total_mass"] = _compute_total_mass(fields, gravity=gravity, attrs=kwargs)
+        fields["total_mass"] = gravity.compute_mass(fields, attrs=kwargs)
 
         total_mass_spline = InterpolatedUnivariateSpline(rr,
                                                          fields["total_mass"].v)
@@ -445,7 +505,7 @@ class ClusterModel(Potential):
         gravity: str
             The gravity type to use.
         attrs: dict
-            Additional attributes to pass to ``ClusterModel``. See documentation for more details.
+            Additional attributes to pass to :py:class:`model.ClusterModel`. See documentation for more details.
 
         Returns
         -------
@@ -483,7 +543,7 @@ class ClusterModel(Potential):
         num_points : integer, optional
             The number of points the profiles are evaluated at.
         attrs: dict
-            Additional attributes to pass to ``ClusterModel``. See documentation for more details.
+            Additional attributes to pass to :py:class:`model.ClusterModel`. See documentation for more details.
         gravity: str
             The gravity theory to use
         """
@@ -549,7 +609,7 @@ class ClusterModel(Potential):
         gravity: str
             The gravity theory to use
         attrs: dict
-            Additional attributes to pass to ``ClusterModel``. See documentation for more details.
+            Additional attributes to pass to :py:class:`model.ClusterModel`. See documentation for more details.
 
         Returns
         -------
@@ -813,7 +873,7 @@ class ClusterModel(Potential):
 
         # -- Managing the attributes -- #
         self.attrs["unit_system"] = "cgs" if in_cgs else "galactic"
-        self.attrs["gravity"] = self.gravity
+        self.attrs["gravity"] = self.gravity._classname
 
         with open(f"{output_filename}.pkl", "wb") as atf:
             pickle.dump(self.attrs, atf)
@@ -1348,93 +1408,19 @@ class HydrostaticEquilibrium(ClusterModel):
     pass
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Functions ========================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
-def _compute_total_mass(fields, gravity, attrs):
-    """
-    Computes the total mass from the provided fields for the specific form of gravity.
-    Parameters
-    ----------
-    fields: dict
-        The fields from which to calculate.
-    gravity: str
-        The gravity type to use.
-
-    Returns
-    -------
-    unyt_array
-    """
-    _required_fields = ["gravitational_field", "radius"]
-
-    #  Sanity checks
-    # ----------------------------------------------------------------------------------------------------------------- #
-    # - Checking fields - #
-    if any(_f not in fields for _f in _required_fields):
-        raise ValueError(f"Fields must include the required_fields: {_required_fields}")
-
-    # - Checking on the necessary attributes - #
-    if attrs is None:
-        attrs = {}
-
-    if gravity != "Newtonian":
-        if "interp_function" not in attrs:
-            mylog.warning(f"Gravity {gravity} requires kwarg `interp_function`. Setting to default...")
-            attrs["interp_function"] = cg_params["mond", f"{gravity}_interp"]
-        if "a_0" not in attrs:
-            mylog.warning(f"Gravity {gravity} requires kwarg `a_0`. Setting to default...")
-            attrs["a_0"] = cg_params["mond", "a_0"]
-
-    #  Managing the cases
-    # ----------------------------------------------------------------------------------------------------------------- #
-    if gravity == "Newtonian":
-        # We can just use the basic equation:
-        _output = -fields["radius"] ** 2 * fields["gravitational_field"] / G
-
-    elif gravity == "AQUAL":
-        # Computing the mass from AQUAL poisson equation
-        _output = (-fields["radius"] ** 2 * fields["gravitational_field"] / G) * attrs["interp_function"](
-            np.abs(fields["gravitational_field"].to("kpc/Myr**2").d) / attrs["a_0"].to("kpc/Myr**2").d)
-
-    elif gravity == "QUMOND":
-        # Compute the mass from QUMOND poisson equation
-
-        # - Creating a function equivalent of the gravitational field - #
-        _gravitational_field_spline = InterpolatedUnivariateSpline(fields["radius"].d,
-                                                                   fields["gravitational_field"].to("kpc/Myr**2").d /
-                                                                   attrs["a_0"].to("kpc/Myr**2").d)
-
-        _fsolve_function = lambda x: attrs["interp_function"](x) * x + _gravitational_field_spline(fields["radius"].d)
-
-        # - Computing the guess - #
-        _x_guess = np.sqrt(np.sign(fields["gravitational_field"].d) * _gravitational_field_spline(fields["radius"].d))
-
-        # - solving - #
-        _x = fsolve(_fsolve_function, _x_guess)
-
-        _output = (attrs["a_0"] * fields["radius"] ** 2 / G) * _x
-    else:
-        raise ValueError(f"{gravity} is not a valid gravity theory.")
-    return _output
-
-
-
-
 
 if __name__ == '__main__':
     from cluster_generator.tests.utils import generate_model_dens_temp, generate_model_dens_tdens
     import matplotlib.pyplot as plt
 
-    for logger in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
-        logger.setLevel("DEBUG")
+    #for logger in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
+    #    logger.setLevel("DEBUG")
 
-    #model = generate_model_dens_temp(gravity="AQUAL")
-    #m2 = generate_model_dens_tdens(gravity="AQUAL")
-#
-    #model.write_model_to_h5("test.h5",overwrite=True)
-    #m2.write_model_to_h5("test2.h5",overwrite=True)
+    model = generate_model_dens_temp(gravity="AQUAL",interp_function=lambda x: 1/(1+x**3)**(1/3))
+    exit()
+    m1 = ClusterModel.from_h5_file("test.h5")
 
-    m1,m2 = ClusterModel.from_h5_file("test.h5"),ClusterModel.from_h5_file("test2.h5")
+    exit()
     print(m1.__repr__(),m2.__repr__())
     m1.check_hse()
     a = [m1[q] for q in ["total_mass","total_density","temperature","dark_matter_density"]]
