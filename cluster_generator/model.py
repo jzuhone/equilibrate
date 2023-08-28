@@ -784,10 +784,16 @@ class ClusterModel:
             fd.write_hdf5(output_filename, dataset_name=k,
                           group_name="fields")
         if getattr(self, "_dm_virial", None):
-            fd = self.dm_virial.df
+            if self.virialization_method == "eddington":
+                fd = self.dm_virial.df
+            else:
+                df = self.dm_virial.sigma
             fd.write_hdf5(output_filename, dataset_name="dm_df")
         if getattr(self, "_star_virial", None):
-            fd = self.star_virial.df
+            if self.virialization_method == "eddington":
+                fd = self.star_virial.df
+            else:
+                df = self.star_virial.sigma
             fd.write_hdf5(output_filename, dataset_name="star_df")
 
     def write_model_to_binary(self, output_filename, fields_to_write=None,
@@ -1416,7 +1422,8 @@ if __name__ == '__main__':
     #for logger in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
     #    logger.setLevel("DEBUG")
 
-    model = generate_model_dens_temp(gravity="AQUAL",interp_function=lambda x: 1/(1+x**3)**(1/3))
+    model = generate_model_dens_temp(gravity="AQUAL")
+    model.write_model_to_h5("test.h5")
     exit()
     m1 = ClusterModel.from_h5_file("test.h5")
 

@@ -2,17 +2,11 @@ from cluster_generator.utils import ensure_ytarray, ensure_list, \
     parse_prng
 from cluster_generator.model import ClusterModel
 from cluster_generator.particles import \
-    ClusterParticles, \
-    combine_two_clusters, \
-    combine_three_clusters, \
-    resample_one_cluster, \
-    resample_two_clusters, \
-    resample_three_clusters
+    ClusterParticles, concat_clusters, resample_clusters
 import os
 import numpy as np
 from ruamel.yaml import YAML
-
-
+from unyt import unyt_array, Unit
 def compute_centers_for_binary(center, d, b, a=0.0):
     """
     Given a common center and distance parameters, calculate the
@@ -108,7 +102,7 @@ class ClusterICs:
         else:
             self.tot_np = num_particles
 
-        #  T
+        #  Checking for pre-provided particle files
         # ------------------------------------------------------------------------------------------------------------ #
         self._determine_num_particles()
         self.particle_files = [None]*3
@@ -137,8 +131,8 @@ class ClusterICs:
                 if field_name in p:
                     # We found a matching profile
                     lst.append(p[field_name][idxs][-1].value)
-            else:
-                lst.append(0.0)
+                else:
+                    lst.append(0.0)
 
         # - Finding true total masses - #
         tot_dm_mass = np.sum(dm_masses)
@@ -169,7 +163,8 @@ class ClusterICs:
 
         Returns
         -------
-
+        ClusterParticles
+            The returned set of particles after sampling.
         """
         #  Setup
         # ------------------------------------------------------------------------------------------------------------ #
@@ -213,63 +208,55 @@ class ClusterICs:
         overwrite : boolean, optional
             If True, overwrite a file with the same name. Default: False
         """
+        from ruamel.yaml.comments import CommentedMap
+
+        # -- building out total counts -- #
+        for k in ["dm","gas","star"]:
+            if k not in self.tot_np:
+                self.tot_np[k] = 0
+        # -- Constructing commenting / indexing variables -- #
+        _key_attr_com = {
+        "basename": (self.basename,"base name for ICs",True),
+        "num_halos": (self.num_halos,"Number of halos",True),
+        "num_dm_particles": (self.tot_np["dm"],"Number of DM particles",self.tot_np.get("dm", 0) > 0),
+        "num_star_particles": (self.tot_np["star"],"Number of star particles",self.tot_np.get("star", 0) > 0),
+        "num_gas_particles": (self.tot_np["gas"],"Number of gas particles",self.tot_np.get("gas", 0) > 0),
+        "mag_field": (self.mag_file,"Magnetic Field file",self.mag_file is not None),
+        "r_max":(self.r_max,"Maximal Radius",True)
+        }
+
+        #  Existence Check
+        # ------------------------------------------------------------------------------------------------------------ #
         if os.path.exists(filename) and not overwrite:
             raise RuntimeError(f"{filename} exists and overwrite=False!")
-        from ruamel.yaml.comments import CommentedMap
+
+        #  Setup
+        # ------------------------------------------------------------------------------------------------------------ #
         out = CommentedMap()
-        out["basename"] = self.basename
-        out.yaml_add_eol_comment("base name for ICs", key="basename")
-        out["num_halos"] = self.num_halos
-        out.yaml_add_eol_comment("number of halos", key='num_halos')
-        out["profile1"] = self.profiles[0]
-        out.yaml_add_eol_comment("profile for cluster 1", key='profile1')
-        out["center1"] = self.center[0].tolist()
-        out.yaml_add_eol_comment("center for cluster 1", key='center1')
-        out["velocity1"] = self.velocity[0].tolist()
-        out.yaml_add_eol_comment("velocity for cluster 1", key='velocity1')
-        if self.particle_files[0] is not None:
-            out["particle_file1"] = self.particle_files[0]
-            out.yaml_add_eol_comment("particle file for cluster 1",
-                                     key='particle_file1')
-        if self.num_halos > 1:
-            out["profile2"] = self.profiles[1]
-            out.yaml_add_eol_comment("profile for cluster 2", key='profile2')
-            out["center2"] = self.center[1].tolist()
-            out.yaml_add_eol_comment("center for cluster 2", key='center2')
-            out["velocity2"] = self.velocity[1].tolist()
-            out.yaml_add_eol_comment("velocity for cluster 2", key='velocity2')
-            if self.particle_files[1] is not None:
-                out["particle_file2"] = self.particle_files[1]
-                out.yaml_add_eol_comment("particle file for cluster 2", 
-                                         key='particle_file2')
-        if self.num_halos == 3:
-            out["profile3"] = self.profiles[2]
-            out.yaml_add_eol_comment("profile for cluster 3", key='profile3')
-            out["center3"] = self.center[2].tolist()
-            out.yaml_add_eol_comment("center for cluster 3", key='center3')
-            out["velocity3"] = self.velocity[2].tolist()
-            out.yaml_add_eol_comment("velocity for cluster 3", key='velocity3')
-            if self.particle_files[2] is not None:
-                out["particle_file3"] = self.particle_files[2]
-                out.yaml_add_eol_comment("particle file for cluster 3",
-                                         key='particle_file3')
-        if self.tot_np.get("dm", 0) > 0:
-            out["num_dm_particles"] = self.tot_np["dm"]
-            out.yaml_add_eol_comment("number of DM particles", 
-                                     key='num_dm_particles')
-        if self.tot_np.get("gas", 0) > 0:
-            out["num_gas_particles"] = self.tot_np["gas"]
-            out.yaml_add_eol_comment("number of gas particles", 
-                                     key='num_gas_particles')
-        if self.tot_np.get("star", 0) > 0:
-            out["num_star_particles"] = self.tot_np["star"]
-            out.yaml_add_eol_comment("number of star particles", 
-                                     key='num_star_particles')
-        if self.mag_file is not None:
-            out["mag_file"] = self.mag_file
-            out.yaml_add_eol_comment("3D magnetic field file", key='mag_file')
-        out["r_max"] = self.r_max
-        out.yaml_add_eol_comment("Maximum radius of particles", key='r_max')
+
+        # -- Writing basic data -- #
+        for k,v in _key_attr_com.items():
+            if v[2]:
+                out[k] = v[0]
+                out.yaml_add_eol_comment(v[1],key=k)
+
+        for i in range(1,self.num_halos+1):
+            out[f"profile{i}"] = self.profiles[i-1]
+            out.yaml_add_eol_comment(f"profile for cluster {i}.",key=f"profile{i}")
+            out[f"center{i}"] = self.center[i-1].tolist()
+            out.yaml_add_eol_comment(f"center for cluster {i}.",key=f"center{i}")
+            out[f"velocity{i}"] = self.velocity[i-1].tolist()
+            out.yaml_add_eol_comment(f"velocity for cluster {i}.",key=f"velocity{i}")
+
+            if self.particle_files[i-1] is not None:
+
+                out[f"particle_file{i}"] = self.particle_files[i-1]
+
+                out.yaml_add_eol_comment(f"particle file for cluster {i}",
+
+                                         key=f'particle_file{i}')
+        #  Writing to file
+        # ------------------------------------------------------------------------------------------------------------ #
         yaml = YAML()
         with open(filename, "w") as f:
             yaml.dump(out, f)
@@ -318,21 +305,9 @@ class ClusterICs:
         profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
         parts = self._generate_particles(
             regenerate_particles=regenerate_particles, prng=prng)
-        if self.num_halos == 1:
-            all_parts = parts[0]
-            all_parts.add_offsets(self.center[0], self.velocity[0])
-        elif self.num_halos == 2:
-            all_parts = combine_two_clusters(parts[0], parts[1], profiles[0],
-                                             profiles[1], self.center[0],
-                                             self.center[1], self.velocity[0],
-                                             self.velocity[1])
-        else:
-            all_parts = combine_three_clusters(parts[0], parts[1], parts[2],
-                                               profiles[0], profiles[1], 
-                                               profiles[2], self.center[0], 
-                                               self.center[1], self.center[2], 
-                                               self.velocity[0], self.velocity[1],
-                                               self.velocity[2])
+
+        all_parts = concat_clusters(parts,profiles,centers=self.center,velocities=self.velocity)
+
         return all_parts
 
     def resample_particle_ics(self, parts, passive_scalars=None):
@@ -349,27 +324,15 @@ class ClusterICs:
             The name of file to output the resampled ICs to.
         """
         profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
-        if self.num_halos == 1:
-            new_parts = resample_one_cluster(parts, profiles[0], self.center[0],
-                                             self.velocity[0])
-        elif self.num_halos == 2:
-            new_parts = resample_two_clusters(parts, profiles[0], profiles[1],
-                                              self.center[0], self.center[1],
-                                              self.velocity[0], self.velocity[1],
-                                              [self.r_max]*2,
-                                              passive_scalars=passive_scalars)
-        else:
-            new_parts = resample_three_clusters(parts, profiles[0], profiles[1], 
-                                                profiles[2], self.center[0], 
-                                                self.center[1], self.center[2], 
-                                                self.velocity[0], self.velocity[1], 
-                                                self.velocity[2], [self.r_max]*3, 
-                                                passive_scalars=passive_scalars)
-        return new_parts
+        return resample_clusters(parts,profiles,self.center,self.velocity,radii=[self.r_max]*len(profiles),passive_scalars=passive_scalars)
 
     def create_dataset(self, domain_dimensions, box_size, left_edge=None,
                        **kwargs):
         """
+        .. warning::
+
+            This function is currently non-functional. We are working on fixing the issue.
+
         Create an in-memory, uniformly gridded dataset in 3D using yt by
         placing the clusters into a box. When adding multiple clusters,
         per-volume quantities from each cluster such as density and
@@ -422,6 +385,7 @@ class ClusterICs:
         data = {}
         for i, profile in enumerate(self.profiles):
             p = ClusterModel.from_h5_file(profile)
+            print(p.fields.keys())
             xx = x-self.center.d[i][0]
             yy = y-self.center.d[i][1]
             zz = z-self.center.d[i][2]
@@ -432,32 +396,42 @@ class ClusterICs:
                 if field not in p:
                     continue
                 if field not in data:
-                    data[field] = (
+                    data[field] = unyt_array(
                         np.zeros(domain_dimensions), units[field]
                     )
                 f = InterpolatedUnivariateSpline(p["radius"].d,
                                                  p[field].d)
                 if field in fields1:
-                    data[field][0] += f(rr)
+                    data[field] += unyt_array(f(rr),units[field])
                 elif field in fields2:
-                    data[field][0] += f(rr)*fd(rr)
+                    data[field] += unyt_array(f(rr)*fd(rr),Unit(units[field]))
             for field in fields3:
-                data[field][0] += self.velocity.d[i][0]*fd(rr)
+                if field not in data:
+                    data[field] = unyt_array(
+                        np.zeros(domain_dimensions), units[field]
+                    )
+
+                data[field] += unyt_array(self.velocity.d[i][0]*fd(rr), Unit(units[field]))
         if "density" in data:
             for field in fields2+fields3:
-                data[field][0] /= data["density"][0]
+                data[field] /= data["density"]
         return load_uniform_grid(data, domain_dimensions, length_unit="kpc", 
                                  bbox=bbox, mass_unit="Msun", time_unit="Myr",
                                  **kwargs)
 if __name__ == '__main__':
-    test = ClusterICs(
-        "test",
-        2,
-        ["/home/ediggins/test/Newtonian_model.h5","/home/ediggins/test/AQUAL_model.h5"],
-        [0,0,0],
-        [0,0,0],
-        num_particles={"dm":2e4}
+    #test = ClusterICs(
+    #    "test",
+    #    2,
+    #    ["/home/ediggins/test/Newtonian_model.h5","/home/ediggins/test/AQUAL_model.h5"],
+    #    [[0,0,0],[0,0,0]],
+    #    [[0,0,0],[0,0,0]],
+    #    num_particles={"dm":2e4}
+#
+    #)
+#
+    #test.to_file("testic.h5",overwrite=True)
+    test = ClusterICs.from_file("testic.h5")
+    print(test)
+    ds = test.create_dataset([300,300,300],15000,[-5000,-5000,-5000])
 
-    )
-
-    test.setup_particle_ics()
+    print(ds)
