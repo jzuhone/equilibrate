@@ -5,14 +5,16 @@ The :py:mod:`gravity` module contains the :py:class:`gravity.Gravity` class, whi
 solving the Poisson equation in each of the available gravitational theories. The various available gravitational theories are
 implemented in classes inheriting from the base :py:class:`gravity.Gravity` class.
 """
+import sys
+
 import numpy as np
+from halo import Halo
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.optimize import fsolve
 from unyt import unyt_array, unyt_quantity
-from halo import Halo
+
 from cluster_generator.utils import \
     integrate, mylog, G, integrate_toinf, truncate_spline, log_string
-import sys
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Constants ========================================================================================================== #
@@ -58,7 +60,7 @@ class Gravity:
     @property
     def is_calculated(self):
         """Will return ``True`` if there is already a value for the gravitational potential in place."""
-        if "gravitational_field" in self.model.fields and self.model.fields["gravitational_potential"] is not None:
+        if "gravitational_potential" in self.model.fields and self.model.fields["gravitational_potential"] is not None:
             return True
         else:
             False
@@ -133,9 +135,8 @@ class NewtonianGravity(Gravity):
         self.model.fields["gravitational_potential"] = -G * (gpot1 + gpot2)
         self.model.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
-
     @classmethod
-    def compute_mass(cls, fields,attrs=None):
+    def compute_mass(cls, fields, attrs=None):
         """
         Computes the dynamical mass from the provided fields.
 
@@ -152,8 +153,8 @@ class NewtonianGravity(Gravity):
             Computation result
 
         """
-        with Halo(text=log_string(f"Dyn. Mass comp; {cls._classname}."),stream=sys.stderr) as h:
-            _val =-fields["radius"] ** 2 * fields["gravitational_field"] / G
+        with Halo(text=log_string(f"Dyn. Mass comp; {cls._classname}."), stream=sys.stderr) as h:
+            _val = -fields["radius"] ** 2 * fields["gravitational_field"] / G
             h.succeed(log_string("Dyn. Mass comp: [DONE] "))
         return _val
 
@@ -260,7 +261,7 @@ class AQUALGravity(Gravity):
         self.model.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
     @classmethod
-    def compute_mass(cls, fields,attrs=None):
+    def compute_mass(cls, fields, attrs=None):
         """
         Computes the dynamical mass from the provided fields.
 
@@ -279,7 +280,7 @@ class AQUALGravity(Gravity):
         """
         #  Managing attributes
         # ------------------------------------------------------------------------------------------------------------ #
-        with Halo(text=log_string(f"Dyn. Mass comp; {cls._classname}."),stream=sys.stderr) as h:
+        with Halo(text=log_string(f"Dyn. Mass comp; {cls._classname}."), stream=sys.stderr) as h:
             if attrs is None:
                 attrs = {}
 
@@ -295,11 +296,12 @@ class AQUALGravity(Gravity):
             # -------------------------------------------------------------------------------------------------------- #
             h.succeed(log_string("Dyn. Mass comp: [DONE] "))
         return (-fields["radius"] ** 2 * fields["gravitational_field"] / G) * attrs["interp_function"](
-                np.abs(fields["gravitational_field"].to("kpc/Myr**2").d) / attrs["a_0"].to("kpc/Myr**2").d)
+            np.abs(fields["gravitational_field"].to("kpc/Myr**2").d) / attrs["a_0"].to("kpc/Myr**2").d)
 
     @staticmethod
     def _interp(x):
-        return  x / (1 + x)
+        return x / (1 + x)
+
 
 class QUMONDGravity(Gravity):
     """
@@ -377,7 +379,7 @@ class QUMONDGravity(Gravity):
         self.model.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
 
     @classmethod
-    def compute_mass(cls, fields, attrs = {}):
+    def compute_mass(cls, fields, attrs={}):
         """
         Computes the dynamical mass from the provided fields.
 
@@ -394,7 +396,7 @@ class QUMONDGravity(Gravity):
             Computation result
 
         """
-        with Halo(text=log_string(f"Dyn. Mass comp; {cls._classname}."),stream=sys.stderr) as h:
+        with Halo(text=log_string(f"Dyn. Mass comp; {cls._classname}."), stream=sys.stderr, enabled=False) as h:
             if attrs is None:
                 attrs = {}
 
@@ -409,14 +411,16 @@ class QUMONDGravity(Gravity):
 
             # - Creating a function equivalent of the gravitational field - #
             _gravitational_field_spline = InterpolatedUnivariateSpline(fields["radius"].d,
-                                                                       fields["gravitational_field"].to("kpc/Myr**2").d /
+                                                                       fields["gravitational_field"].to(
+                                                                           "kpc/Myr**2").d /
                                                                        attrs["a_0"].to("kpc/Myr**2").d)
 
             _fsolve_function = lambda x: attrs["interp_function"](x) * x + _gravitational_field_spline(
                 fields["radius"].d)
 
             # - Computing the guess - #
-            _x_guess = np.sqrt(np.sign(fields["gravitational_field"].d) * _gravitational_field_spline(fields["radius"].d))
+            _x_guess = np.sqrt(
+                np.sign(fields["gravitational_field"].d) * _gravitational_field_spline(fields["radius"].d))
 
             # - solving - #
             _x = fsolve(_fsolve_function, _x_guess)
@@ -425,9 +429,10 @@ class QUMONDGravity(Gravity):
 
     @staticmethod
     def _interp(x):
-        return  ((1 / 2) * (
-        np.sqrt(1 + (4 / x) + 1)) ** (
-                                 1 ))
+        return ((1 / 2) * (
+            np.sqrt(1 + (4 / x) + 1)) ** (
+                    1))
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Catalog ============================================================================================================ #

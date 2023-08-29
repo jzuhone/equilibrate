@@ -1,4 +1,3 @@
-
 cluster_generator
 =================
 |yt-project| |docs| |testing| |Github Page| |Pylint| |coverage|

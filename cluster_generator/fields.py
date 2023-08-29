@@ -1,11 +1,13 @@
 """
 3D fields for magnetic field initiation and other field based tasks.
 """
-import numpy as np
-from cluster_generator.utils import mylog, parse_prng
 import os
-from cluster_generator.model import ClusterModel
+
+import numpy as np
 from unyt import unyt_array
+
+from cluster_generator.model import ClusterModel
+from cluster_generator.utils import mylog, parse_prng
 
 
 def parse_value(value, default_units):
@@ -59,11 +61,11 @@ def rot_3d(axis, gx, gy, gz, ang):
     s = np.sin(ang)
 
     if axis == 1:
-        gy, gz = c*gy + s*gz, -s*gy + c*gz
+        gy, gz = c * gy + s * gz, -s * gy + c * gz
     elif axis == 2:
-        gx, gz = c*gx - s*gz, s*gx + c*gz
+        gx, gz = c * gx - s * gz, s * gx + c * gz
     elif axis == 3:
-        gx, gy = c*gx + s*gy, -s*gx + c*gy
+        gx, gy = c * gx + s * gy, -s * gx + c * gy
 
     return gx, gy, gz
 
@@ -72,7 +74,7 @@ class ClusterField:
     _units = "dimensionless"
     _name = "vector"
 
-    def __init__(self, left_edge, right_edge, ddims, padding=0.1, 
+    def __init__(self, left_edge, right_edge, ddims, padding=0.1,
                  vector_potential=False, divergence_clean=False):
         """
 
@@ -94,13 +96,13 @@ class ClusterField:
         ddims = np.array(ddims).astype("int")
         left_edge = parse_value(left_edge, "kpc").v
         right_edge = parse_value(right_edge, "kpc").v
-        width = right_edge-left_edge
-        deltas = width/ddims
+        width = right_edge - left_edge
+        deltas = width / ddims
 
         # - Accounting for padding - #
-        pad_dims = (2*np.ceil(0.5*padding*ddims)).astype("int")
-        self.left_edge = left_edge - 0.5*pad_dims*deltas 
-        self.right_edge = right_edge + 0.5*pad_dims*deltas
+        pad_dims = (2 * np.ceil(0.5 * padding * ddims)).astype("int")
+        self.left_edge = left_edge - 0.5 * pad_dims * deltas
+        self.right_edge = right_edge + 0.5 * pad_dims * deltas
         self.ddims = ddims + pad_dims
 
         # - Additional attributes - #
@@ -112,7 +114,7 @@ class ClusterField:
     def _compute_coords(self):
         """Creates the coordinate mgrids from the grid"""
         nx, ny, nz = self.ddims
-        x, y, z = np.mgrid[0:nx,0:ny,0:nz] + 0.5
+        x, y, z = np.mgrid[0:nx, 0:ny, 0:nz] + 0.5
         x *= self.dx
         y *= self.dy
         z *= self.dz
@@ -124,13 +126,13 @@ class ClusterField:
     def _compute_waves(self):
         nx, ny, nz = self.ddims
 
-        kx, ky, kz = np.mgrid[0:nx,0:ny,0:nz].astype("float64")
-        kx[kx > nx//2] = kx[kx > nx//2] - nx
-        ky[ky > ny//2] = ky[ky > ny//2] - ny
-        kz[kz > nz//2] = kz[kz > nz//2] - nz
-        kx *= 2.*np.pi/(nx*self.dx)
-        ky *= 2.*np.pi/(ny*self.dy)
-        kz *= 2.*np.pi/(nz*self.dz)
+        kx, ky, kz = np.mgrid[0:nx, 0:ny, 0:nz].astype("float64")
+        kx[kx > nx // 2] = kx[kx > nx // 2] - nx
+        ky[ky > ny // 2] = ky[ky > ny // 2] - ny
+        kz[kz > nz // 2] = kz[kz > nz // 2] - nz
+        kx *= 2. * np.pi / (nx * self.dx)
+        ky *= 2. * np.pi / (ny * self.dy)
+        kz *= 2. * np.pi / (nz * self.dz)
 
         return kx, ky, kz
 
@@ -139,11 +141,11 @@ class ClusterField:
         s = np.sin(ang)
 
         if axis == 1:
-            self.gy, self.gz = c*self.gy+s*self.gz, -s*self.gy+c*self.gz
+            self.gy, self.gz = c * self.gy + s * self.gz, -s * self.gy + c * self.gz
         elif axis == 2:
-            self.gx, self.gz = c*self.gx-s*self.gz, s*self.gx+c*self.gz
+            self.gx, self.gz = c * self.gx - s * self.gz, s * self.gx + c * self.gz
         elif axis == 3:
-            self.gx, self.gy = c*self.gx+s*self.gy, -s*self.gx+c*self.gy
+            self.gx, self.gy = c * self.gx + s * self.gy, -s * self.gx + c * self.gy
 
     def _divergence_clean(self, kx, ky, kz):
 
@@ -169,9 +171,9 @@ class ClusterField:
             kzd[np.isnan(kzd)] = 0.0
 
         self.gx, self.gy, self.gz = \
-            [(1.0-kxd*kxd)*self.gx-kxd*kyd*self.gy-kxd*kzd*self.gz,
-             -kyd*kxd*self.gx+(1.0-kyd*kyd)*self.gy-kyd*kzd*self.gz,
-             -kzd*kxd*self.gx-kzd*kyd*self.gy+(1.0-kzd*kzd)*self.gz]
+            [(1.0 - kxd * kxd) * self.gx - kxd * kyd * self.gy - kxd * kzd * self.gz,
+             -kyd * kxd * self.gx + (1.0 - kyd * kyd) * self.gy - kyd * kzd * self.gz,
+             -kzd * kxd * self.gx - kzd * kyd * self.gy + (1.0 - kzd * kzd) * self.gz]
 
         self.gx = np.fft.ifftn(self.gx).real
         self.gy = np.fft.ifftn(self.gy).real
@@ -181,7 +183,7 @@ class ClusterField:
 
     def _compute_vector_potential(self, kx, ky, kz):
 
-        kk = np.sqrt(kx**2+ky**2+kz**2)
+        kk = np.sqrt(kx ** 2 + ky ** 2 + kz ** 2)
 
         mylog.info("Compute vector potential.")
 
@@ -206,7 +208,7 @@ class ClusterField:
         self._rot_3d(2, beta)
 
         with np.errstate(invalid='ignore', divide='ignore'):
-            self.gx, self.gy = (0.0+1.0j)*self.gy/kk, -(0.0+1.0j)*self.gx/kk
+            self.gx, self.gy = (0.0 + 1.0j) * self.gy / kk, -(0.0 + 1.0j) * self.gx / kk
             self.gz = np.zeros(self.gx.shape, dtype="complex")
 
         del kk
@@ -316,18 +318,18 @@ class ClusterField:
         v = np.zeros((cluster_particles.num_particles[ptype], 3))
         for i, ax in enumerate("xyz"):
             func = RegularGridInterpolator((self["x"], self["y"], self["z"]),
-                                           self[self._name+"_"+ax], 
+                                           self[self._name + "_" + ax],
                                            bounds_error=False, fill_value=0.0)
-            v[:,i] = func(cluster_particles[ptype, "particle_position"].d)
-        cluster_particles.set_field(ptype, self._name, 
+            v[:, i] = func(cluster_particles[ptype, "particle_position"].d)
+        cluster_particles.set_field(ptype, self._name,
                                     unyt_array(v, self.units), units=units)
 
 
 class GaussianRandomField(ClusterField):
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 padding=0.1, alpha=-11./3., g_rms=1.0, ctr1=None,
-                 ctr2=None, ctr3=None, r1=None, r2=None, r3=None, 
-                 g1=None, g2=None, g3=None, vector_potential=False, 
+                 padding=0.1, alpha=-11. / 3., g_rms=1.0, ctr1=None,
+                 ctr2=None, ctr3=None, r1=None, r2=None, r3=None,
+                 g1=None, g2=None, g3=None, vector_potential=False,
                  divergence_clean=False, prng=None, r_max=None):
 
         prng = parse_prng(prng)
@@ -349,7 +351,7 @@ class GaussianRandomField(ClusterField):
 
         if num_halos >= 1:
             if ctr1 is None:
-                ctr1 = 0.5*(self.left_edge+self.right_edge)
+                ctr1 = 0.5 * (self.left_edge + self.right_edge)
             else:
                 ctr1 = parse_value(ctr1, "kpc").v
             r1 = parse_value(r1, "kpc").v
@@ -372,52 +374,53 @@ class GaussianRandomField(ClusterField):
         l_min = parse_value(l_min, "kpc").v
         l_max = parse_value(l_max, "kpc").v
 
-        k0 = 2.*np.pi/l_min
-        k1 = 2.*np.pi/l_max
+        k0 = 2. * np.pi / l_min
+        k1 = 2. * np.pi / l_max
 
         mylog.info("Setting up the Gaussian random fields.")
 
-        v = np.exp(2.*np.pi*1j*prng.random((3,nx,ny,nz)))
+        v = np.exp(2. * np.pi * 1j * prng.random((3, nx, ny, nz)))
 
-        v[:,0,0,0] = 2.*np.sign((v[:,0,0,0].imag < 0.0).astype("int"))-1.+0j
-        v[:,nx//2,ny//2,nz//2] = 2.*np.sign((v[:,nx//2,ny//2,nz//2].imag < 0.0).astype("int"))-1.+0j
-        v[:,0,ny//2,nz//2] = 2.*np.sign((v[:,0,ny//2,nz//2].imag < 0.0).astype("int"))-1.+0j
-        v[:,nx//2,0,nz//2] = 2.*np.sign((v[:,nx//2,0,nz//2].imag < 0.0).astype("int"))-1.+0j
-        v[:,nx//2,ny//2,0] = 2.*np.sign((v[:,nx//2,ny//2,0].imag < np.pi).astype("int"))-1.+0j
-        v[:,0,0,nz//2] = 2.*np.sign((v[:,0,0,nz//2].imag < np.pi).astype("int"))-1.+0j
-        v[:,0,ny//2,0] = 2.*np.sign((v[:,0,ny//2,0].imag < np.pi).astype("int"))-1.+0j
-        v[:,nx//2,0,0] = 2.*np.sign((v[:,nx//2,0,0].imag < np.pi).astype("int"))-1.+0j
+        v[:, 0, 0, 0] = 2. * np.sign((v[:, 0, 0, 0].imag < 0.0).astype("int")) - 1. + 0j
+        v[:, nx // 2, ny // 2, nz // 2] = 2. * np.sign(
+            (v[:, nx // 2, ny // 2, nz // 2].imag < 0.0).astype("int")) - 1. + 0j
+        v[:, 0, ny // 2, nz // 2] = 2. * np.sign((v[:, 0, ny // 2, nz // 2].imag < 0.0).astype("int")) - 1. + 0j
+        v[:, nx // 2, 0, nz // 2] = 2. * np.sign((v[:, nx // 2, 0, nz // 2].imag < 0.0).astype("int")) - 1. + 0j
+        v[:, nx // 2, ny // 2, 0] = 2. * np.sign((v[:, nx // 2, ny // 2, 0].imag < np.pi).astype("int")) - 1. + 0j
+        v[:, 0, 0, nz // 2] = 2. * np.sign((v[:, 0, 0, nz // 2].imag < np.pi).astype("int")) - 1. + 0j
+        v[:, 0, ny // 2, 0] = 2. * np.sign((v[:, 0, ny // 2, 0].imag < np.pi).astype("int")) - 1. + 0j
+        v[:, nx // 2, 0, 0] = 2. * np.sign((v[:, nx // 2, 0, 0].imag < np.pi).astype("int")) - 1. + 0j
 
-        np.multiply(v, np.sqrt(-2.*np.log(prng.random((3,nx,ny,nz)))), v)
+        np.multiply(v, np.sqrt(-2. * np.log(prng.random((3, nx, ny, nz)))), v)
 
         kx, ky, kz = self._compute_waves()
-        kk = np.sqrt(kx**2+ky**2+kz**2)
+        kk = np.sqrt(kx ** 2 + ky ** 2 + kz ** 2)
         with np.errstate(invalid='ignore', divide='ignore'):
-            sigma = (1.0+(kk/k1)**2)**(0.25*alpha)*np.exp(-0.5*(kk/k0)**2)
+            sigma = (1.0 + (kk / k1) ** 2) ** (0.25 * alpha) * np.exp(-0.5 * (kk / k0) ** 2)
         sigma[np.isinf(sigma)] = 0.0
         sigma[np.isnan(sigma)] = 0.0
         del kk
 
-        v[:,nx-1:0:-1,ny-1:0:-1,nz-1:nz//2:-1] = np.conjugate(v[:,1:nx,1:ny,1:nz//2])
-        v[:,nx-1:0:-1,ny-1:ny//2:-1,nz//2] = np.conjugate(v[:,1:nx,1:ny//2,nz//2])
-        v[:,nx-1:0:-1,ny-1:ny//2:-1,0] = np.conjugate(v[:,1:nx,1:ny//2,0])
-        v[:,nx-1:0:-1,0,nz-1:nz//2:-1] = np.conjugate(v[:,1:nx,0,1:nz//2])
-        v[:,0,ny-1:0:-1,nz-1:nz//2:-1] = np.conjugate(v[:,0,1:ny,1:nz//2])
-        v[:,nx-1:nx//2:-1,ny//2,nz//2] = np.conjugate(v[:,1:nx//2,ny//2,nz//2])
-        v[:,nx-1:nx//2:-1,ny//2,0] = np.conjugate(v[:,1:nx//2,ny//2,0])
-        v[:,nx-1:nx//2:-1,0,nz//2] = np.conjugate(v[:,1:nx//2,0,nz//2])
-        v[:,0,ny-1:ny//2:-1,nz//2] = np.conjugate(v[:,0,1:ny//2,nz//2])
-        v[:,nx-1:nx//2:-1,0,0] = np.conjugate(v[:,1:nx//2,0,0])
-        v[:,0,ny-1:ny//2:-1,0] = np.conjugate(v[:,0,1:ny//2,0])
-        v[:,0,0,nz-1:nz//2:-1] = np.conjugate(v[:,0,0,1:nz//2])
+        v[:, nx - 1:0:-1, ny - 1:0:-1, nz - 1:nz // 2:-1] = np.conjugate(v[:, 1:nx, 1:ny, 1:nz // 2])
+        v[:, nx - 1:0:-1, ny - 1:ny // 2:-1, nz // 2] = np.conjugate(v[:, 1:nx, 1:ny // 2, nz // 2])
+        v[:, nx - 1:0:-1, ny - 1:ny // 2:-1, 0] = np.conjugate(v[:, 1:nx, 1:ny // 2, 0])
+        v[:, nx - 1:0:-1, 0, nz - 1:nz // 2:-1] = np.conjugate(v[:, 1:nx, 0, 1:nz // 2])
+        v[:, 0, ny - 1:0:-1, nz - 1:nz // 2:-1] = np.conjugate(v[:, 0, 1:ny, 1:nz // 2])
+        v[:, nx - 1:nx // 2:-1, ny // 2, nz // 2] = np.conjugate(v[:, 1:nx // 2, ny // 2, nz // 2])
+        v[:, nx - 1:nx // 2:-1, ny // 2, 0] = np.conjugate(v[:, 1:nx // 2, ny // 2, 0])
+        v[:, nx - 1:nx // 2:-1, 0, nz // 2] = np.conjugate(v[:, 1:nx // 2, 0, nz // 2])
+        v[:, 0, ny - 1:ny // 2:-1, nz // 2] = np.conjugate(v[:, 0, 1:ny // 2, nz // 2])
+        v[:, nx - 1:nx // 2:-1, 0, 0] = np.conjugate(v[:, 1:nx // 2, 0, 0])
+        v[:, 0, ny - 1:ny // 2:-1, 0] = np.conjugate(v[:, 0, 1:ny // 2, 0])
+        v[:, 0, 0, nz - 1:nz // 2:-1] = np.conjugate(v[:, 0, 0, 1:nz // 2])
 
-        gx = np.fft.ifftn(sigma*v[0,:,:,:]).real
-        gy = np.fft.ifftn(sigma*v[1,:,:,:]).real
-        gz = np.fft.ifftn(sigma*v[2,:,:,:]).real
+        gx = np.fft.ifftn(sigma * v[0, :, :, :]).real
+        gy = np.fft.ifftn(sigma * v[1, :, :, :]).real
+        gz = np.fft.ifftn(sigma * v[2, :, :, :]).real
 
         del sigma, v
 
-        g_avg = np.sqrt(np.mean(gx*gx+gy*gy+gz*gz))
+        g_avg = np.sqrt(np.mean(gx * gx + gy * gy + gz * gz))
 
         gx /= g_avg
         gy /= g_avg
@@ -431,50 +434,50 @@ class GaussianRandomField(ClusterField):
         else:
             if num_halos >= 1:
                 mylog.info("Scaling the fields by cluster 1.")
-                rr1 = np.sqrt((x-ctr1[0])**2 + (y-ctr1[1])**2 + (z-ctr1[2])**2)
+                rr1 = np.sqrt((x - ctr1[0]) ** 2 + (y - ctr1[1]) ** 2 + (z - ctr1[2]) ** 2)
                 if r_max is not None:
                     rr1[rr1 > r_max] = r_max
                 idxs1 = np.searchsorted(r1, rr1) - 1
-                dr1 = (rr1-r1[idxs1])/(r1[idxs1+1]-r1[idxs1])
-                g_rms = ((1.-dr1)*g1[idxs1] + dr1*g1[idxs1+1])**2
+                dr1 = (rr1 - r1[idxs1]) / (r1[idxs1 + 1] - r1[idxs1])
+                g_rms = ((1. - dr1) * g1[idxs1] + dr1 * g1[idxs1 + 1]) ** 2
             if num_halos >= 2:
                 mylog.info("Scaling the fields by cluster 2.")
-                rr2 = np.sqrt((x-ctr2[0])**2 + (y-ctr2[1])**2 + (z-ctr2[2])**2)
+                rr2 = np.sqrt((x - ctr2[0]) ** 2 + (y - ctr2[1]) ** 2 + (z - ctr2[2]) ** 2)
                 if r_max is not None:
                     rr2[rr2 > r_max] = r_max
                 idxs2 = np.searchsorted(r2, rr2) - 1
-                dr2 = (rr2-r2[idxs2])/(r2[idxs2+1]-r2[idxs2])
-                g_rms += ((1.-dr2)*g2[idxs2] + dr2*g2[idxs2+1])**2
+                dr2 = (rr2 - r2[idxs2]) / (r2[idxs2 + 1] - r2[idxs2])
+                g_rms += ((1. - dr2) * g2[idxs2] + dr2 * g2[idxs2 + 1]) ** 2
             if num_halos == 3:
                 mylog.info("Scaling the fields by cluster 3.")
-                rr3 = np.sqrt((x-ctr3[0])**2 + (y-ctr3[1])**2 + (z-ctr3[2])**2)
+                rr3 = np.sqrt((x - ctr3[0]) ** 2 + (y - ctr3[1]) ** 2 + (z - ctr3[2]) ** 2)
                 if r_max is not None:
                     rr3[rr3 > r_max] = r_max
                 idxs3 = np.searchsorted(r3, rr3) - 1
-                dr3 = (rr3-r3[idxs3])/(r3[idxs3+1]-r3[idxs3])
-                g_rms += ((1.-dr3)*g3[idxs3] + dr3*g3[idxs3+1])**2
+                dr3 = (rr3 - r3[idxs3]) / (r3[idxs3 + 1] - r3[idxs3])
+                g_rms += ((1. - dr3) * g3[idxs3] + dr3 * g3[idxs3 + 1]) ** 2
             g_rms = np.sqrt(g_rms).in_units(self._units).d
 
         gx *= g_rms
         gy *= g_rms
         gz *= g_rms
 
-        self.x = x[:,0,0]
-        self.y = y[0,:,0]
-        self.z = z[0,0,:]
+        self.x = x[:, 0, 0]
+        self.y = y[0, :, 0]
+        self.z = z[0, 0, :]
 
         self.gx = gx
         self.gy = gy
         self.gz = gz
 
-        rescale = (self.gx**2+self.gy**2+self.gz**2).sum()
+        rescale = (self.gx ** 2 + self.gy ** 2 + self.gz ** 2).sum()
 
         del x, y, z, g_rms
 
         if self.divergence_clean:
             self._divergence_clean(kx, ky, kz)
 
-        rescale /= (self.gx**2+self.gy**2+self.gz**2).sum()
+        rescale /= (self.gx ** 2 + self.gy ** 2 + self.gz ** 2).sum()
 
         self.gx *= rescale
         self.gy *= rescale
@@ -490,10 +493,10 @@ class RandomMagneticField(GaussianRandomField):
     _vector_potential = False
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 B_rms, padding=0.1, alpha=-11./3., prng=None):
+                 B_rms, padding=0.1, alpha=-11. / 3., prng=None):
         super(RandomMagneticField, self).__init__(left_edge, right_edge, ddims,
-            l_min, l_max, padding=padding, alpha=alpha, divergence_clean=True, 
-            g_rms=B_rms, vector_potential=self._vector_potential, prng=prng)
+                                                  l_min, l_max, padding=padding, alpha=alpha, divergence_clean=True,
+                                                  g_rms=B_rms, vector_potential=self._vector_potential, prng=prng)
 
 
 class RadialRandomMagneticField(GaussianRandomField):
@@ -503,7 +506,7 @@ class RadialRandomMagneticField(GaussianRandomField):
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  ctr1, profile1, padding=0.1, ctr2=None, profile2=None,
-                 ctr3=None, profile3=None, alpha=-11./3., r_max=None, 
+                 ctr3=None, profile3=None, alpha=-11. / 3., r_max=None,
                  prng=None):
         if isinstance(profile1, ClusterModel):
             r1 = profile1["radius"].to_value("kpc")
@@ -512,7 +515,7 @@ class RadialRandomMagneticField(GaussianRandomField):
             r1 = unyt_array.from_hdf5(profile1, dataset_name="radius",
                                       group_name="fields").to('kpc').d
             B1 = unyt_array.from_hdf5(profile1,
-                dataset_name="magnetic_field_strength", group_name="fields")
+                                      dataset_name="magnetic_field_strength", group_name="fields")
         else:
             r1, B1 = profile1
         if profile2 is not None:
@@ -523,7 +526,7 @@ class RadialRandomMagneticField(GaussianRandomField):
                 r2 = unyt_array.from_hdf5(profile2, dataset_name="radius",
                                           group_name="fields").to('kpc').d
                 B2 = unyt_array.from_hdf5(profile2,
-                    dataset_name="magnetic_field_strength", group_name="fields")
+                                          dataset_name="magnetic_field_strength", group_name="fields")
             else:
                 r2, B2 = profile2
         else:
@@ -537,17 +540,17 @@ class RadialRandomMagneticField(GaussianRandomField):
                 r3 = unyt_array.from_hdf5(profile3, dataset_name="radius",
                                           group_name="fields").to('kpc').d
                 B3 = unyt_array.from_hdf5(profile3,
-                    dataset_name="magnetic_field_strength", group_name="fields")
+                                          dataset_name="magnetic_field_strength", group_name="fields")
             else:
                 r3, B3 = profile3
         else:
             r3 = None
             B3 = None
         super(RadialRandomMagneticField, self).__init__(
-              left_edge, right_edge, ddims, l_min, l_max, padding=padding,
-              alpha=alpha, ctr1=ctr1, ctr2=ctr2, ctr3=ctr3, r1=r1, r2=r2, 
-              r3=r3, g1=B1, g2=B2, g3=B3, divergence_clean=True, r_max=r_max,
-              vector_potential=self._vector_potential, prng=prng)
+            left_edge, right_edge, ddims, l_min, l_max, padding=padding,
+            alpha=alpha, ctr1=ctr1, ctr2=ctr2, ctr3=ctr3, r1=r1, r2=r2,
+            r3=r3, g1=B1, g2=B2, g3=B3, divergence_clean=True, r_max=r_max,
+            vector_potential=self._vector_potential, prng=prng)
 
 
 class RandomMagneticVectorPotential(RandomMagneticField):
@@ -565,11 +568,11 @@ class RandomVelocityField(GaussianRandomField):
     _name = "velocity"
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
-                 V_rms, padding=0.1, alpha=-11./3., divergence_clean=False,
+                 V_rms, padding=0.1, alpha=-11. / 3., divergence_clean=False,
                  prng=None):
         super(RandomVelocityField, self).__init__(left_edge, right_edge, ddims,
-            l_min, l_max, padding=padding, g_rms=V_rms, alpha=alpha, prng=prng,
-            divergence_clean=divergence_clean)
+                                                  l_min, l_max, padding=padding, g_rms=V_rms, alpha=alpha, prng=prng,
+                                                  divergence_clean=divergence_clean)
 
 
 class RadialRandomVelocityField(GaussianRandomField):
@@ -578,7 +581,7 @@ class RadialRandomVelocityField(GaussianRandomField):
 
     def __init__(self, left_edge, right_edge, ddims, l_min, l_max,
                  ctr1, profile1, padding=0.1, ctr2=None, profile2=None,
-                 ctr3=None, profile3=None, alpha=-11./3., r_max=None,
+                 ctr3=None, profile3=None, alpha=-11. / 3., r_max=None,
                  divergence_clean=False, prng=None):
         if isinstance(profile1, ClusterModel):
             r1 = profile1["radius"].to_value("kpc")
@@ -587,7 +590,7 @@ class RadialRandomVelocityField(GaussianRandomField):
             r1 = unyt_array.from_hdf5(profile1, dataset_name="radius",
                                       group_name="fields").d
             V1 = unyt_array.from_hdf5(profile1,
-                dataset_name="velocity_dispersion", group_name="fields")
+                                      dataset_name="velocity_dispersion", group_name="fields")
         else:
             r1, V1 = profile1
         if profile2 is not None:
@@ -598,7 +601,7 @@ class RadialRandomVelocityField(GaussianRandomField):
                 r2 = unyt_array.from_hdf5(profile2, dataset_name="radius",
                                           group_name="fields").d
                 V2 = unyt_array.from_hdf5(profile2,
-                    dataset_name="velocity_dispersion", group_name="fields")
+                                          dataset_name="velocity_dispersion", group_name="fields")
             else:
                 r2, V2 = profile2
         else:
@@ -612,15 +615,13 @@ class RadialRandomVelocityField(GaussianRandomField):
                 r3 = unyt_array.from_hdf5(profile3, dataset_name="radius",
                                           group_name="fields").to('kpc').d
                 V3 = unyt_array.from_hdf5(profile3,
-                    dataset_name="velocity_dispersion", group_name="fields")
+                                          dataset_name="velocity_dispersion", group_name="fields")
             else:
                 r3, V3 = profile3
         else:
             r3 = None
             V3 = None
-        super(RadialRandomVelocityField, self).__init__(left_edge, right_edge, 
-            ddims, l_min, l_max, padding=padding, alpha=alpha, ctr1=ctr1, 
-            ctr2=ctr2, ctr3=ctr3, r1=r1, r2=r2, r3=r3, g1=V1, g2=V2, g3=V3, 
-            divergence_clean=divergence_clean, r_max=r_max, prng=prng)
-
-
+        super(RadialRandomVelocityField, self).__init__(left_edge, right_edge,
+                                                        ddims, l_min, l_max, padding=padding, alpha=alpha, ctr1=ctr1,
+                                                        ctr2=ctr2, ctr3=ctr3, r1=r1, r2=r2, r3=r3, g1=V1, g2=V2, g3=V3,
+                                                        divergence_clean=divergence_clean, r_max=r_max, prng=prng)

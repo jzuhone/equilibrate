@@ -12,6 +12,7 @@
 #
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../../cluster_generator'))
 sys.path.insert(0, os.path.abspath('../..'))
 print(sys.path)
@@ -20,8 +21,7 @@ print(sys.path)
 
 project = 'cluster_generator'
 copyright = '2020, John ZuHone'
-author = 'John ZuHone'
-
+author = 'John ZuHone, Eliza Diggins'
 
 # -- General configuration ---------------------------------------------------
 
@@ -66,10 +66,10 @@ autosummary_generate = True
 html_static_path = ['_static']
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3/': None,
-                       'https://numpy.org/doc/stable/': None,
-                       "https://matplotlib.org/stable/": None,
-                       'https://yt-project.org/doc/': None,
+intersphinx_mapping = {'https://docs.python.org/3/'        : None,
+                       'https://numpy.org/doc/stable/'     : None,
+                       "https://matplotlib.org/stable/"    : None,
+                       'https://yt-project.org/doc/'       : None,
                        'https://docs.astropy.org/en/stable': None,
                        }
 

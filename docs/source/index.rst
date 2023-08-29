@@ -1,7 +1,7 @@
 .. cluster_generator documentation master file, created by
-   sphinx-quickstart on Mon Jul 27 14:41:05 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+sphinx-quickstart on Mon Jul 27 14:41:05 2020.
+You can adapt this file completely to your liking, but it should at least
+contain the root `toctree` directive.
 
 
 
@@ -80,6 +80,15 @@ To get started using the ``cluster_generator`` package, begin by following the i
 Once the package is installed, you can get started making clusters! We suggest first-time users check out our :ref:`quickstart` page, which has a load
 of simple recipies to get your feet wet. Also check out the :ref:`examples` page for a more comprehensive set of examples for completing tasks in ``cluster_generator``.
 
+For comprehensive descriptions of particular parts of the library, see the following articles:
+
+- :ref:`radial_profiles`
+- :ref:`cluster_models`
+- :ref:`particles`
+- :ref:`gravity`
+- :ref:`fields`
+- :ref:`initial_conditions`
+
 Contents
 ========
 .. raw:: html
@@ -91,10 +100,7 @@ Contents
 
    Getting_Started
    radial_profiles
-   models
-   particles
-   fields
-   initial_conditions
+   collections
    codes
    examples
    api

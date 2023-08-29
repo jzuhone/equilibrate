@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-from setuptools import setup
 import os
 
-#- Force system to install cython (called before dependancy assertion) -#
+from setuptools import setup
+
+# - Force system to install cython (called before dependancy assertion) -#
 os.system("pip install cython")
 
 from Cython.Build import cythonize
 from distutils.extension import Extension
 import numpy as np
-
 
 cython_utils = Extension("cluster_generator.cython_utils",
                          sources=["cluster_generator/cython_utils.pyx"],
@@ -23,7 +23,7 @@ setup(name='cluster_generator',
       author_email='jzuhone@gmail.com',
       url='https://github.com/jzuhone/cluster_generator',
       download_url='https://github.com/jzuhone/cluster_generator/tarball/0.1.0',
-      install_requires=["numpy", "scipy", "yt", "unyt", "cython", 
+      install_requires=["numpy", "scipy", "yt", "unyt", "cython",
                         "ruamel.yaml"],
       classifiers=[
           'Intended Audience :: Science/Research',
@@ -33,4 +33,3 @@ setup(name='cluster_generator',
       ],
       ext_modules=cythonize([cython_utils]),
       )
-

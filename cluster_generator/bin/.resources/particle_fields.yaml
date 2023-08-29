@@ -3,14 +3,14 @@ gadget_fields:
   #
   # -- The available fields for different particle types.
   #
-  dm: ["Coordinates", "Velocities", "Masses", "ParticleIDs", "Potential"]
-  gas: ["Coordinates", "Velocities", "Masses",
-                         "ParticleIDs", "InternalEnergy", "MagneticField",
-                         "Density", "Potential", "PassiveScalars"]
-  star: ["Coordinates", "Velocities", "Masses",
-                          "ParticleIDs", "Potential"]
-  black_hole:  ["Coordinates", "Velocities", "Masses",
-                                "ParticleIDs", "Potential"]
+  dm: [ "Coordinates", "Velocities", "Masses", "ParticleIDs", "Potential" ]
+  gas: [ "Coordinates", "Velocities", "Masses",
+         "ParticleIDs", "InternalEnergy", "MagneticField",
+         "Density", "Potential", "PassiveScalars" ]
+  star: [ "Coordinates", "Velocities", "Masses",
+          "ParticleIDs", "Potential" ]
+  black_hole: [ "Coordinates", "Velocities", "Masses",
+                "ParticleIDs", "Potential" ]
 gadget_field_map:
   #
   # -- Aliases for gadget fields.

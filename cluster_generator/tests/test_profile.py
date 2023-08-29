@@ -3,12 +3,10 @@ import numpy as np
 import pytest
 import yt
 from numpy.testing import assert_allclose
-from unyt import unyt_array
 
-from cluster_generator.gravity import Potential
-from cluster_generator.model import _compute_total_mass, ClusterModel
+from cluster_generator.model import ClusterModel
 from cluster_generator.tests.utils import model_answer_testing, \
-    generate_mdr_potential, generate_model_dens_tdens, generate_model_dens_temp
+    generate_model_dens_tdens, generate_model_dens_temp
 
 # -------------------------------------------------------------------------------------------------------------------- #
 #  Constants ========================================================================================================= #
@@ -41,7 +39,7 @@ def asymptotic_models_dens_tdens(answer_dir, answer_store):
         if os.path.exists(f"{answer_dir}/asymptotic_{grav}_model_dens_tdens.h5") and not answer_store:
             models[grav] = ClusterModel.from_h5_file(f"{answer_dir}/asymptotic_{grav}_model_dens_tdens.h5")
         else:
-            models[grav] = generate_model_dens_tdens(gravity=grav, interp_function= lambda x: 1)
+            models[grav] = generate_model_dens_tdens(gravity=grav, interp_function=lambda x: 1)
             models[grav].write_model_to_h5(f"{answer_dir}/asymptotic_{grav}_model_dens_tdens.h5", overwrite=True)
     return models
 
@@ -67,7 +65,7 @@ def asymptotic_models_dens_temp(answer_dir, answer_store):
         if os.path.exists(f"{answer_dir}/asymptotic_{grav}_model_dens_temp.h5") and not answer_store:
             models[grav] = ClusterModel.from_h5_file(f"{answer_dir}/asymptotic_{grav}_model_dens_temp.h5")
         else:
-            models[grav] = generate_model_dens_temp(gravity=grav, interp_function= lambda x: 1)
+            models[grav] = generate_model_dens_temp(gravity=grav, interp_function=lambda x: 1)
             models[grav].write_model_to_h5(f"{answer_dir}/asymptotic_{grav}_model_dens_temp.h5", overwrite=True)
     return models
 
@@ -125,48 +123,52 @@ def test_model_generation_dens_temp(answer_store, answer_dir):
     Tests the generation of the models and checks them against existing copies if ``answer_store`` is ``False``.
     """
     for idn, grav in enumerate(["Newtonian", "QUMOND", "AQUAL"]):
-        model = generate_model_dens_temp(gravity=grav, attrs={},require_physical="rebuild")
+        model = generate_model_dens_temp(gravity=grav, attrs={}, require_physical="rebuild")
         model_answer_testing(model, f"{answer_dir}/{grav}_model.h5", answer_store, answer_dir)
 
-def test_rebuild(answer_store,answer_dir):
+
+def test_rebuild(answer_store, answer_dir):
     """Test that the rebuilding system actually works"""
-    models = [generate_model_dens_temp(require_physical=i) for i in [True,False,"rebuild"]]
+    models = [generate_model_dens_temp(require_physical=i) for i in [True, False, "rebuild"]]
 
-    figure, axes = plt.subplots(6,4,gridspec_kw={"hspace":0,"wspace":0.3},height_ratios=[1,0.1,1,0.1,1,0.1],figsize=(20,20))
-    plt.subplots_adjust(left=0.1,right=.99,bottom=0.1,top=.99)
-    colors = ["forestgreen","black","magenta"]
-    ls = ["-.",":","-"]
-    fields = ["gas_mass","dark_matter_mass","stellar_mass","total_mass",
-              "density","dark_matter_density","stellar_density","total_density",
-              "temperature","hse","gravitational_potential","gravitational_field"]
+    figure, axes = plt.subplots(6, 4, gridspec_kw={"hspace": 0, "wspace": 0.3}, height_ratios=[1, 0.1, 1, 0.1, 1, 0.1],
+                                figsize=(20, 20))
+    plt.subplots_adjust(left=0.1, right=.99, bottom=0.1, top=.99)
+    colors = ["forestgreen", "black", "magenta"]
+    ls = ["-.", ":", "-"]
+    fields = ["gas_mass", "dark_matter_mass", "stellar_mass", "total_mass",
+              "density", "dark_matter_density", "stellar_density", "total_density",
+              "temperature", "hse", "gravitational_potential", "gravitational_field"]
 
-    for ax,rax,f in zip(axes[::2,:].ravel(),axes[1::2,:].ravel(),fields):
+    for ax, rax, f in zip(axes[::2, :].ravel(), axes[1::2, :].ravel(), fields):
         # - plotting - #
         if f != "hse":
             ax.set_ylabel(f"{f} / {models[0][f].units}")
             rax.set_ylabel(f"res. [dex]")
 
-            for i,model in enumerate(models):
+            for i, model in enumerate(models):
 
-                ax.loglog(model["radius"].d,model[f].d,color=colors[i],ls=ls[i],alpha=0.85)
-                rax.loglog(model["radius"].d,(model[f].d - models[1][f].d)/models[1][f].d,color=colors[i],ls=ls[i],alpha=0.85)
+                ax.loglog(model["radius"].d, model[f].d, color=colors[i], ls=ls[i], alpha=0.85)
+                rax.loglog(model["radius"].d, (model[f].d - models[1][f].d) / models[1][f].d, color=colors[i], ls=ls[i],
+                           alpha=0.85)
 
                 if np.any(model[f].d < 0):
                     ax.set_yscale("symlog")
 
                 rax.set_yscale("symlog")
-                rax.set_yticks([-10,-1,0,1,10])
-                rax.set_ylim([-10,10])
+                rax.set_yticks([-10, -1, 0, 1, 10])
+                rax.set_ylim([-10, 10])
 
         else:
             ax.set_ylabel(f"{f}")
             rax.set_ylabel(f"res. [dex]")
-            ax.set_ylim([-1,1])
+            ax.set_ylim([-1, 1])
             for i, model in enumerate(models):
                 ax.loglog(model["radius"].d, model.check_hse(), color=colors[i], ls=ls[i], alpha=0.85)
 
                 ax.set_yscale("symlog")
     plt.savefig(f"{answer_dir}/rebuild_comp.png")
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Hydrostatic Equilibrium Tests ====================================================================================== #
@@ -177,7 +179,7 @@ def test_asym_dens_temp(answer_store, answer_dir, asymptotic_models_dens_temp):
     """checks for consistency between"""
     sames = ["density", "entropy", "gravitational_field", "temperature", "total_mass"]
     dat = plot_models(asymptotic_models_dens_temp, np.array([["density", "entropy", "gravitational_field"],
-                                              ["temperature", "total_mass", "gravitational_potential"]])
+                                                             ["temperature", "total_mass", "gravitational_potential"]])
                       , f"{answer_dir}/asym_dens_temp.png", diff=True)
 
     for k, v in dat.items():
@@ -191,8 +193,9 @@ def test_asym_dens_temp(answer_store, answer_dir, asymptotic_models_dens_temp):
 def test_dens_temp(answer_store, answer_dir, standard_models_dens_temp):
     """checks for consistency between"""
     sames = ["density", "entropy", "gravitational_field", "temperature"]
-    dat = plot_models(standard_models_dens_temp, np.array([["density", "entropy", "gravitational_field","dark_matter_mass"],
-                                                           ["temperature", "total_mass", "gravitational_potential","total_density"]])
+    dat = plot_models(standard_models_dens_temp,
+                      np.array([["density", "entropy", "gravitational_field", "dark_matter_mass"],
+                                ["temperature", "total_mass", "gravitational_potential", "total_density"]])
                       , f"{answer_dir}/dens_temp.png", diff=True)
 
     for k, v in dat.items():
@@ -201,11 +204,15 @@ def test_dens_temp(answer_store, answer_dir, standard_models_dens_temp):
                             err_msg=f"Failed to meet similarity condition for {list(standard_models_dens_temp.keys())[0]} and {list(standard_models_dens_temp.keys())[1]} for field {k}")
             assert_allclose(v[0], v[2], rtol=1e-1,
                             err_msg=f"Failed to meet similarity condition for {list(standard_models_dens_temp.keys())[0]} and {list(standard_models_dens_temp.keys())[2]} for field {k}")
+
+
 def test_asym_dens_tdens(answer_store, answer_dir, asymptotic_models_dens_tdens):
     """checks for consistency between"""
-    sames = ["density","total_density","total_mass","dark_matter_density","dark_matter_mass","gravitational_field","temperature"]
-    dat = plot_models(asymptotic_models_dens_tdens, np.array([["density", "entropy", "gravitational_field","dark_matter_density"],
-                                                             ["temperature", "total_mass", "gravitational_potential","dark_matter_mass"]])
+    sames = ["density", "total_density", "total_mass", "dark_matter_density", "dark_matter_mass", "gravitational_field",
+             "temperature"]
+    dat = plot_models(asymptotic_models_dens_tdens,
+                      np.array([["density", "entropy", "gravitational_field", "dark_matter_density"],
+                                ["temperature", "total_mass", "gravitational_potential", "dark_matter_mass"]])
                       , f"{answer_dir}/asym_dens_tdens.png", diff=True)
 
     for k, v in dat.items():
@@ -218,9 +225,10 @@ def test_asym_dens_tdens(answer_store, answer_dir, asymptotic_models_dens_tdens)
 
 def test_dens_tdens(answer_store, answer_dir, standard_models_dens_tdens):
     """checks for consistency between"""
-    sames = ["density","total_density","total_mass","dark_matter_density","dark_matter_mass"]
-    dat = plot_models(standard_models_dens_tdens, np.array([["density", "entropy", "gravitational_field","dark_matter_density"],
-                                                             ["temperature", "total_mass", "gravitational_potential","dark_matter_mass"]])
+    sames = ["density", "total_density", "total_mass", "dark_matter_density", "dark_matter_mass"]
+    dat = plot_models(standard_models_dens_tdens,
+                      np.array([["density", "entropy", "gravitational_field", "dark_matter_density"],
+                                ["temperature", "total_mass", "gravitational_potential", "dark_matter_mass"]])
                       , f"{answer_dir}/dens_tdens.png", diff=True)
 
     for k, v in dat.items():
@@ -230,81 +238,84 @@ def test_dens_tdens(answer_store, answer_dir, standard_models_dens_tdens):
             assert_allclose(v[0], v[2], rtol=1e-1,
                             err_msg=f"Failed to meet similarity condition for {list(standard_models_dens_tdens.keys())[0]} and {list(standard_models_dens_tdens.keys())[2]} for field {k}")
 
+
 #  Virialization Tests
 # ----------------------------------------------------------------------------------------------------------------- #
-def test_eddington(answer_dir, standard_models_dens_tdens,standard_models_dens_temp):
+def test_eddington(answer_dir, standard_models_dens_tdens, standard_models_dens_temp):
     # - reading the model - #
     import matplotlib.pyplot as plt
-    ms = [standard_models_dens_tdens["Newtonian"],standard_models_dens_temp["Newtonian"]]
+    ms = [standard_models_dens_tdens["Newtonian"], standard_models_dens_temp["Newtonian"]]
 
-    for modelN,type in zip(ms,["dens_tdens","dens_temp"]):
+    for modelN, type in zip(ms, ["dens_tdens", "dens_temp"]):
         # - generating the virialization - #
         df = modelN.dm_virial
         pden = modelN[f"dark_matter_density"].d
         rho_check, chk = df.check_virial()
 
-        fig = plt.figure(figsize=(6,10))
+        fig = plt.figure(figsize=(6, 10))
         ax1, ax2 = fig.add_subplot(211), fig.add_subplot(212)
-        ax1.loglog(modelN["radius"], pden,color="red",ls="-",lw=2,alpha=0.7)
-        ax1.loglog(modelN["radius"], rho_check,color="black",ls="-.",lw=2,alpha=0.7)
-        ax2.semilogx(modelN["radius"], chk,color="red",ls="-",lw=2,alpha=0.7)
-
+        ax1.loglog(modelN["radius"], pden, color="red", ls="-", lw=2, alpha=0.7)
+        ax1.loglog(modelN["radius"], rho_check, color="black", ls="-.", lw=2, alpha=0.7)
+        ax2.semilogx(modelN["radius"], chk, color="red", ls="-", lw=2, alpha=0.7)
 
         ax1.set_title(f"Eddington Formula Test for type={type}")
         ax1.set_ylabel(f"Density {str(modelN['dark_matter_density'].units)}")
         ax2.set_xlabel(f"Radius")
         ax2.set_ylabel("Residuals [dex]")
         ax2.set_yscale("symlog")
-        ax2.set_ylim([-1e1,1e1])
-        ax1.set_ylim([1e1,1e10])
-        ax2.hlines(xmin=np.amin(modelN["radius"].d),xmax=np.amax(modelN["radius"].d),y=0,color="black",ls="-.",lw=3,alpha=0.7)
-
+        ax2.set_ylim([-1e1, 1e1])
+        ax1.set_ylim([1e1, 1e10])
+        ax2.hlines(xmin=np.amin(modelN["radius"].d), xmax=np.amax(modelN["radius"].d), y=0, color="black", ls="-.",
+                   lw=3, alpha=0.7)
 
         fig.savefig(f"{answer_dir}/virial_check_{type}.png")
 
-        assert np.mean(chk[np.where(chk != np.inf)]) < 10e-2, f"Failed to meet virialization criterion ({np.mean(chk[np.where(chk != np.inf)])} > 10e-2) for type={type}."
+        assert np.mean(chk[np.where(
+            chk != np.inf)]) < 10e-2, f"Failed to meet virialization criterion ({np.mean(chk[np.where(chk != np.inf)])} > 10e-2) for type={type}."
 
 
-def test_dispersion_diff(answer_dir, standard_models_dens_tdens,standard_models_dens_temp):
+def test_dispersion_diff(answer_dir, standard_models_dens_tdens, standard_models_dens_temp):
     """Tests the standard dispersions"""
     #  Setup
     # ----------------------------------------------------------------------------------------------------------------- #
     import matplotlib.pyplot as plt
-    fig = plt.figure(figsize=(10,7))
-    ax1,ax2 = fig.add_subplot(121),fig.add_subplot(122)
+    fig = plt.figure(figsize=(10, 7))
+    ax1, ax2 = fig.add_subplot(121), fig.add_subplot(122)
 
-    for ax,models,type in zip([ax1,ax2],[standard_models_dens_temp,standard_models_dens_tdens],["Density / Temperature","Density / Total Density"]):
-        for k,mod in models.items():
-            mod.virialization_method="lma"
+    for ax, models, type in zip([ax1, ax2], [standard_models_dens_temp, standard_models_dens_tdens],
+                                ["Density / Temperature", "Density / Total Density"]):
+        for k, mod in models.items():
+            mod.virialization_method = "lma"
             mod._dm_virial = None
 
             vir = mod.dm_virial
 
-            ax.loglog(mod["radius"].d,vir.sigma.to("km**2/s**2").d,color=colors[k],ls=lss[k],alpha=0.75,label=k)
-
+            ax.loglog(mod["radius"].d, vir.sigma.to("km**2/s**2").d, color=colors[k], ls=lss[k], alpha=0.75, label=k)
 
         ax.set_ylabel(r"Velocity Dispersion ($\sigma_r^2$) $\left[\mathrm{km^2\;s^{-2}}\right]$")
         ax.set_xlabel(r"Cluster Radius $\left[\mathrm{kpc}\right]$")
         ax.set_title(f"Dispersion Comparison: {type}")
         ax.legend()
     plt.savefig(f"{answer_dir}/dispersion_comparison.png")
-def test_dispersion_asym(answer_dir, asymptotic_models_dens_temp,asymptotic_models_dens_tdens):
+
+
+def test_dispersion_asym(answer_dir, asymptotic_models_dens_temp, asymptotic_models_dens_tdens):
     """Tests the asymptotic dispersions"""
     #  Setup
     # ----------------------------------------------------------------------------------------------------------------- #
     import matplotlib.pyplot as plt
-    fig = plt.figure(figsize=(10,7))
-    ax1,ax2 = fig.add_subplot(121),fig.add_subplot(122)
+    fig = plt.figure(figsize=(10, 7))
+    ax1, ax2 = fig.add_subplot(121), fig.add_subplot(122)
 
-    for ax,models,type in zip([ax1,ax2],[asymptotic_models_dens_temp,asymptotic_models_dens_tdens],["Density / Temperature","Density / Total Density"]):
-        for k,mod in models.items():
-            mod.virialization_method="lma"
+    for ax, models, type in zip([ax1, ax2], [asymptotic_models_dens_temp, asymptotic_models_dens_tdens],
+                                ["Density / Temperature", "Density / Total Density"]):
+        for k, mod in models.items():
+            mod.virialization_method = "lma"
             mod._dm_virial = None
 
             vir = mod.dm_virial
 
-            ax.loglog(mod["radius"].d,vir.sigma.to("km**2/s**2").d,color=colors[k],ls=lss[k],alpha=0.75,label=k)
-
+            ax.loglog(mod["radius"].d, vir.sigma.to("km**2/s**2").d, color=colors[k], ls=lss[k], alpha=0.75, label=k)
 
         ax.set_ylabel(r"Velocity Dispersion ($\sigma_r^2$) $\left[\mathrm{km^2\;s^{-2}}\right]$")
         ax.set_xlabel(r"Cluster Radius $\left[\mathrm{kpc}\right]$")
@@ -312,26 +323,11 @@ def test_dispersion_asym(answer_dir, asymptotic_models_dens_temp,asymptotic_mode
         ax.legend()
     plt.savefig(f"{answer_dir}/dispersion_comparison_asym.png")
 
-def test_total_mass(answer_store, answer_dir):
-    """Tests if interp_function: 1 gives the correct information."""
-    m, d, r = generate_mdr_potential()
-    fields = {"total_mass": m, "radius": r, "total_density": d}
-
-    # - testing parity -#
-    potential = Potential(fields, gravity="Newtonian", attrs={"interp_function": lambda x: 1})
-    fields["gravitational_field"] = -unyt_array(np.gradient(potential.pot, r.d), units="kpc/Myr**2")
-
-    total_mass_N = _compute_total_mass(fields, gravity="Newtonian", attrs={"interp_function": lambda x: 1})
-    total_mass_MA = _compute_total_mass(fields, gravity="AQUAL", attrs={"interp_function": lambda x: 1})
-    total_mass_MQ = _compute_total_mass(fields, gravity="QUMOND", attrs={"interp_function": lambda x: 1})
-
-    assert_allclose(total_mass_N.d, total_mass_MQ.d, rtol=1e-3)
-    assert_allclose(total_mass_N.d, total_mass_MA.d, rtol=1e-3)
-
 
 def test_model_temperature(answer_store, answer_dir, asymptotic_models_dens_tdens):
     """Tests if interp_function: 1 gives the correct information."""
-    modelN, modelMA, modelMQ = asymptotic_models_dens_tdens["Newtonian"], asymptotic_models_dens_tdens["AQUAL"], asymptotic_models_dens_tdens["QUMOND"]
+    modelN, modelMA, modelMQ = asymptotic_models_dens_tdens["Newtonian"], asymptotic_models_dens_tdens["AQUAL"], \
+    asymptotic_models_dens_tdens["QUMOND"]
 
     assert_allclose(modelN["temperature"], modelMA["temperature"], rtol=1e-3)
     assert_allclose(modelN["temperature"], modelMQ["temperature"], rtol=1e-3)
@@ -381,7 +377,7 @@ def test_N_lma(answer_dir, answer_store, standard_models_dens_tdens):
         [bi.set_alpha(0.25) for bi in b]
         avg_interp = InterpolatedUnivariateSpline(x.d, y.d)
         m, ca, b = axes[1].errorbar(p.x.to("kpc"), (
-                    p["dm", "particle_velocity_magnitude"].to("km/s").d - avg_interp(p.x.to("kpc").d)) / avg_interp(
+                p["dm", "particle_velocity_magnitude"].to("km/s").d - avg_interp(p.x.to("kpc").d)) / avg_interp(
             p.x.to("kpc").d), yerr=p.standard_deviation["dm", "particle_velocity_magnitude"].d / avg_interp(
             p.x.to("kpc").d), ls="", marker="+", capsize=2, color=c, label=l)
         [ci.set_alpha(0.25) for ci in ca];

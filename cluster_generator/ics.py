@@ -1,12 +1,16 @@
-from cluster_generator.utils import ensure_ytarray, ensure_list, \
-    parse_prng
-from cluster_generator.model import ClusterModel
-from cluster_generator.particles import \
-    ClusterParticles, concat_clusters, resample_clusters
 import os
+
 import numpy as np
 from ruamel.yaml import YAML
 from unyt import unyt_array, Unit
+
+from cluster_generator.model import ClusterModel
+from cluster_generator.particles import \
+    ClusterParticles, concat_clusters, resample_clusters
+from cluster_generator.utils import ensure_ytarray, ensure_list, \
+    parse_prng
+
+
 def compute_centers_for_binary(center, d, b, a=0.0):
     """
     Given a common center and distance parameters, calculate the
@@ -38,10 +42,10 @@ def compute_centers_for_binary(center, d, b, a=0.0):
         The impact parameter in the z-direction, in kpc.
         Default: 0.0
     """
-    d = np.sqrt(d*d-b*b-a*a)
+    d = np.sqrt(d * d - b * b - a * a)
     diff = np.array([d, b, a])
-    center1 = center - 0.5*diff
-    center2 = center + 0.5*diff
+    center1 = center - 0.5 * diff
+    center2 = center + 0.5 * diff
     return center1, center2
 
 
@@ -71,8 +75,9 @@ class ClusterICs:
         The maximal radius up to which data is permitted.
 
     """
+
     def __init__(self, basename, num_halos, profiles, center,
-                 velocity, num_particles=None, mag_file=None, 
+                 velocity, num_particles=None, mag_file=None,
                  particle_files=None, r_max=20000.0):
         #  Managing parameters
         # ------------------------------------------------------------------------------------------------------------ #
@@ -87,7 +92,7 @@ class ClusterICs:
         #: The velocities of the clusters.
         self.velocity = ensure_ytarray(velocity, "kpc/Myr")
 
-        if self.num_halos == 1: #--> make sure (3,) sized arrays become (1,3)
+        if self.num_halos == 1:  # --> make sure (3,) sized arrays become (1,3)
             self.center = self.center.reshape(1, 3)
             self.velocity = self.velocity.reshape(1, 3)
 
@@ -105,7 +110,7 @@ class ClusterICs:
         #  Checking for pre-provided particle files
         # ------------------------------------------------------------------------------------------------------------ #
         self._determine_num_particles()
-        self.particle_files = [None]*3
+        self.particle_files = [None] * 3
         if particle_files is not None:
             self.particle_files[:num_halos] = particle_files[:]
 
@@ -123,11 +128,11 @@ class ClusterICs:
         for pf in self.profiles:
             # Loading the cluster model object #
             p = ClusterModel.from_h5_file(pf)
-            idxs = p["radius"] < self.r_max # These are the valid radii for our use.
+            idxs = p["radius"] < self.r_max  # These are the valid radii for our use.
 
             # Determining allowable number.
-            for field_name,lst in zip(["dark_matter_mass","gas_mass","stellar_mass"],
-                                      [dm_masses,gas_masses,star_masses]):
+            for field_name, lst in zip(["dark_matter_mass", "gas_mass", "stellar_mass"],
+                                       [dm_masses, gas_masses, star_masses]):
                 if field_name in p:
                     # We found a matching profile
                     lst.append(p[field_name][idxs][-1].value)
@@ -143,15 +148,14 @@ class ClusterICs:
         # ----------------------------------------------------------------------------------------------------------------- #
         self.num_particles = defaultdict(list)
         for i in range(self.num_halos):
-            for ptype,pmasses,ptmass in zip(["dm","gas","star"],
-                                            [dm_masses,gas_masses,star_masses],
-                                            [tot_dm_mass,tot_gas_mass,tot_star_mass]):
-                if self.tot_np.get(ptype,0) > 0:
-                    _n = np.rint(self.tot_np[ptype]*pmasses[i]/ptmass).astype("int")
+            for ptype, pmasses, ptmass in zip(["dm", "gas", "star"],
+                                              [dm_masses, gas_masses, star_masses],
+                                              [tot_dm_mass, tot_gas_mass, tot_star_mass]):
+                if self.tot_np.get(ptype, 0) > 0:
+                    _n = np.rint(self.tot_np[ptype] * pmasses[i] / ptmass).astype("int")
                 else:
                     _n = 0
                 self.num_particles[ptype].append(_n)
-
 
     def _generate_particles(self, regenerate_particles=False, prng=None):
         """
@@ -211,18 +215,18 @@ class ClusterICs:
         from ruamel.yaml.comments import CommentedMap
 
         # -- building out total counts -- #
-        for k in ["dm","gas","star"]:
+        for k in ["dm", "gas", "star"]:
             if k not in self.tot_np:
                 self.tot_np[k] = 0
         # -- Constructing commenting / indexing variables -- #
         _key_attr_com = {
-        "basename": (self.basename,"base name for ICs",True),
-        "num_halos": (self.num_halos,"Number of halos",True),
-        "num_dm_particles": (self.tot_np["dm"],"Number of DM particles",self.tot_np.get("dm", 0) > 0),
-        "num_star_particles": (self.tot_np["star"],"Number of star particles",self.tot_np.get("star", 0) > 0),
-        "num_gas_particles": (self.tot_np["gas"],"Number of gas particles",self.tot_np.get("gas", 0) > 0),
-        "mag_field": (self.mag_file,"Magnetic Field file",self.mag_file is not None),
-        "r_max":(self.r_max,"Maximal Radius",True)
+            "basename"          : (self.basename, "base name for ICs", True),
+            "num_halos"         : (self.num_halos, "Number of halos", True),
+            "num_dm_particles"  : (self.tot_np["dm"], "Number of DM particles", self.tot_np.get("dm", 0) > 0),
+            "num_star_particles": (self.tot_np["star"], "Number of star particles", self.tot_np.get("star", 0) > 0),
+            "num_gas_particles" : (self.tot_np["gas"], "Number of gas particles", self.tot_np.get("gas", 0) > 0),
+            "mag_field"         : (self.mag_file, "Magnetic Field file", self.mag_file is not None),
+            "r_max"             : (self.r_max, "Maximal Radius", True)
         }
 
         #  Existence Check
@@ -235,22 +239,21 @@ class ClusterICs:
         out = CommentedMap()
 
         # -- Writing basic data -- #
-        for k,v in _key_attr_com.items():
+        for k, v in _key_attr_com.items():
             if v[2]:
                 out[k] = v[0]
-                out.yaml_add_eol_comment(v[1],key=k)
+                out.yaml_add_eol_comment(v[1], key=k)
 
-        for i in range(1,self.num_halos+1):
-            out[f"profile{i}"] = self.profiles[i-1]
-            out.yaml_add_eol_comment(f"profile for cluster {i}.",key=f"profile{i}")
-            out[f"center{i}"] = self.center[i-1].tolist()
-            out.yaml_add_eol_comment(f"center for cluster {i}.",key=f"center{i}")
-            out[f"velocity{i}"] = self.velocity[i-1].tolist()
-            out.yaml_add_eol_comment(f"velocity for cluster {i}.",key=f"velocity{i}")
+        for i in range(1, self.num_halos + 1):
+            out[f"profile{i}"] = self.profiles[i - 1]
+            out.yaml_add_eol_comment(f"profile for cluster {i}.", key=f"profile{i}")
+            out[f"center{i}"] = self.center[i - 1].tolist()
+            out.yaml_add_eol_comment(f"center for cluster {i}.", key=f"center{i}")
+            out[f"velocity{i}"] = self.velocity[i - 1].tolist()
+            out.yaml_add_eol_comment(f"velocity for cluster {i}.", key=f"velocity{i}")
 
-            if self.particle_files[i-1] is not None:
-
-                out[f"particle_file{i}"] = self.particle_files[i-1]
+            if self.particle_files[i - 1] is not None:
+                out[f"particle_file{i}"] = self.particle_files[i - 1]
 
                 out.yaml_add_eol_comment(f"particle file for cluster {i}",
 
@@ -273,15 +276,15 @@ class ClusterICs:
             params = yaml.load(f)
         basename = params["basename"]
         num_halos = params["num_halos"]
-        profiles = [params[f"profile{i}"] for i in range(1, num_halos+1)]
-        center = [np.array(params[f"center{i}"]) for i in range(1, num_halos+1)]
-        velocity = [np.array(params[f"velocity{i}"]) 
-                    for i in range(1, num_halos+1)]
+        profiles = [params[f"profile{i}"] for i in range(1, num_halos + 1)]
+        center = [np.array(params[f"center{i}"]) for i in range(1, num_halos + 1)]
+        velocity = [np.array(params[f"velocity{i}"])
+                    for i in range(1, num_halos + 1)]
         num_particles = {k: params.get(f"num_{k}_particles", 0)
                          for k in ["gas", "dm", "star"]}
         mag_file = params.get("mag_file", None)
         particle_files = [params.get(f"particle_file{i}", None)
-                          for i in range(1, num_halos+1)]
+                          for i in range(1, num_halos + 1)]
         r_max = params.get("r_max", 20000.0)
         return cls(basename, num_halos, profiles, center, velocity,
                    num_particles=num_particles, mag_file=mag_file,
@@ -306,7 +309,7 @@ class ClusterICs:
         parts = self._generate_particles(
             regenerate_particles=regenerate_particles, prng=prng)
 
-        all_parts = concat_clusters(parts,profiles,centers=self.center,velocities=self.velocity)
+        all_parts = concat_clusters(parts, profiles, centers=self.center, velocities=self.velocity)
 
         return all_parts
 
@@ -324,7 +327,8 @@ class ClusterICs:
             The name of file to output the resampled ICs to.
         """
         profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
-        return resample_clusters(parts,profiles,self.center,self.velocity,radii=[self.r_max]*len(profiles),passive_scalars=passive_scalars)
+        return resample_clusters(parts, profiles, self.center, self.velocity, radii=[self.r_max] * len(profiles),
+                                 passive_scalars=passive_scalars)
 
     def create_dataset(self, domain_dimensions, box_size, left_edge=None,
                        **kwargs):
@@ -356,40 +360,40 @@ class ClusterICs:
             left_edge = np.zeros(3)
         left_edge = np.array(left_edge)
         bbox = [
-            [left_edge[0], left_edge[0]+box_size],
-            [left_edge[1], left_edge[1]+box_size],
-            [left_edge[2], left_edge[2]+box_size]
+            [left_edge[0], left_edge[0] + box_size],
+            [left_edge[1], left_edge[1] + box_size],
+            [left_edge[2], left_edge[2] + box_size]
         ]
         x, y, z = np.mgrid[
-            bbox[0][0]:bbox[0][1]:domain_dimensions[0]*1j,
-            bbox[1][0]:bbox[1][1]:domain_dimensions[1]*1j,
-            bbox[2][0]:bbox[2][1]:domain_dimensions[2]*1j,
-        ]
+                  bbox[0][0]:bbox[0][1]:domain_dimensions[0] * 1j,
+                  bbox[1][0]:bbox[1][1]:domain_dimensions[1] * 1j,
+                  bbox[2][0]:bbox[2][1]:domain_dimensions[2] * 1j,
+                  ]
         fields1 = ["density", "pressure", "dark_matter_density"
-                   "stellar_density", "gravitational_potential"]
+                                          "stellar_density", "gravitational_potential"]
         fields2 = ["temperature"]
         fields3 = ["velocity_x", "velocity_y", "velocity_z"]
         units = {
-            "density": "Msun/kpc**3",
-            "pressure": "Msun/kpc/Myr**2",
-            "dark_matter_density": "Msun/kpc**3",
-            "stellar_density": "Msun/kpc**3",
-            "temperature": "K",
+            "density"                : "Msun/kpc**3",
+            "pressure"               : "Msun/kpc/Myr**2",
+            "dark_matter_density"    : "Msun/kpc**3",
+            "stellar_density"        : "Msun/kpc**3",
+            "temperature"            : "K",
             "gravitational_potential": "kpc**2/Myr**2",
-            "velocity_x": "kpc/Myr",
-            "velocity_y": "kpc/Myr",
-            "velocity_z": "kpc/Myr",
+            "velocity_x"             : "kpc/Myr",
+            "velocity_y"             : "kpc/Myr",
+            "velocity_z"             : "kpc/Myr",
             "magnetic_field_strength": "G"
         }
-        fields = fields1+fields2
+        fields = fields1 + fields2
         data = {}
         for i, profile in enumerate(self.profiles):
             p = ClusterModel.from_h5_file(profile)
             print(p.fields.keys())
-            xx = x-self.center.d[i][0]
-            yy = y-self.center.d[i][1]
-            zz = z-self.center.d[i][2]
-            rr = np.sqrt(xx*xx+yy*yy+zz*zz)
+            xx = x - self.center.d[i][0]
+            yy = y - self.center.d[i][1]
+            zz = z - self.center.d[i][2]
+            rr = np.sqrt(xx * xx + yy * yy + zz * zz)
             fd = InterpolatedUnivariateSpline(p["radius"].d,
                                               p["density"].d)
             for field in fields:
@@ -402,36 +406,38 @@ class ClusterICs:
                 f = InterpolatedUnivariateSpline(p["radius"].d,
                                                  p[field].d)
                 if field in fields1:
-                    data[field] += unyt_array(f(rr),units[field])
+                    data[field] += unyt_array(f(rr), units[field])
                 elif field in fields2:
-                    data[field] += unyt_array(f(rr)*fd(rr),Unit(units[field]))
+                    data[field] += unyt_array(f(rr) * fd(rr), Unit(units[field]))
             for field in fields3:
                 if field not in data:
                     data[field] = unyt_array(
                         np.zeros(domain_dimensions), units[field]
                     )
 
-                data[field] += unyt_array(self.velocity.d[i][0]*fd(rr), Unit(units[field]))
+                data[field] += unyt_array(self.velocity.d[i][0] * fd(rr), Unit(units[field]))
         if "density" in data:
-            for field in fields2+fields3:
+            for field in fields2 + fields3:
                 data[field] /= data["density"]
-        return load_uniform_grid(data, domain_dimensions, length_unit="kpc", 
+        return load_uniform_grid(data, domain_dimensions, length_unit="kpc",
                                  bbox=bbox, mass_unit="Msun", time_unit="Myr",
                                  **kwargs)
+
+
 if __name__ == '__main__':
-    #test = ClusterICs(
+    # test = ClusterICs(
     #    "test",
     #    2,
     #    ["/home/ediggins/test/Newtonian_model.h5","/home/ediggins/test/AQUAL_model.h5"],
     #    [[0,0,0],[0,0,0]],
     #    [[0,0,0],[0,0,0]],
     #    num_particles={"dm":2e4}
-#
-    #)
-#
-    #test.to_file("testic.h5",overwrite=True)
+    #
+    # )
+    #
+    # test.to_file("testic.h5",overwrite=True)
     test = ClusterICs.from_file("testic.h5")
     print(test)
-    ds = test.create_dataset([300,300,300],15000,[-5000,-5000,-5000])
+    ds = test.create_dataset([300, 300, 300], 15000, [-5000, -5000, -5000])
 
     print(ds)

@@ -1,24 +1,28 @@
 """
 Module for management of particle initial conditions.
 """
-from collections import OrderedDict, defaultdict
-from scipy.interpolate import InterpolatedUnivariateSpline
-from cluster_generator.utils import ensure_ytarray, ensure_list, \
-    mylog, truncate_spline
-import h5py
-import numpy as np
-from unyt import unyt_array, unyt_quantity, uconcatenate
-from pathlib import Path
-import yaml
 import os
 import pathlib as pt
+from collections import OrderedDict, defaultdict
+from pathlib import Path
+
+import h5py
+import numpy as np
+import yaml
+from scipy.interpolate import InterpolatedUnivariateSpline
+from unyt import unyt_array, unyt_quantity, uconcatenate
+
+from cluster_generator.utils import ensure_ytarray, ensure_list, \
+    mylog, truncate_spline
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # Setup ============================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
 # - Loading the yaml file
-with open(os.path.join(pt.Path(__file__).parents[0],"bin",".resources","particle_fields.yaml")) as gfile:
-    _gadget_setup_dict = yaml.load(gfile,yaml.FullLoader)
-    gadget_fields, gadget_field_map, gadget_field_units = _gadget_setup_dict["gadget_fields"], _gadget_setup_dict["gadget_field_map"], _gadget_setup_dict["gadget_field_units"]
+with open(os.path.join(pt.Path(__file__).parents[0], "bin", ".resources", "particle_fields.yaml")) as gfile:
+    _gadget_setup_dict = yaml.load(gfile, yaml.FullLoader)
+    gadget_fields, gadget_field_map, gadget_field_units = _gadget_setup_dict["gadget_fields"], _gadget_setup_dict[
+        "gadget_field_map"], _gadget_setup_dict["gadget_field_units"]
 
 ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType1", "dm"),
@@ -26,6 +30,7 @@ ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType5", "black_hole")])
 
 rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Classes ============================================================================================================ #
@@ -58,14 +63,15 @@ class ClusterParticles:
     -----
     - ``__getitem__`` and ``__setitem__`` index into ``self.fields``. Similarly, ``.keys()`` is an alias for ``self.fields.keys()``.
     """
+
     def __init__(self, particle_types, fields, box_size=None):
         #: The associated particle types for this set of particles.
         self.particle_types = ensure_list(particle_types)
         #: The available data fields related to the particles.
         self.fields = fields
 
-        self._update_num_particles() #--> Keeps number of particles current
-        self._update_field_names() #--> Keeps field names current.
+        self._update_num_particles()  # --> Keeps number of particles current
+        self._update_field_names()  # --> Keeps field names current.
 
         #: the particle set's box size.
         self.box_size = box_size
@@ -77,6 +83,7 @@ class ClusterParticles:
 
     def __setitem__(self, key, value):
         self.fields[key] = value
+
     def __repr__(self):
         return f"Cluster Particles [{self.particle_types}]; N={self.num_particles}."
 
@@ -156,15 +163,15 @@ class ClusterParticles:
             The particle types to perform the radial cut on. If
             not set, all will be exported.
         """
-        rm2 = r_max*r_max
+        rm2 = r_max * r_max
         if center is None:
-            center = np.array([0.0]*3)
+            center = np.array([0.0] * 3)
         if ptypes is None:
             ptypes = self.particle_types
         ptypes = ensure_list(ptypes)
 
         for pt in ptypes:
-            cidx = ((self[pt, "particle_position"].d-center)**2).sum(axis=1) <= rm2
+            cidx = ((self[pt, "particle_position"].d - center) ** 2).sum(axis=1) <= rm2
             for field in self.field_names[pt]:
                 self.fields[pt, field] = self.fields[pt, field][cidx]
         self._update_num_particles()
@@ -201,9 +208,9 @@ class ClusterParticles:
         if use_pot_min:
             idx = np.argmin(self.fields["dm", "potential_energy"])
             pos = unyt_array(self.fields["dm", "particle_position"][idx]
-                             ).reshape(1,3)
+                             ).reshape(1, 3)
             vel = unyt_array(self.fields["dm", "particle_velocity"][idx]
-                             ).reshape(1,3)
+                             ).reshape(1, 3)
         else:
             if pos is None:
                 pos = unyt_array(np.zeros((1, 3)), "kpc")
@@ -308,14 +315,14 @@ class ClusterParticles:
                     else:
                         fd = gadget_field_map[field]
                         units = gadget_field_units[field]
-                        fields[my_ptype, fd] = unyt_array(g[field], units, 
-                            dtype='float64').in_base("galactic")
+                        fields[my_ptype, fd] = unyt_array(g[field], units,
+                                                          dtype='float64').in_base("galactic")
             if "Masses" not in g:
                 n_ptype = g["ParticleIDs"].size
                 units = gadget_field_units["Masses"]
                 n_type = int(ptype[-1])
                 fields[my_ptype, "particle_mass"] = unyt_array(
-                    [f["Header"].attrs["MassTable"][n_type]]*n_ptype,
+                    [f["Header"].attrs["MassTable"][n_type]] * n_ptype,
                     units).in_base("galactic")
         box_size = f["/Header"].attrs["BoxSize"]
         f.close()
@@ -345,8 +352,8 @@ class ClusterParticles:
                     g = f[field[0]]
                     g.create_dataset("particle_index", data=self.fields[field])
             else:
-                self.fields[field].write_hdf5(output_filename, 
-                    dataset_name=field[1], group_name=field[0])
+                self.fields[field].write_hdf5(output_filename,
+                                              dataset_name=field[1], group_name=field[0])
 
     def write_particles_to_h5(self, output_filename, overwrite=False):
         self.write_particles(output_filename, overwrite=overwrite)
@@ -440,7 +447,7 @@ class ClusterParticles:
             if field == "PassiveScalars" and ptype == "gas":
                 if self.num_passive_scalars > 0:
                     data = np.stack(
-                        [self[ptype, s].d for s in self.passive_scalars], 
+                        [self[ptype, s].d for s in self.passive_scalars],
                         axis=-1)
                     h5_group.create_dataset("PassiveScalars", data=data)
             else:
@@ -483,7 +490,7 @@ class ClusterParticles:
             num_particles[ptype] = idxs.sum()
             g = f.create_group(gptype)
             self._write_gadget_fields(ptype, g, idxs, dtype)
-            ids = np.arange(num_particles[ptype])+1+npart
+            ids = np.arange(num_particles[ptype]) + 1 + npart
             g.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             npart += num_particles[ptype]
             if ptype in ["star", "dm", "black_hole"]:
@@ -537,14 +544,14 @@ class ClusterParticles:
             pos = data.pop((ptype, "particle_position"))
             vel = data.pop((ptype, "particle_velocity"))
             for i, ax in enumerate("xyz"):
-                data[ptype, "particle_position_%s" % ax] = pos[:,i]
-                data[ptype, "particle_velocity_%s" % ax] = vel[:,i]
-        return load_particles(data, length_unit="kpc", bbox=[[0.0, box_size]]*3,
+                data[ptype, "particle_position_%s" % ax] = pos[:, i]
+                data[ptype, "particle_velocity_%s" % ax] = vel[:, i]
+        return load_particles(data, length_unit="kpc", bbox=[[0.0, box_size]] * 3,
                               mass_unit="Msun", time_unit="Myr")
 
 
 def _sample_clusters(particles, hses, center, velocity,
-                     radii=None, resample=False, 
+                     radii=None, resample=False,
                      passive_scalars=None):
     """
     This function is used when combining clusters, which may be composed of both particles and ``ClusterModels``. In which case,
@@ -581,7 +588,7 @@ def _sample_clusters(particles, hses, center, velocity,
     # ---------------------------------------------------------------------------------------------------------------- #
     r = np.zeros((num_halos, particles.num_particles["gas"]))
     for i, c in enumerate(center):
-        r[i,:] = ((particles["gas", "particle_position"]-c)**2).sum(axis=1).d
+        r[i, :] = ((particles["gas", "particle_position"] - c) ** 2).sum(axis=1).d
     np.sqrt(r, r)
 
     #  Generating the desired sampling radii
@@ -591,7 +598,7 @@ def _sample_clusters(particles, hses, center, velocity,
         idxs = slice(None, None, None)
     else:
         radii = np.array(radii)
-        idxs = np.any(r <= radii[:,np.newaxis], axis=0)
+        idxs = np.any(r <= radii[:, np.newaxis], axis=0)
 
     #  Computing the full resample
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -613,49 +620,48 @@ def _sample_clusters(particles, hses, center, velocity,
             continue
         # -- Computing the density array for the relevant gas particles -- #
         get_density = InterpolatedUnivariateSpline(hse["radius"], hse["density"])
-        get_density = truncate_spline(get_density,r_max.v,5)
-        d[i,:] = get_density(r[i,:])
+        get_density = truncate_spline(get_density, r_max.v, 5)
+        d[i, :] = get_density(r[i, :])
         # -- Computing the correct thermal energy density -- #
-        e_arr = 1.5*hse["pressure"]/hse["density"] # energy / unit mass
+        e_arr = 1.5 * hse["pressure"] / hse["density"]  # energy / unit mass
         get_energy = InterpolatedUnivariateSpline(hse["radius"], e_arr)
-        get_energy = truncate_spline(get_energy,r_max.v,5)
-        e[i,:] = get_energy(r[i,:])*d[i,:]# proper energy density
+        get_energy = truncate_spline(get_energy, r_max.v, 5)
+        e[i, :] = get_energy(r[i, :]) * d[i, :]  # proper energy density
 
         # -- Computing the momentum density field -- #
-        m[i,:,:] = velocity[i].d[:,np.newaxis]*d[i,:]
+        m[i, :, :] = velocity[i].d[:, np.newaxis] * d[i, :]
         if num_scalars > 0:
             for j, name in enumerate(passive_scalars):
                 get_scalar = InterpolatedUnivariateSpline(hse["radius"], hse[name])
-                s[i,j,:] = get_scalar(r[i,:])*d[i,:]
+                s[i, j, :] = get_scalar(r[i, :]) * d[i, :]
 
     # -- Combining the values -- #
-    dens = unyt_array(d.sum(axis=0),"Msun/kpc**3")
-    eint = unyt_array(e.sum(axis=0),"Msun/(Myr**2 * kpc)")/dens
-    mom  = unyt_array(m.sum(axis=0),"Msun/(kpc**2 * Myr)")/dens
+    dens = unyt_array(d.sum(axis=0), "Msun/kpc**3")
+    eint = unyt_array(e.sum(axis=0), "Msun/(Myr**2 * kpc)") / dens
+    mom = unyt_array(m.sum(axis=0), "Msun/(kpc**2 * Myr)") / dens
     if num_scalars > 0:
-        ps = s.sum(axis=0)/dens
-
+        ps = s.sum(axis=0) / dens
 
     # Recomputing
     # ----------------------------------------------------------------------------------------------------------------- #
-    if np.any(e<0):
-        print(r.shape,e.shape)
-        rs = np.amax(np.sqrt(np.sum(r[np.where(e<0)]**2,axis=0)))
+    if np.any(e < 0):
+        print(r.shape, e.shape)
+        rs = np.amax(np.sqrt(np.sum(r[np.where(e < 0)] ** 2, axis=0)))
         mylog.warning(f"At radii beyond {rs}, negative energies were detected.")
 
     if resample:
-        vol = particles["gas", "particle_mass"]/particles["gas", "density"]
-        particles["gas", "particle_mass"][idxs] = dens[idxs]*vol[idxs]
+        vol = particles["gas", "particle_mass"] / particles["gas", "density"]
+        particles["gas", "particle_mass"][idxs] = dens[idxs] * vol[idxs]
     particles["gas", "density"][idxs] = dens[idxs]
     particles["gas", "thermal_energy"][idxs] = eint[idxs]
     particles["gas", "particle_velocity"][idxs] = mom.T[idxs]
     if num_scalars > 0:
         for j, name in enumerate(passive_scalars):
-            particles["gas", name][idxs] = ps[j,idxs]
+            particles["gas", name][idxs] = ps[j, idxs]
     return particles
 
 
-def concat_clusters(particles,hses,centers,velocities):
+def concat_clusters(particles, hses, centers, velocities):
     """
     Concatenates clusters together so that they form a self consistent joint system.
 
@@ -681,13 +687,13 @@ def concat_clusters(particles,hses,centers,velocities):
     #  Sanity Check
     # ---------------------------------------------------------------------------------------------------------------- #
     for i, _ in enumerate(centers):
-        centers[i] = ensure_ytarray(centers[i],"kpc")
-        velocities[i] = ensure_ytarray(velocities[i],"kpc/Myr")
+        centers[i] = ensure_ytarray(centers[i], "kpc")
+        velocities[i] = ensure_ytarray(velocities[i], "kpc/Myr")
 
     #  Adding necessary velocity and space offsets
     # ---------------------------------------------------------------------------------------------------------------- #
-    for k,particle_set in enumerate(particles):
-        particle_set.add_offsets(centers[k],velocities[k])
+    for k, particle_set in enumerate(particles):
+        particle_set.add_offsets(centers[k], velocities[k])
 
     returned_particles = particles[0]
 
@@ -695,15 +701,11 @@ def concat_clusters(particles,hses,centers,velocities):
         returned_particles = returned_particles + p
 
     if "gas" in returned_particles.particle_types:
-        returned_particles = _sample_clusters(returned_particles,hses,centers,velocities)
+        returned_particles = _sample_clusters(returned_particles, hses, centers, velocities)
 
     return returned_particles
 
-def resample_clusters(particles,hses,centers,velocities,radii,passive_scalars=None):
-    return  _sample_clusters(particles,hses,centers,velocities,radii-radii,resample=False,passive_scalars=passive_scalars)
 
-
-
-
-
-
+def resample_clusters(particles, hses, centers, velocities, radii, passive_scalars=None):
+    return _sample_clusters(particles, hses, centers, velocities, radii - radii, resample=False,
+                            passive_scalars=passive_scalars)

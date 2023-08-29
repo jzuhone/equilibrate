@@ -6,6 +6,7 @@ The functions in this module provide empirical relations between profile variabl
 """
 import numpy as np
 import unyt as u
+
 from cluster_generator.utils import mue
 
 
@@ -27,30 +28,30 @@ def f_gas(M500, hubble=0.7):
     -------
     f_gas at r500
     """
-    m = M500*1.0e-15/hubble
-    return ((0.72/hubble)**1.5)*(0.125+0.037*np.log10(m))
+    m = M500 * 1.0e-15 / hubble
+    return ((0.72 / hubble) ** 1.5) * (0.125 + 0.037 * np.log10(m))
 
 
 def m_bcg(M500):
     """
     """
     x = np.log10(M500) - 14.5
-    y = 0.39*x+12.15
-    return 10**y
+    y = 0.39 * x + 12.15
+    return 10 ** y
 
 
 def m_sat(M500):
     """
     """
     x = np.log10(M500) - 14.5
-    y = 0.87*x+12.42
-    return 10**y
+    y = 0.87 * x + 12.42
+    return 10 ** y
 
 
 def r_bcg(r200):
     x = np.log10(r200) - 1.0
-    y = 0.95*x-0.3
-    return 10**y
+    y = 0.95 * x - 0.3
+    return 10 ** y
 
 
 def convert_ne_to_density(ne):
@@ -68,5 +69,5 @@ def convert_ne_to_density(ne):
     -----
     The mean molecular mass for the electrons is :math:`\mu_e`
     """
-    ne = ne*u.cm**-3
+    ne = ne * u.cm ** -3
     return ne.to_value("Msun/kpc**3", "number_density", mu=mue)

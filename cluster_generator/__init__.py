@@ -1,15 +1,17 @@
-from cluster_generator.model import \
-    ClusterModel, HydrostaticEquilibrium
-from cluster_generator.ics import \
-    ClusterICs, compute_centers_for_binary
-from cluster_generator.particles import \
-    ClusterParticles
+from cluster_generator.codes import setup_gamer_ics, \
+    setup_ramses_ics
 from cluster_generator.fields import \
     RandomMagneticField, \
     RadialRandomMagneticField, \
     RandomMagneticVectorPotential, \
     RadialRandomMagneticVectorPotential, \
     RandomVelocityField
+from cluster_generator.ics import \
+    ClusterICs, compute_centers_for_binary
+from cluster_generator.model import \
+    ClusterModel, HydrostaticEquilibrium
+from cluster_generator.particles import \
+    ClusterParticles
 from cluster_generator.radial_profiles import \
     snfw_density_profile, snfw_mass_profile, \
     nfw_density_profile, nfw_mass_profile, \
@@ -28,5 +30,3 @@ from cluster_generator.radial_profiles import \
 from cluster_generator.relations import \
     m_bcg, m_sat, r_bcg, f_gas, \
     convert_ne_to_density
-from cluster_generator.codes import setup_gamer_ics, \
-    setup_ramses_ics

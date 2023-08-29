@@ -1,18 +1,20 @@
 """
 Virialization tools for the ``cluster-generator`` system.
 """
+from collections import OrderedDict
+
 import numpy as np
-from tqdm.auto import tqdm
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.special import erf
-from cluster_generator.utils import \
-    quad, generate_particle_radii, mylog
+from tqdm.auto import tqdm
+from unyt import unyt_array
+
+from cluster_generator.cython_utils import generate_velocities, generate_lma_velocities
 from cluster_generator.particles import \
     ClusterParticles
-from cluster_generator.cython_utils import generate_velocities, generate_lma_velocities
-from collections import OrderedDict
-from unyt import unyt_array
-from scipy.optimize import fsolve
+from cluster_generator.utils import \
+    quad, generate_particle_radii, mylog
+
 
 class VirialEquilibrium:
     r"""
@@ -109,7 +111,7 @@ class VirialEquilibrium:
 
     #  Dunder Methods
     # ----------------------------------------------------------------------------------------------------------------- #
-    def __init__(self, model, ptype='dark_matter', df=None,sigma2=None,type="eddington"):
+    def __init__(self, model, ptype='dark_matter', df=None, sigma2=None, type="eddington"):
         #  Assigning basic attributes
         # ------------------------------------------------------------------------------------------------------------ #
         #: The number of elements in the model's field samples. (Inherited)
@@ -122,15 +124,17 @@ class VirialEquilibrium:
         self.type = type
 
         if self.type == "eddington":
-            self._df,self._sigma = None, None
+            self._df, self._sigma = None, None
             # - Generate the DF function - #
+
             if df is None:
                 _ = self.df
             else:
                 self._df = df
 
         elif self.type == "lma":
-            self._df,self._sigma = None, None
+            self._df, self._sigma = None, None
+
             if sigma2 is None:
                 _ = self.sigma
             else:
@@ -152,11 +156,11 @@ class VirialEquilibrium:
             mylog.warning(f"{self.__repr__()} has equilibrium type {self.type} and so no 'df' exists.")
 
     @df.setter
-    def df(self,value):
+    def df(self, value):
         if self.type == "eddington":
             self._df = value
             f = value.d[::-1]
-            self.f = InterpolatedUnivariateSpline(self.ee,f)
+            self.f = InterpolatedUnivariateSpline(self.ee, f)
         else:
             mylog.warning(f"{self.__repr__()} has equilibrium type {self.type} and so no 'df' exists.")
 
@@ -171,7 +175,7 @@ class VirialEquilibrium:
             mylog.warning(f"{self.__repr__()} has equilibrium type {self.type} and so no 'sigma' exists.")
 
     @sigma.setter
-    def sigma(self,value):
+    def sigma(self, value):
         if self.type == "lma":
             self._sigma = value
         else:
@@ -209,7 +213,8 @@ class VirialEquilibrium:
         #  Sanity Check
         # ------------------------------------------------------------------------------------------------------------ #
         if self.type != "eddington":
-            raise ValueError(f"The method _generate_df is not available to VirialEquilibrium models with type {self.type}")
+            raise ValueError(
+                f"The method _generate_df is not available to VirialEquilibrium models with type {self.type}")
         #  Pulling necessary field data out of the model.
         # ------------------------------------------------------------------------------------------------------------ #
         # --- Particle density --- #
@@ -220,7 +225,7 @@ class VirialEquilibrium:
 
         # -- Preparing to conduct the integration -- #
         g = np.zeros(self.num_elements)
-        dgdp = lambda t, e: 2*density_spline(e-t*t, 1)
+        dgdp = lambda t, e: 2 * density_spline(e - t * t, 1)
 
         pbar = tqdm(leave=True, total=self.num_elements,
                     desc="Computing particle DF (Eddington) ")
@@ -231,7 +236,7 @@ class VirialEquilibrium:
         pbar.close()
 
         g_spline = InterpolatedUnivariateSpline(self.ee, g)
-        ff = g_spline(self.ee, 1)/(np.sqrt(8.)*np.pi**2)
+        ff = g_spline(self.ee, 1) / (np.sqrt(8.) * np.pi ** 2)
         self.f = InterpolatedUnivariateSpline(self.ee, ff)
         self._df = unyt_array(ff[::-1], "Msun*Myr**3/kpc**6")
 
@@ -251,7 +256,7 @@ class VirialEquilibrium:
 
         # - Asserting necessary fields - #
         if self.model["gravitational_potential"] is None:
-            _ = self.model.pot # Generates the potential from the inherited model.
+            _ = self.model.pot  # Generates the potential from the inherited model.
 
         #  Constructing splines for estimation
         # ------------------------------------------------------------------------------------------------------------ #
@@ -262,23 +267,24 @@ class VirialEquilibrium:
 
         # - Building the density spline - #
         pden = self.model[f"{self.ptype}_density"].to("Msun/kpc**3")
-        density_spline = InterpolatedUnivariateSpline(self.model["radius"].d, pden.d,k=3)
+        density_spline = InterpolatedUnivariateSpline(self.model["radius"].d, pden.d, k=3)
 
-        _slope = _rmax*density_spline(_rmax,1)/density_spline(_rmax)
-        _density_spline = lambda r: np.piecewise(r,[r<_rmax,r>=_rmax],
-                                                 [density_spline,lambda l: density_spline(_rmax)*(l/_rmax)**_slope])
+        _slope = _rmax * density_spline(_rmax, 1) / density_spline(_rmax)
+        _density_spline = lambda r: np.piecewise(r, [r < _rmax, r >= _rmax],
+                                                 [density_spline,
+                                                  lambda l: density_spline(_rmax) * (l / _rmax) ** _slope])
 
         # ! POTENTIAL SPLINE: truncating slope on the integrand at large radii.
 
         # - Potential - #
         g = self.model["gravitational_potential"].to("kpc**2/Myr**2")
-        potential_spline = InterpolatedUnivariateSpline(self.model["radius"].d,g.d,k=3)
-        _dp_func = lambda r: np.piecewise(r,[r<_rmax,r>=_rmax],
-                                          [lambda l: potential_spline(l,1),lambda l: potential_spline(_rmax,1)])
+        potential_spline = InterpolatedUnivariateSpline(self.model["radius"].d, g.d, k=3)
+        _dp_func = lambda r: np.piecewise(r, [r < _rmax, r >= _rmax],
+                                          [lambda l: potential_spline(l, 1), lambda l: potential_spline(_rmax, 1)])
 
         # --- Building the integrands --- #
-        integrand = lambda x: density_spline(x)*potential_spline(x,1)
-        inf_integrand = lambda x: _density_spline(x)*_dp_func(x)
+        integrand = lambda x: density_spline(x) * potential_spline(x, 1)
+        inf_integrand = lambda x: _density_spline(x) * _dp_func(x)
 
         #  Performing the integration
         # ------------------------------------------------------------------------------------------------------------ #
@@ -286,16 +292,16 @@ class VirialEquilibrium:
         pbar = tqdm(leave=True, total=self.num_elements,
                     desc="Computing particle dispersions (LMA) ")
 
-        inf_int = quad(inf_integrand,_rmax,np.inf,limit=100,epsabs=1.49e-05,
-                        epsrel=1.49e-05)[0]
+        inf_int = quad(inf_integrand, _rmax, np.inf, limit=100, epsabs=1.49e-05,
+                       epsrel=1.49e-05)[0]
 
-        for i,r in enumerate(self.model["radius"].d):
-            sig[i] = quad(integrand, r,_rmax,limit=100, epsabs=1.49e-05,
-                        epsrel=1.49e-05)[0]
+        for i, r in enumerate(self.model["radius"].d):
+            sig[i] = quad(integrand, r, _rmax, limit=100, epsabs=1.49e-05,
+                          epsrel=1.49e-05)[0]
             pbar.update()
         pbar.close()
         sig += inf_int
-        self._sigma = unyt_array(sig,"Msun / (Myr**2 * kpc)")/pden
+        self._sigma = unyt_array(sig, "Msun / (Myr**2 * kpc)") / pden
         self._sigma = self._sigma.to("kpc**2/Myr**2")
 
     def check_virial(self):
@@ -349,17 +355,17 @@ class VirialEquilibrium:
             raise ValueError("The model does not use a form of virialization that can use this function.")
         n = self.num_elements
         rho = np.zeros(n)
-        pden = self.model[f"{self.ptype}_density"].d #-> This is the profile / model density array.
+        pden = self.model[f"{self.ptype}_density"].d  # -> This is the profile / model density array.
 
         # - Defining the integrand - #
-        rho_int = lambda e, psi: self.f(e)*np.sqrt(2*(psi-e))
+        rho_int = lambda e, psi: self.f(e) * np.sqrt(2 * (psi - e))
 
         # - Carrying out the cumulative integration - #
         for i, e in enumerate(self.ee):
-            rho[i] = 4.*np.pi*quad(rho_int, 0., e, args=(e,))[0]
+            rho[i] = 4. * np.pi * quad(rho_int, 0., e, args=(e,))[0]
 
         # - performing the check.
-        chk = (rho[::-1]-pden)/pden
+        chk = (rho[::-1] - pden) / pden
         mylog.info("The maximum relative deviation of this profile from "
                    "virial equilibrium is %g", np.abs(chk).max())
         return rho[::-1], chk
@@ -400,10 +406,10 @@ class VirialEquilibrium:
         # ----------------------------------------------------------------------------------------------------------------- #
         from cluster_generator.utils import parse_prng
 
-        num_particles_sub = num_particles // sub_sample # number of particles for which to generate.
-        key = {"dark_matter": "dm",  "stellar": "star"}[self.ptype] # particle type reference.
+        num_particles_sub = num_particles // sub_sample  # number of particles for which to generate.
+        key = {"dark_matter": "dm", "stellar": "star"}[self.ptype]  # particle type reference.
 
-        #- Pulling fields - #
+        # - Pulling fields - #
         density = f"{self.ptype}_density"
         mass = f"{self.ptype}_mass"
 
@@ -430,13 +436,13 @@ class VirialEquilibrium:
 
         # --- Angular Distribution (uniform) --- #
         theta = np.arccos(prng.uniform(low=-1., high=1., size=num_particles))
-        phi = 2.*np.pi*prng.uniform(size=num_particles)
+        phi = 2. * np.pi * prng.uniform(size=num_particles)
 
         fields = OrderedDict()
 
         fields[key, "particle_position"] = unyt_array(
-            [radius*np.sin(theta)*np.cos(phi), radius*np.sin(theta)*np.sin(phi),
-             radius*np.cos(theta)], "kpc").T
+            [radius * np.sin(theta) * np.cos(phi), radius * np.sin(theta) * np.sin(phi),
+             radius * np.cos(theta)], "kpc").T
 
         # Computing necessary velocities
         # ------------------------------------------------------------------------------------------------------------ #
@@ -450,9 +456,9 @@ class VirialEquilibrium:
             energy_spline = InterpolatedUnivariateSpline(self.model["radius"].d,
                                                          self.ee[::-1])
 
-            psi = energy_spline(radius_sub) # - Relative potential pulled from energy spline function.
-            vesc = 2.*psi # - (after root) becomes the escape velocity.
-            fv2esc = vesc*self.f(psi) # - self.f is the distribution function (backward),
+            psi = energy_spline(radius_sub)  # - Relative potential pulled from energy spline function.
+            vesc = 2. * psi  # - (after root) becomes the escape velocity.
+            fv2esc = vesc * self.f(psi)  # - self.f is the distribution function (backward),
             vesc = np.sqrt(vesc)
 
             velocity_sub = generate_velocities(
@@ -467,19 +473,20 @@ class VirialEquilibrium:
             # -------------------------------------------------------------------------------------------------------- #
 
             # --- Generating the dispersion spline --- #
-            dispersion_spline = InterpolatedUnivariateSpline(self.model["radius"],self.sigma)
-            dispersion_array = dispersion_spline(radius_sub) # assigns the correct dispersion to each of the radii in the particle sample.
+            dispersion_spline = InterpolatedUnivariateSpline(self.model["radius"], self.sigma)
+            dispersion_array = dispersion_spline(
+                radius_sub)  # assigns the correct dispersion to each of the radii in the particle sample.
 
             # --- Computing the relevant escape velocities at each radius --- #
-            potential_spline = InterpolatedUnivariateSpline(self.model["radius"],self.model.pot)
+            potential_spline = InterpolatedUnivariateSpline(self.model["radius"], self.model.pot)
             _potentials = potential_spline(radius_sub)
-            vesc = np.sqrt(2*np.abs(_potentials))
+            vesc = np.sqrt(2 * np.abs(_potentials))
 
             # --- Creating the distribution function --- #
-            _base_array = np.linspace(0,3,1000)
-            _cumval = erf(_base_array) - (2/np.sqrt(np.pi))*_base_array*np.exp(-_base_array**2)
+            _base_array = np.linspace(0, 3, 1000)
+            _cumval = erf(_base_array) - (2 / np.sqrt(np.pi)) * _base_array * np.exp(-_base_array ** 2)
 
-            cumdist_spline = InterpolatedUnivariateSpline(_cumval,_base_array,ext=0)
+            cumdist_spline = InterpolatedUnivariateSpline(_cumval, _base_array, ext=0)
 
             # --- Calling the generator --- #
             velocity_sub = generate_lma_velocities(
@@ -522,7 +529,7 @@ class VirialEquilibrium:
                     phi = -psi
             else:
                 if sub_sample > 1:
-                    phi = np.tile(_potentials,sub_sample)
+                    phi = np.tile(_potentials, sub_sample)
                 else:
                     phi = _potentials
 

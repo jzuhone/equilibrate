@@ -24,6 +24,7 @@ nuts and bolts of the system.
     notebooks/api_guides/1
     notebooks/api_guides/2
     notebooks/api_guides/3
+    notebooks/api_guides/4
 
 
 .. raw:: html

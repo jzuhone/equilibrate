@@ -13,7 +13,12 @@ Cythonized utilities for equilibrium models
 
 import numpy as np
 cimport numpy as np
-cimport cython
+from scipy.interpolate import _fitpack
+from tqdm.auto import tqdm
+
+cimport
+numpy as np
+import numpy as np
 from scipy.interpolate import _fitpack
 from tqdm.auto import tqdm
 
@@ -51,7 +56,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
     cdef long int seedval
     cdef np.ndarray[np.float64_t, ndim=1] velocity, e
 
-    e = np.zeros(1) # used to hold the energy value
+    e = np.zeros(1)  # used to hold the energy value
 
     # - Starting the PRNG.
     seedval = -100
@@ -68,11 +73,11 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
     for i in range(num_particles):
         not_done = 1
         while not_done:
-            v2 = drand48()*vesc[i]
+            v2 = drand48() * vesc[i]
             v2 *= v2
-            e[0] = psi[i]-0.5*v2
+            e[0] = psi[i] - 0.5 * v2
             f = _fitpack._spl_(e, der, t, c, k, ext)[0]
-            not_done = f*v2 < drand48()*fv2esc[i]
+            not_done = f * v2 < drand48() * fv2esc[i]
         velocity[i] = sqrt(v2)
         pbar.update()
     pbar.close()
@@ -122,11 +127,11 @@ def generate_lma_velocities(np.ndarray[DTYPE_t, ndim=1] disp,
     cdef int num_particles, der, ext
     cdef long int seedval
     cdef np.ndarray[np.float64_t, ndim=1] velocity, e
-    e = np.zeros(1) # used to hold the sample value
-    seedval = -100 # The seed for the random number generator.
-    srand48(seedval) # Initializing the random number generator.
-    der = 0 # The spline derivative (0 -> no derivatives needed)
-    ext = 0 # The out of bounds behavior of the spline.
+    e = np.zeros(1)  # used to hold the sample value
+    seedval = -100  # The seed for the random number generator.
+    srand48(seedval)  # Initializing the random number generator.
+    der = 0  # The spline derivative (0 -> no derivatives needed)
+    ext = 0  # The out of bounds behavior of the spline.
     num_particles = disp.shape[0]
     velocity = np.zeros(num_particles, dtype='float64')
     #  Computing values
@@ -139,12 +144,12 @@ def generate_lma_velocities(np.ndarray[DTYPE_t, ndim=1] disp,
         # --- Seeking a value for the velocity of the ith particle --- #
         not_done = 1
         while not_done:
-            e[0] = drand48() # randomly sampled value.
+            e[0] = drand48()  # randomly sampled value.
             # --- sampling from the inverse spline --- #
             f = _fitpack._spl_(e, der, t, c, k, ext)[0]
             # --- checking --- #
-            not_done = sqrt(2.0)*sqrt(disp[i])*f > alpha*vesc[i]
-        velocity[i] = sqrt(2.0)*sqrt(disp[i])*f
+            not_done = sqrt(2.0) * sqrt(disp[i]) * f > alpha * vesc[i]
+        velocity[i] = sqrt(2.0) * sqrt(disp[i]) * f
         pbar.update()
     pbar.close()
 

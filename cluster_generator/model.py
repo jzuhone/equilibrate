@@ -6,17 +6,17 @@ base object for fully realized models of galaxy clusters. These objects contain 
 however, :py:class:`model.ClusterModel` objects can be virialized, may have particles generated from them, and can have HSE checked.
 
 """
-import logging
 import os
+import sys
 from collections import OrderedDict
 
 import astropy
 import astropy.units
 import h5py
 import numpy as np
+from halo import Halo
 from scipy.integrate import cumtrapz, quad
 from scipy.interpolate import InterpolatedUnivariateSpline
-from scipy.optimize import fsolve
 from unyt import unyt_array
 
 from cluster_generator.gravity import available_gravities
@@ -24,12 +24,10 @@ from cluster_generator.particles import \
     ClusterParticles
 from cluster_generator.utils import \
     integrate, mylog, integrate_mass, \
-    mp, G, generate_particle_radii, mu, mue, \
+    mp, generate_particle_radii, mu, mue, \
     ensure_ytquantity, kpc_to_cm, log_string
 from cluster_generator.virial import \
     VirialEquilibrium
-from halo import Halo
-import sys
 
 tt = 2.0 / 3.0
 mtt = -tt
@@ -88,7 +86,7 @@ class ClusterModel:
         self.fields = fields
 
         # - managing gravity initialization - #
-        if isinstance(gravity,str):
+        if isinstance(gravity, str):
             # Gravity comes in as string, we try to look it up
             try:
                 self.gravity = available_gravities[gravity](self)
@@ -96,10 +94,11 @@ class ClusterModel:
                 raise ValueError(
                     f"The gravity option {gravity} doesn't exist. Configured options are {available_gravities.keys()}")
 
-        elif any([isinstance(gravity,i) for i in available_gravities.values()]):
+        elif any([isinstance(gravity, i) for i in available_gravities.values()]):
             # The gravity passed in is already a gravity object.
             if gravity.model != self:
-                mylog.warning(f"Tried to assign {gravity} object to {self} but it was already assigned to {gravity.model}. Generating fresh instance.")
+                mylog.warning(
+                    f"Tried to assign {gravity} object to {self} but it was already assigned to {gravity.model}. Generating fresh instance.")
                 self.gravity = gravity.__class__(self)
             else:
                 pass
@@ -123,7 +122,8 @@ class ClusterModel:
         # ----------------------------------------------------------------------------------------------------------------- #
         # - setting the require_physical kwarg
         if not "virialization_method" in self.attrs:
-            mylog.info(f"ClusterModel [{self.__repr__()}] has no virialization method. Setting to default = {('eddington' if self.gravity == 'Newtonian' else 'lma')}")
+            mylog.info(
+                f"ClusterModel [{self.__repr__()}] has no virialization method. Setting to default = {('eddington' if self.gravity == 'Newtonian' else 'lma')}")
             self.attrs["virialization_method"] = ("eddington" if self.gravity == "Newtonian" else "lma")
 
     def __repr__(self):
@@ -132,7 +132,7 @@ class ClusterModel:
     def __str__(self):
         return f"ClusterModel object; gravity={self.gravity._classname}, fields={list(self.fields.keys())}"
 
-    def __contains__(self,item):
+    def __contains__(self, item):
         return item in self.fields
 
     def __getitem__(self, item):
@@ -151,6 +151,7 @@ class ClusterModel:
         else:
             self.gravity.potential()
             return self.fields["gravitational_potential"]
+
     @property
     def dm_virial(self):
         if self._dm_virial is None:
@@ -167,6 +168,7 @@ class ClusterModel:
     def virialization_method(self):
         """The virialization method"""
         return self.attrs["virialization_method"]
+
     #  Class Methods
     # ----------------------------------------------------------------------------------------------------------------- #
     @classmethod
@@ -258,7 +260,7 @@ class ClusterModel:
         _atr_path = f"{filename}.pkl"
 
         try:
-            with open(_atr_path,"rb") as fpkl:
+            with open(_atr_path, "rb") as fpkl:
                 attrs = pickle.load(fpkl)
         except FileNotFoundError:
             mylog.warning(f"Failed to load attribute file {_atr_path}.")
@@ -293,6 +295,11 @@ class ClusterModel:
         else:
             _grav = "Newtonian"
 
+        if "virialization_method" in attrs:
+            _vir = attrs["virialization_method"]
+        else:
+            _vir = ("eddington" if _grav == "Newtonian" else "lma")
+
         # - Creating the model - #
         model = cls(fields, gravity=_grav, **attrs)
 
@@ -302,25 +309,19 @@ class ClusterModel:
                                   fields["radius"].d <= r_max)
             df = unyt_array.from_hdf5(
                 filename, dataset_name="dm_df")[mask]
-            if model.gravity == "Newtonian":
-                model._star_virial = VirialEquilibrium(
-                    model, ptype="dark_matter", df=df)
-            else:
-                model._star_virial = VirialEquilibrium(
-                    model, ptype="dark_matter", sigma2=df)
 
+            kwargs = {"ptype": "dark_matter", ("df" if _vir == "eddington" else "sigma2"): df, "type": _vir}
+
+            model._dm_virial = VirialEquilibrium(model, **kwargs)
         if get_star_virial:
             mask = np.logical_and(fields["radius"].d >= r_min,
                                   fields["radius"].d <= r_max)
             df = unyt_array.from_hdf5(
                 filename, dataset_name="star_df")[mask]
-            if model.gravity == "Newtonian":
-                model._star_virial = VirialEquilibrium(
-                    model, ptype="stellar", df=df)
-            else:
-                model._star_virial = VirialEquilibrium(
-                    model, ptype="stellar", sigma2=df)
 
+            kwargs = {"ptype": "stellar", ("df" if _vir == "eddington" else "sigma2"): df, "type": _vir}
+
+            model._star_virial = VirialEquilibrium(model, **kwargs)
         return model
 
     @classmethod
@@ -389,7 +390,7 @@ class ClusterModel:
             fields["entropy"] = \
                 fields["temperature"] * fields["electron_number_density"] ** mtt
 
-        obj = cls(fields, gravity=gravity,**kwargs)
+        obj = cls(fields, gravity=gravity, **kwargs)
 
         #  Computing the potential
         # ------------------------------------------------------------------------------------------------------------ #
@@ -435,7 +436,7 @@ class ClusterModel:
 
         #  Sanity Checks
         # ------------------------------------------------------------------------------------------------------------ #
-        if isinstance(gravity,str):
+        if isinstance(gravity, str):
             try:
                 gravity = available_gravities[gravity]
             except KeyError:
@@ -479,7 +480,9 @@ class ClusterModel:
         dMdr = unyt_array(total_mass_spline(rr, nu=1), "Msun/kpc")
         fields["total_density"] = dMdr / (4. * np.pi * fields["radius"] ** 2)
 
-        return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity,profiles={"density":density,"temperature":temperature,"stellar_density":stellar_density}, **kwargs)
+        return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity,
+                                 profiles={"density"        : density, "temperature": temperature,
+                                           "stellar_density": stellar_density}, **kwargs)
 
     @classmethod
     def from_dens_and_entr(cls, rmin, rmax, density, entropy, num_points,
@@ -515,12 +518,12 @@ class ClusterModel:
         n_e = density / (mue * mp * kpc_to_cm ** 3)
         temperature = entropy * n_e ** tt
         return cls.from_dens_and_temp(density, temperature, rmin, rmax, num_points,
-                                      stellar_density=stellar_density, gravity=gravity,profiles={"density":density,
-                                                                                                 "temperature":temperature,
-                                                                                                 "stellar_density":stellar_density,
-                                                                                                 "entropy":entropy}
+                                      stellar_density=stellar_density, gravity=gravity, profiles={"density"        : density,
+                                                                                                  "temperature"    : temperature,
+                                                                                                  "stellar_density": stellar_density,
+                                                                                                  "entropy"        : entropy}
                                       , **kwargs)
-    
+
     @classmethod
     def from_dens_and_tden(cls, rmin, rmax, density, total_density,
                            stellar_density=None, num_points=1000, gravity="Newtonian", **kwargs):
@@ -549,7 +552,7 @@ class ClusterModel:
         """
         mylog.info(f"Computing the profiles from density and total density. Gravity={gravity}")
 
-        #  Pulling parameters
+        #  Pulling necessary field data to begin computations
         # ------------------------------------------------------------------------------------------------------------ #
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
                          endpoint=True)
@@ -558,6 +561,8 @@ class ClusterModel:
         fields["radius"] = unyt_array(rr, "kpc")
         fields["density"] = unyt_array(density(rr), "Msun/kpc**3")
         fields["total_density"] = unyt_array(total_density(rr), "Msun/kpc**3")
+
+        # -- beginning the mass integrations -- #
         mylog.info("Integrating total mass profile.")
         fields["total_mass"] = unyt_array(integrate_mass(total_density, rr),
                                           "Msun")
@@ -583,14 +588,15 @@ class ClusterModel:
         fields["temperature"] = fields["pressure"] * mu * mp / fields["density"]
         fields["temperature"].convert_to_units("keV")
 
-        return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity, **kwargs,profiles={"density":density,
-                                                                                                              "total_density":total_density,
-                                                                                                              "stellar_density":stellar_density,
-                                                                                                              })
+        return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity, **kwargs,
+                                 profiles={"density"        : density,
+                                           "total_density"  : total_density,
+                                           "stellar_density": stellar_density,
+                                           })
 
     @classmethod
     def no_gas(cls, rmin, rmax, total_density, stellar_density=None,
-               num_points=1000,gravity="Newtonian",attrs=None, **kwargs):
+               num_points=1000, gravity="Newtonian", attrs=None, **kwargs):
         """
         Generates the cluster without gas.
 
@@ -625,7 +631,7 @@ class ClusterModel:
         fields["total_mass"] = unyt_array(integrate_mass(total_density, rr),
                                           "Msun")
 
-        return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity,attrs=attrs, **kwargs)
+        return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity, attrs=attrs, **kwargs)
 
     #  Methods
     # ----------------------------------------------------------------------------------------------------------------- #
@@ -643,10 +649,9 @@ class ClusterModel:
         domain: unyt_array
             ``None`` if ``status=True``, otherwise returns an array of all radii at which non-physicality occurs.
         """
-        from numpy.testing import assert_array_equal
         with Halo(text=log_string(f"Checking physicality of {self.__repr__()}..."), spinner="dots", stream=sys.stderr,
                   animation="marquee") as h:
-            _phys_check_fields = ["dark_matter_density","stellar_density","density","total_density"]
+            _phys_check_fields = ["dark_matter_density", "stellar_density", "density", "total_density"]
 
             non_phys_radii = np.zeros(self["radius"].d.size)
 
@@ -662,7 +667,7 @@ class ClusterModel:
                 if f in self.fields and self.fields[f] is not None:
                     _sum_field += self[f].d
 
-            diff = np.abs(_sum_field-self["total_density"].d)/self["total_density"].d
+            diff = np.abs(_sum_field - self["total_density"].d) / self["total_density"].d
             non_phys_radii[np.where(diff > 1e-7)] = 1
 
             status = np.all(non_phys_radii == 0)
@@ -670,9 +675,10 @@ class ClusterModel:
             if status:
                 h.succeed(f"{self.__repr__()} is physical.")
             else:
-                h.fail(f"[{self.__repr__()}] is non-physical over {np.round(100*len(non_phys_radii[non_phys_radii==1])/len(non_phys_radii),decimals=3)}% of domain.")
+                h.fail(
+                    f"[{self.__repr__()}] is non-physical over {np.round(100 * len(non_phys_radii[non_phys_radii == 1]) / len(non_phys_radii), decimals=3)}% of domain.")
 
-        return status, self["radius"].d[np.where(non_phys_radii==1)]
+        return status, self["radius"].d[np.where(non_phys_radii == 1)]
 
     def set_rmax(self, r_max):
         mask = self.fields["radius"].d <= r_max
@@ -729,7 +735,7 @@ class ClusterModel:
                 fields[k] = fd.to_astropy()
         t = QTable(fields)
 
-        self._write_model_attrs(output_filename,in_cgs=in_cgs)
+        self._write_model_attrs(output_filename, in_cgs=in_cgs)
 
         t.write(output_filename, overwrite=overwrite)
 
@@ -763,7 +769,7 @@ class ClusterModel:
         f = h5py.File(output_filename, "w")
         f.create_dataset("num_elements", data=self.num_elements)
         f.close()
-        self._write_model_attrs(output_filename,in_cgs=in_cgs)
+        self._write_model_attrs(output_filename, in_cgs=in_cgs)
 
         if r_min is None:
             r_min = 0.0
@@ -854,7 +860,7 @@ class ClusterModel:
         mask = np.logical_and(self.fields["radius"].d >= r_min,
                               self.fields["radius"].d <= r_max)
 
-        self._write_model_attrs(output_filename,in_cgs=in_cgs)
+        self._write_model_attrs(output_filename, in_cgs=in_cgs)
 
         with FortranFile(output_filename, 'w') as f:
             f.write_record(self.fields["radius"][mask].size)
@@ -873,7 +879,7 @@ class ClusterModel:
                 prof_rec.append(fd)
             f.write_record(np.array(prof_rec).T)
 
-    def _write_model_attrs(self,output_filename,in_cgs=False):
+    def _write_model_attrs(self, output_filename, in_cgs=False):
         """writes the model attributes to file."""
         import dill as pickle
 
@@ -984,7 +990,8 @@ class ClusterModel:
         from cluster_generator.utils import truncate_spline
         #  Making the profile corrections
         # ------------------------------------------------------------------------------------------------------------ #
-        with Halo(text=log_string(f"Rebuilding {self.__repr__()} for physicality..."), spinner="dots", stream=sys.stderr,
+        with Halo(text=log_string(f"Rebuilding {self.__repr__()} for physicality..."), spinner="dots",
+                  stream=sys.stderr,
                   animation="marquee") as h:
             #  Sanity Check
             # -------------------------------------------------------------------------------------------------------- #
@@ -994,16 +1001,16 @@ class ClusterModel:
 
             #  Rebuilding the constituent density arrays
             # -------------------------------------------------------------------------------------------------------- #
-            _required_fields_fixable = {"stellar_":"stellar_",
-                                        "dark_matter_":"dark_matter_",
-                                        "":"gas_"}
-        
+            _required_fields_fixable = {"stellar_"    : "stellar_",
+                                        "dark_matter_": "dark_matter_",
+                                        ""            : "gas_"}
+
             # - Resetting the total densities and masses - #
-            self["total_density"] = unyt_array(np.zeros(len(self["total_density"])),self["total_density"].units)
+            self["total_density"] = unyt_array(np.zeros(len(self["total_density"])), self["total_density"].units)
             self["total_mass"] = unyt_array(np.zeros(len(self["total_mass"])), self["total_mass"].units)
-        
+
             # - Fixing -#
-            for fd,fm in _required_fields_fixable.items():
+            for fd, fm in _required_fields_fixable.items():
                 #  Attempting to fix the density
                 # ---------------------------------------------------------------------------------------------------- #
                 mylog.debug(f"[[rebuild-physical]]: fixing {fd}density.")
@@ -1011,19 +1018,19 @@ class ClusterModel:
                 # -- SANITY CHECK -- #
                 if f"{fd}density" not in self.fields:
                     continue
-        
+
                 # -- APPLYING THE FIX -- #
 
                 # - fixing the density by replacing with zero - #
                 _tmp = deepcopy(self.fields[f"{fd}density"].d)
-                self.fields[f"{fd}density"][np.where(self.fields[f"{fd}density"].v < 0)] = 1e-10 # reset to 0.
+                self.fields[f"{fd}density"][np.where(self.fields[f"{fd}density"].v < 0)] = 1e-10  # reset to 0.
 
-                if not np.all(np.equal(_tmp,self[f"{fd}density"])):
+                if not np.all(np.equal(_tmp, self[f"{fd}density"])):
                     mylog.debug(f"[[rebuild-physical]]: Rebuild required: {fd}density.")
 
                     # - smoothing the array - #
-                    sp = InterpolatedUnivariateSpline(self["radius"].d,self.fields[f"{fd}density"].d)
-                    self.fields[f"{fd}density"] = unyt_array(sp(self["radius"].d),self.fields[f"{fd}density"].units)
+                    sp = InterpolatedUnivariateSpline(self["radius"].d, self.fields[f"{fd}density"].d)
+                    self.fields[f"{fd}density"] = unyt_array(sp(self["radius"].d), self.fields[f"{fd}density"].units)
 
                     # - fixing the mass profiles - #
                     #
@@ -1031,23 +1038,24 @@ class ClusterModel:
                     # of the mass profiles instead of trying to perform array manipulations on them.
                     m0 = self[f"{fd}density"].d[0] * self["radius"].d[0] ** 3
                     self[f"{fm}mass"] = unyt_array(
-                        (4.0 / 3.0) * np.pi * cumtrapz(self[f"{fd}density"] * self["radius"].d*self["radius"].d,
+                        (4.0 / 3.0) * np.pi * cumtrapz(self[f"{fd}density"] * self["radius"].d * self["radius"].d,
                                                        x=self["radius"].d, initial=0.0) + m0, "Msun")
 
                 # -- Adding to total mass -- #
                 self.fields["total_density"] += self.fields[f"{fd}density"]
                 self.fields["total_mass"] += self.fields[f"{fm}mass"]
 
-
         #  Recomputing temperature field from new system
         # ------------------------------------------------------------------------------------------------------------ #
 
         # - Sanity Check - #
         if "density" not in self.fields:
-            raise TypeError(f"The system [{self.__repr__()}] has no `density` field. If it is non-physical, it is likely a product of user error and should be corrected manually.")
+            raise TypeError(
+                f"The system [{self.__repr__()}] has no `density` field. If it is non-physical, it is likely a product of user error and should be corrected manually.")
 
         # - Regenerating the base object for potential comptation - #
-        obj = self.__class__.from_arrays(deepcopy(self.fields), stellar_density=(self["stellar_density"] if "stellar_density" in self.fields else None), gravity=self.gravity, **self.attrs)
+        obj = self.__class__.from_arrays(deepcopy(self.fields), stellar_density=(
+            self["stellar_density"] if "stellar_density" in self.fields else None), gravity=self.gravity, **self.attrs)
 
         # - Getting the potential - #
         _ = obj.pot
@@ -1062,8 +1070,8 @@ class ClusterModel:
         if "profiles" in obj.attrs and ("density" in obj.attrs["profiles"]):
             dens_func = obj.attrs["profiles"]["density"]
         else:
-            _dens_func = InterpolatedUnivariateSpline(obj["radius"].d,obj["density"].d)
-            dens_func = truncate_spline(_dens_func,obj["radius"].d,10)
+            _dens_func = InterpolatedUnivariateSpline(obj["radius"].d, obj["density"].d)
+            dens_func = truncate_spline(_dens_func, obj["radius"].d, 10)
 
         dPdr_int = lambda r: dens_func(r) * g_r(r)
         mylog.info("Integrating pressure profile.")
@@ -1414,40 +1422,11 @@ class HydrostaticEquilibrium(ClusterModel):
     pass
 
 
-
 if __name__ == '__main__':
-    from cluster_generator.tests.utils import generate_model_dens_temp, generate_model_dens_tdens
+    from cluster_generator.tests.utils import generate_model_dens_temp
     import matplotlib.pyplot as plt
 
-    #for logger in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
+    # for logger in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
     #    logger.setLevel("DEBUG")
 
-    model = generate_model_dens_temp(gravity="AQUAL")
-    model.write_model_to_h5("test.h5")
-    exit()
-    m1 = ClusterModel.from_h5_file("test.h5")
-
-    exit()
-    print(m1.__repr__(),m2.__repr__())
-    m1.check_hse()
-    a = [m1[q] for q in ["total_mass","total_density","temperature","dark_matter_density"]]
-
-    fig,axes = plt.subplots(2,2)
-
-    for ax,q in zip(axes.ravel(),a):
-        ax.loglog(m1["radius"].d,q.d)
-        ax.set_yscale("symlog")
-
-
-
-    m1.rebuild_physical()
-    m1.is_physical()
-    a = [m1[q] for q in ["total_mass","dark_matter_mass","temperature","dark_matter_density"]]
-    for ax,q in zip(axes.ravel(),a):
-        ax.loglog(m1["radius"].d,q.d,"r")
-        ax.set_yscale("symlog")
-
-    plt.show()
-    m1.check_hse()
-
-
+    model = generate_model_dens_temp(gravity="QUMOND")

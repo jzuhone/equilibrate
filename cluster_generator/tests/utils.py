@@ -1,16 +1,18 @@
 from pathlib import Path
+
 import numpy as np
 import pytest
 from numpy.testing import assert_equal
 from unyt import unyt_array
+
 from cluster_generator.model import ClusterModel
 from cluster_generator.particles import ClusterParticles
 from cluster_generator.radial_profiles import find_overdensity_radius, \
-    snfw_density_profile, snfw_total_mass, vikhlinin_density_profile, vikhlinin_temperature_profile,\
+    snfw_density_profile, snfw_total_mass, vikhlinin_density_profile, vikhlinin_temperature_profile, \
     rescale_profile_by_mass, find_radius_mass, snfw_mass_profile
 
 
-def generate_model(gravity="Newtonian",**kwargs):
+def generate_model(gravity="Newtonian", **kwargs):
     z = 0.1
     M200 = 1.5e15
     conc = 4.0
@@ -27,14 +29,15 @@ def generate_model(gravity="Newtonian",**kwargs):
     rmin = 0.1
     rmax = 10000.0
     m = ClusterModel.from_dens_and_tden(rmin, rmax, rhog, rhot,
-                                        stellar_density=rhos,gravity=gravity,**kwargs)
+                                        stellar_density=rhos, gravity=gravity, **kwargs)
     m.set_magnetic_field_from_beta(100.0, gaussian=True)
 
     return m
 
-def generate_model_dens_tdens(gravity="Newtonian",**kwargs):
+
+def generate_model_dens_tdens(gravity="Newtonian", **kwargs):
     """Generates a model test for dens/tdens initialization as a model."""
-    z= 0.1
+    z = 0.1
     M200 = 1.5e15
     conc = 4.0
     r200 = find_overdensity_radius(M200, 200.0, z=z)
@@ -50,19 +53,21 @@ def generate_model_dens_tdens(gravity="Newtonian",**kwargs):
     rmin = 0.1
     rmax = 10000.0
     m = ClusterModel.from_dens_and_tden(rmin, rmax, rhog, rhot,
-                                        stellar_density=rhos,gravity=gravity,**kwargs)
+                                        stellar_density=rhos, gravity=gravity, **kwargs)
     m.set_magnetic_field_from_beta(100.0, gaussian=True)
     return m
 
-def generate_model_dens_temp(gravity="Newtonian",**kwargs):
+
+def generate_model_dens_temp(gravity="Newtonian", **kwargs):
     """modeled off of """
-    rhog = vikhlinin_density_profile(190459,94.6,1239.9,0.916,0.526,4.943,3)
-    temp = vikhlinin_temperature_profile(2.42,-0.02,5.00,1.1,350,1,19,2)
+    rhog = vikhlinin_density_profile(190459, 94.6, 1239.9, 0.916, 0.526, 4.943, 3)
+    temp = vikhlinin_temperature_profile(2.42, -0.02, 5.00, 1.1, 350, 1, 19, 2)
 
-    m = ClusterModel.from_dens_and_temp(1,5000, rhog, temp,
-                                        stellar_density=0.02*rhog, gravity=gravity,**kwargs)
+    m = ClusterModel.from_dens_and_temp(1, 5000, rhog, temp,
+                                        stellar_density=0.02 * rhog, gravity=gravity, **kwargs)
     m.set_magnetic_field_from_beta(100.0, gaussian=True)
     return m
+
 
 @pytest.fixture(scope="package")
 def generate_mdr_potential():
@@ -73,11 +78,11 @@ def generate_mdr_potential():
     a = r200 / conc
     M = snfw_total_mass(M200, r200, a)
     rhot = snfw_density_profile(M, a)
-    m = snfw_mass_profile(M,a)
+    m = snfw_mass_profile(M, a)
 
-    rmin,rmax = 0.1,2*r200
-    r =  np.geomspace(rmin,rmax,1000)
-    return unyt_array(m(r),"Msun"),unyt_array(rhot(r),"Msun/kpc**3"),unyt_array(r,"kpc")
+    rmin, rmax = 0.1, 2 * r200
+    r = np.geomspace(rmin, rmax, 1000)
+    return unyt_array(m(r), "Msun"), unyt_array(rhot(r), "Msun/kpc**3"), unyt_array(r, "kpc")
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -89,7 +94,7 @@ def model_answer_testing(model, filename, answer_store, answer_dir):
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.semilogx(model["radius"],model.check_hse())
+    ax.semilogx(model["radius"], model.check_hse())
     if answer_store:
         model.write_model_to_h5(p, overwrite=True)
     else:
@@ -100,8 +105,9 @@ def model_answer_testing(model, filename, answer_store, answer_dir):
         assert_equal(old_model.dm_virial.df, model.dm_virial.df)
         assert_equal(old_model.star_virial.df, model.star_virial.df)
     ax.set_yscale("symlog")
-    ax.set_ylim([-1,1])
+    ax.set_ylim([-1, 1])
     plt.savefig(f"{answer_dir}/Comparison_{Path(filename).name}.png")
+
 
 def particle_answer_testing(parts, filename, answer_store, answer_dir):
     p = Path(answer_dir) / filename

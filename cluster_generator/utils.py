@@ -1,19 +1,20 @@
 """
 Core utilities for logging and computation throughout the library.
 """
-import numpy as np
-from scipy.integrate import quad
 import logging
-from more_itertools import always_iterable
-from unyt import unyt_array, unyt_quantity, kpc
-from unyt import physical_constants as pc
-from numpy.random import RandomState
 import time
-import warnings
+
+import numpy as np
+from more_itertools import always_iterable
+from numpy.random import RandomState
+from scipy.integrate import quad
+from unyt import physical_constants as pc
+from unyt import unyt_array, unyt_quantity, kpc
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # Constructing the Logger ============================================================================================ #
 # -------------------------------------------------------------------------------------------------------------------- #
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 cgLogger = logging.getLogger("cluster_generator")
 
 ufstring = "%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s"
@@ -30,8 +31,11 @@ cgLogger.propagate = False
 
 mylog = cgLogger
 
+
 def log_string(message):
-    return ufstring%{"name":"cluster_generator","asctime":time.asctime(),"message":message,"levelname":"INFO"}
+    return ufstring % {"name": "cluster_generator", "asctime": time.asctime(), "message": message, "levelname": "INFO"}
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # Units and Constants ================================================================================================ #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -42,16 +46,17 @@ G = (pc.G).to("kpc**3/Msun/Myr**2")
 #: Boltzmann Constant in ``Msun*kpc**2/Myr**2/K``.
 kboltz = (pc.kboltz).to("Msun*kpc**2/Myr**2/K")
 #: 1 kpc in centimeters.
-kpc_to_cm = (1.0*kpc).to_value("cm")
+kpc_to_cm = (1.0 * kpc).to_value("cm")
 
 #: Hydrogen abundance
 X_H = 0.76
 #: mean molecular mass
-mu = 1.0/(2.0*X_H + 0.75*(1.0-X_H))
-mue = 1.0/(X_H+0.5*(1.0-X_H))
+mu = 1.0 / (2.0 * X_H + 0.75 * (1.0 - X_H))
+mue = 1.0 / (X_H + 0.5 * (1.0 - X_H))
 
 # -- Utility functions -- #
-_truncator_function = lambda a,r,x: 1/(1+(x/r)**a)
+_truncator_function = lambda a, r, x: 1 / (1 + (x / r) ** a)
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Type Assertions ==================================================================================================== #
@@ -78,7 +83,8 @@ def parse_prng(prng):
 def ensure_list(x):
     return list(always_iterable(x))
 
-def truncate_spline(f,r_t,a):
+
+def truncate_spline(f, r_t, a):
     """
     Takes the function ``f`` and returns a truncated equivalent of it, which becomes
 
@@ -117,8 +123,11 @@ def truncate_spline(f,r_t,a):
     >>> plt.loglog(xl,_rho_trunc(xl),"r-.")
     >>> plt.show()
     """
-    _gamma = r_t*f(r_t,1)/f(r_t) # This is the slope.
-    return lambda x,g=_gamma,a=a,r=r_t: f(x)*_truncator_function(a,r,x) + (1-_truncator_function(a,r,x))*(f(r)*_truncator_function(-g,r,x))
+    _gamma = r_t * f(r_t, 1) / f(r_t)  # This is the slope.
+    return lambda x, g=_gamma, a=a, r=r_t: f(x) * _truncator_function(a, r, x) + (1 - _truncator_function(a, r, x)) * (
+                f(r) * _truncator_function(-g, r, x))
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # Math Utilities ===================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -147,14 +156,14 @@ def integrate_mass(profile, rr):
 
 
     """
-    mass_int = lambda r: profile(r)*r*r
+    mass_int = lambda r: profile(r) * r * r
     mass = np.zeros(rr.shape)
     for i, r in enumerate(rr):
-        mass[i] = 4.*np.pi*quad(mass_int, 0, r)[0]
+        mass[i] = 4. * np.pi * quad(mass_int, 0, r)[0]
     return mass
 
 
-def integrate(profile, rr,rmax=None):
+def integrate(profile, rr, rmax=None):
     """
     Integrates the profile ``profile`` cumulatively over the radial array ``rr``.
     Parameters
@@ -216,8 +225,11 @@ def integrate_toinf(profile, rr):
     ret[:] += quad(profile, rmax, np.inf, limit=100)[0]
     return ret
 
-def moving_average(array,n):
-    return np.convolve(array,np.ones(n),"same") / n
+
+def moving_average(array, n):
+    return np.convolve(array, np.ones(n), "same") / n
+
+
 def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     r"""
     Generates an array of sampled radii for ``num_particles`` particles subject to the mass distribution defined by ``r`` and ``m``.
@@ -260,7 +272,7 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
         ridx = r.size
     else:
         ridx = np.searchsorted(r, r_max)
-    mtot = m[ridx-1] # Resampling the total mass
+    mtot = m[ridx - 1]  # Resampling the total mass
 
     #  Sampling
     # ----------------------------------------------------------------------------------------------------------------- #
@@ -274,5 +286,3 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     # - Inversely sampling the distribution at points ``u`` from x=P_r, y=r.
     radius = np.interp(u, P_r, r, left=0.0, right=1.0)
     return radius, mtot
-
-
