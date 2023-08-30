@@ -13,14 +13,10 @@ Cythonized utilities for equilibrium models
 
 import numpy as np
 cimport numpy as np
+cimport cython
 from scipy.interpolate import _fitpack
 from tqdm.auto import tqdm
 
-cimport
-numpy as np
-import numpy as np
-from scipy.interpolate import _fitpack
-from tqdm.auto import tqdm
 
 cdef extern from "math.h":
     double sqrt(double x) nogil
