@@ -109,19 +109,23 @@ def truncate_spline(f, r_t, a):
 
     Examples
     --------
-    >>> from cluster_generator.radial_profiles import hernquist_density_profile
-    >>> from scipy.interpolate import InterpolatedUnivariateSpline
-    >>> import matplotlib.pyplot as plt
-    >>> x = np.geomspace(0.1,1000,1000)
-    >>> rho = hernquist_density_profile(1e6,1000)(x)
-    >>> rho_spline = InterpolatedUnivariateSpline(x,rho)
-    >>> xl = np.geomspace(0.1,1e7,1000)
-    >>> _rho_trunc = truncate_spline(rho_spline,1000,7)
-    >>> plt.figure()
-    >>> plt.loglog(x,rho,"k-",lw=3)
-    >>> plt.loglog(xl,rho_spline(xl),"k:")
-    >>> plt.loglog(xl,_rho_trunc(xl),"r-.")
-    >>> plt.show()
+
+    .. code_block:: python
+
+        from cluster_generator.radial_profiles import hernquist_density_profile
+        from scipy.interpolate import InterpolatedUnivariateSpline
+        import matplotlib.pyplot as plt
+        x = np.geomspace(0.1,1000,1000)
+        rho = hernquist_density_profile(1e6,1000)(x)
+        rho_spline = InterpolatedUnivariateSpline(x,rho)
+        xl = np.geomspace(0.1,1e7,1000)
+        _rho_trunc = truncate_spline(rho_spline,1000,7)
+        plt.figure()
+        plt.loglog(x,rho,"k-",lw=3)
+        plt.loglog(xl,rho_spline(xl),"k:")
+        plt.loglog(xl,_rho_trunc(xl),"r-.")
+        plt.show()
+
     """
     _gamma = r_t * f(r_t, 1) / f(r_t)  # This is the slope.
     return lambda x, g=_gamma, a=a, r=r_t: f(x) * _truncator_function(a, r, x) + (1 - _truncator_function(a, r, x)) * (

@@ -207,15 +207,20 @@ class ClusterModel:
 
         Examples
         --------
-        >>> from cluster_generator.tests.utils import generate_mdr_potential
-        >>> import matplotlib.pyplot as plt
-        >>> m,d,r = generate_mdr_potential()
-        >>> fields = {"total_mass":m,"total_density":d,"radius":r}
-        >>> model = ClusterModel.from_arrays(fields)
-        >>> print(model.fields.keys())
-        dict_keys(['total_mass', 'total_density', 'radius', 'gravitational_potential'])
-        >>> _ = model.pot # Generate the potential
-        >>> model.plot("gravitational_potential")
+
+        .. code_block:: python
+
+            from cluster_generator.tests.utils import generate_mdr_potential
+            import matplotlib.pyplot as plt
+            import pytest
+            mdr = getfixture("generate_mdr_potential")
+            m,d,r = mdr
+            fields = {"total_mass":m,"total_density":d,"radius":r}
+            model = ClusterModel.from_arrays(fields)
+            print(model.fields.keys())
+
+            _ = model.pot # Generate the potential
+            model.plot("gravitational_potential")
 
         .. image:: ../_images/model/from_arrays_plot.png
         """
