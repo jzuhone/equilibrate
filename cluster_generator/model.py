@@ -98,7 +98,7 @@ class ClusterModel:
             # The gravity passed in is already a gravity object.
             if gravity.model != self:
                 mylog.warning(
-                    f"Tried to assign {gravity} object to {self} but it was already assigned to {gravity.model}. Generating fresh instance.")
+                    f"Tried to assign {gravity} object to model but it was already assigned. Generating fresh instance.")
                 self.gravity = gravity.__class__(self)
             else:
                 pass
@@ -123,8 +123,8 @@ class ClusterModel:
         # - setting the require_physical kwarg
         if not "virialization_method" in self.attrs:
             mylog.info(
-                f"ClusterModel [{self.__repr__()}] has no virialization method. Setting to default = {('eddington' if self.gravity == 'Newtonian' else 'lma')}")
-            self.attrs["virialization_method"] = ("eddington" if self.gravity == "Newtonian" else "lma")
+                f"ClusterModel [{self.__repr__()}] has no virialization method. Setting to default = {('eddington' if self.gravity._classname == 'Newtonian' else 'lma')}")
+            self.attrs["virialization_method"] = ("eddington" if self.gravity._classname == "Newtonian" else "lma")
 
     def __repr__(self):
         return f"ClusterModel object; gravity={self.gravity._classname}"
@@ -168,6 +168,10 @@ class ClusterModel:
     def virialization_method(self):
         """The virialization method"""
         return self.attrs["virialization_method"]
+
+    @virialization_method.setter
+    def virialization_method(self,value):
+        self.attrs["virialization_method"] = value
 
     #  Class Methods
     # ----------------------------------------------------------------------------------------------------------------- #
@@ -289,19 +293,18 @@ class ClusterModel:
 
         #  Cleanup
         # ------------------------------------------------------------------------------------------------------------ #
-        if "gravity" in attrs:
-            _grav = attrs["gravity"]
-            del attrs["gravity"]
+        if "gravity" not in attrs:
+            attrs["gravity"] = "Newtonian"
         else:
-            _grav = "Newtonian"
+            pass
 
-        if "virialization_method" in attrs:
-            _vir = attrs["virialization_method"]
+        if "virialization_method" not in attrs:
+            attrs["virialization_method"] = ("lma" if attrs["gravity"] != "Newtonian" else "eddington")
         else:
-            _vir = ("eddington" if _grav == "Newtonian" else "lma")
+            pass
 
         # - Creating the model - #
-        model = cls(fields, gravity=_grav, **attrs)
+        model = cls(fields, **attrs)
 
         # - Virializing -#
         if get_dm_virial:
@@ -310,7 +313,7 @@ class ClusterModel:
             df = unyt_array.from_hdf5(
                 filename, dataset_name="dm_df")[mask]
 
-            kwargs = {"ptype": "dark_matter", ("df" if _vir == "eddington" else "sigma2"): df, "type": _vir}
+            kwargs = {"ptype": "dark_matter", ("df" if model.virialization_method == "eddington" else "sigma2"): df, "type": model.virialization_method}
 
             model._dm_virial = VirialEquilibrium(model, **kwargs)
         if get_star_virial:
@@ -319,7 +322,7 @@ class ClusterModel:
             df = unyt_array.from_hdf5(
                 filename, dataset_name="star_df")[mask]
 
-            kwargs = {"ptype": "stellar", ("df" if _vir == "eddington" else "sigma2"): df, "type": _vir}
+            kwargs = {"ptype": "stellar", ("df" if model.virialization_method == "eddington" else "sigma2"): df, "type": model.virialization_method}
 
             model._star_virial = VirialEquilibrium(model, **kwargs)
         return model
@@ -588,7 +591,7 @@ class ClusterModel:
         fields["temperature"] = fields["pressure"] * mu * mp / fields["density"]
         fields["temperature"].convert_to_units("keV")
 
-        return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity, **kwargs,
+        return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity, **obj.attrs,
                                  profiles={"density"        : density,
                                            "total_density"  : total_density,
                                            "stellar_density": stellar_density,
@@ -763,20 +766,31 @@ class ClusterModel:
         >>> with tempfile.TemporaryDirectory() as temp_dir:
         ...     mdl.write_model_to_h5(os.path.join(temp_dir,"model.h5"),overwrite=True)
         """
+        #  Sanity checks
+        # ------------------------------------------------------------------------------------------------------------ #
         if os.path.exists(output_filename) and not overwrite:
             raise IOError(f"Cannot create {output_filename}. It exists and "
                           f"overwrite=False.")
+
+        #  Building the file
+        # ------------------------------------------------------------------------------------------------------------ #
         f = h5py.File(output_filename, "w")
         f.create_dataset("num_elements", data=self.num_elements)
         f.close()
+
+        #  Writing Data
+        # ------------------------------------------------------------------------------------------------------------ #
         self._write_model_attrs(output_filename, in_cgs=in_cgs)
 
+        # -- managing r_min / r_max -- #
         if r_min is None:
             r_min = 0.0
         if r_max is None:
             r_max = self.fields["radius"][-1].d * 2
         mask = np.logical_and(self.fields["radius"].d >= r_min,
                               self.fields["radius"].d <= r_max)
+
+        # -- setting fields -- #
         for k, v in self.fields.items():
             if in_cgs:
                 if k == "temperature":
@@ -789,18 +803,21 @@ class ClusterModel:
                 fd = v[mask]
             fd.write_hdf5(output_filename, dataset_name=k,
                           group_name="fields")
+
+        #  Manage the virialization properties
+        # ------------------------------------------------------------------------------------------------------------ #
         if getattr(self, "_dm_virial", None):
             if self.virialization_method == "eddington":
-                fd = self.dm_virial.df
+                df = self.dm_virial.df
             else:
                 df = self.dm_virial.sigma
-            fd.write_hdf5(output_filename, dataset_name="dm_df")
+            df.write_hdf5(output_filename, dataset_name="dm_df")
         if getattr(self, "_star_virial", None):
             if self.virialization_method == "eddington":
-                fd = self.star_virial.df
+                df = self.star_virial.df
             else:
                 df = self.star_virial.sigma
-            fd.write_hdf5(output_filename, dataset_name="star_df")
+            df.write_hdf5(output_filename, dataset_name="star_df")
 
     def write_model_to_binary(self, output_filename, fields_to_write=None,
                               in_cgs=False, r_min=None, r_max=None,
@@ -967,7 +984,7 @@ class ClusterModel:
         return chk
 
     def rebuild_physical(self):
-        """
+        r"""
         The :py:meth:`model.ClusterModel.rebuild_physical` method can be used to convert the instance calling the method into a
         physically well constrained version of itself. See the Notes for the procedure used to accomplish this.
 
@@ -997,8 +1014,11 @@ class ClusterModel:
             # -------------------------------------------------------------------------------------------------------- #
             if self.is_physical()[0]:
                 h.succeed(f"[{self.__repr__()}] is already physical.")
-                return None
-
+                return deepcopy(self)
+            
+            # Copying fields
+            #----------------------------------------------------------------------------------------------------------#
+            fields = deepcopy(self.fields)
             #  Rebuilding the constituent density arrays
             # -------------------------------------------------------------------------------------------------------- #
             _required_fields_fixable = {"stellar_"    : "stellar_",
@@ -1006,8 +1026,8 @@ class ClusterModel:
                                         ""            : "gas_"}
 
             # - Resetting the total densities and masses - #
-            self["total_density"] = unyt_array(np.zeros(len(self["total_density"])), self["total_density"].units)
-            self["total_mass"] = unyt_array(np.zeros(len(self["total_mass"])), self["total_mass"].units)
+            fields["total_density"] = unyt_array(np.zeros(len(fields["total_density"])), fields["total_density"].units)
+            fields["total_mass"] = unyt_array(np.zeros(len(fields["total_mass"])), fields["total_mass"].units)
 
             # - Fixing -#
             for fd, fm in _required_fields_fixable.items():
@@ -1016,46 +1036,46 @@ class ClusterModel:
                 mylog.debug(f"[[rebuild-physical]]: fixing {fd}density.")
 
                 # -- SANITY CHECK -- #
-                if f"{fd}density" not in self.fields:
+                if f"{fd}density" not in fields:
                     continue
 
                 # -- APPLYING THE FIX -- #
 
                 # - fixing the density by replacing with zero - #
                 _tmp = deepcopy(self.fields[f"{fd}density"].d)
-                self.fields[f"{fd}density"][np.where(self.fields[f"{fd}density"].v < 0)] = 1e-10  # reset to 0.
+                fields[f"{fd}density"][np.where(fields[f"{fd}density"].v < 0)] = 1e-10  # reset to 0.
 
-                if not np.all(np.equal(_tmp, self[f"{fd}density"])):
+                if not np.all(np.equal(_tmp, fields[f"{fd}density"])):
                     mylog.debug(f"[[rebuild-physical]]: Rebuild required: {fd}density.")
 
                     # - smoothing the array - #
-                    sp = InterpolatedUnivariateSpline(self["radius"].d, self.fields[f"{fd}density"].d)
-                    self.fields[f"{fd}density"] = unyt_array(sp(self["radius"].d), self.fields[f"{fd}density"].units)
+                    sp = InterpolatedUnivariateSpline(fields["radius"].d, fields[f"{fd}density"].d)
+                    fields[f"{fd}density"] = unyt_array(sp(fields["radius"].d), fields[f"{fd}density"].units)
 
                     # - fixing the mass profiles - #
                     #
                     # Because we want to smooth the fixed density profiles, we are best off just re-integrating all
                     # of the mass profiles instead of trying to perform array manipulations on them.
-                    m0 = self[f"{fd}density"].d[0] * self["radius"].d[0] ** 3
-                    self[f"{fm}mass"] = unyt_array(
-                        (4.0 / 3.0) * np.pi * cumtrapz(self[f"{fd}density"] * self["radius"].d * self["radius"].d,
-                                                       x=self["radius"].d, initial=0.0) + m0, "Msun")
+                    m0 = fields[f"{fd}density"].d[0] * fields["radius"].d[0] ** 3
+                    fields[f"{fm}mass"] = unyt_array(
+                        (4.0 / 3.0) * np.pi * cumtrapz(fields[f"{fd}density"] * fields["radius"].d * fields["radius"].d,
+                                                       x=fields["radius"].d, initial=0.0) + m0, "Msun")
 
                 # -- Adding to total mass -- #
-                self.fields["total_density"] += self.fields[f"{fd}density"]
-                self.fields["total_mass"] += self.fields[f"{fm}mass"]
+                fields["total_density"] += fields[f"{fd}density"]
+                fields["total_mass"] += fields[f"{fm}mass"]
 
         #  Recomputing temperature field from new system
         # ------------------------------------------------------------------------------------------------------------ #
 
         # - Sanity Check - #
-        if "density" not in self.fields:
+        if "density" not in fields:
             raise TypeError(
                 f"The system [{self.__repr__()}] has no `density` field. If it is non-physical, it is likely a product of user error and should be corrected manually.")
 
         # - Regenerating the base object for potential comptation - #
-        obj = self.__class__.from_arrays(deepcopy(self.fields), stellar_density=(
-            self["stellar_density"] if "stellar_density" in self.fields else None), gravity=self.gravity, **self.attrs)
+        obj = self.__class__.from_arrays(deepcopy(fields), stellar_density=(
+            fields["stellar_density"] if "stellar_density" in fields else None), gravity=self.gravity, **self.attrs)
 
         # - Getting the potential - #
         _ = obj.pot

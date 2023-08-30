@@ -102,8 +102,12 @@ def model_answer_testing(model, filename, answer_store, answer_dir):
         ax.semilogx(old_model["radius"], old_model.check_hse())
         for field in old_model.fields:
             assert_equal(old_model[field], model[field])
-        assert_equal(old_model.dm_virial.df, model.dm_virial.df)
-        assert_equal(old_model.star_virial.df, model.star_virial.df)
+        if model.virialization_method == "eddington":
+            assert_equal(old_model.dm_virial.df, model.dm_virial.df)
+            assert_equal(old_model.star_virial.df, model.star_virial.df)
+        else:
+            assert_equal(old_model.dm_virial.sigma, model.dm_virial.sigma)
+            assert_equal(old_model.star_virial.sigma, model.star_virial.sigma)
     ax.set_yscale("symlog")
     ax.set_ylim([-1, 1])
     plt.savefig(f"{answer_dir}/Comparison_{Path(filename).name}.png")
@@ -119,12 +123,4 @@ def particle_answer_testing(parts, filename, answer_store, answer_dir):
             assert_equal(old_parts[field], parts[field])
 
 
-def potential_answer_testing(potential, filename, answer_store, answer_dir):
-    p = Path(answer_dir) / filename
-    if answer_store:
-        potential.write_potential_to_h5(p, overwrite=True)
-    else:
-        old_pot = potential.from_h5_file(p)
-        for field in old_pot.fields:
-            assert_equal(old_pot[field], potential[field])
-        assert old_pot.gravity == potential.gravity
+

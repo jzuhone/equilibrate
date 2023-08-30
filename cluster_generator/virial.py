@@ -2,7 +2,7 @@
 Virialization tools for the ``cluster-generator`` system.
 """
 from collections import OrderedDict
-
+from halo import Halo
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.special import erf
@@ -13,7 +13,8 @@ from cluster_generator.cython_utils import generate_velocities, generate_lma_vel
 from cluster_generator.particles import \
     ClusterParticles
 from cluster_generator.utils import \
-    quad, generate_particle_radii, mylog
+    quad, generate_particle_radii, mylog, log_string
+import sys
 
 
 class VirialEquilibrium:
@@ -304,12 +305,19 @@ class VirialEquilibrium:
         self._sigma = unyt_array(sig, "Msun / (Myr**2 * kpc)") / pden
         self._sigma = self._sigma.to("kpc**2/Myr**2")
 
-    def check_virial(self):
+    def check_virial(self,rtol=1e-2,r_det=1000):
         r"""
-        Computes the radial density profile for the collisionless 
-        particles computed from integrating over the distribution 
-        function, and the relative difference between this and the 
-        input density profile.
+        Checks virialization of the cluster (under eddington's formula approach) by computing the particle type density
+        from the computed distribution function. Because the virialization typically fails at large radii just because of
+        numerical issues, this check returns ``True`` only of the system is virialized to within `rtol` out to `r_det`.
+
+        Parameters
+        ----------
+        rtol: float
+            The relative tolerance to require when looking at the virialization. If the relative error exceeds ``rtol`` at
+            any radius ``r < r_det``, then the function will return ``False``.
+        r_det: float
+            The radial distance (in kpc) at which to stop looking to enforce virialization.
 
         Returns
         -------
@@ -319,6 +327,8 @@ class VirialEquilibrium:
         chk : NumPy array
             The relative difference between the input density
             profile and the one calculated using this method.
+        res: bool
+            The result of the check.
 
         Notes
         -----
@@ -349,26 +359,39 @@ class VirialEquilibrium:
         ----------
             [1] Binney, J., & Tremaine, S. (2011). Galactic dynamics (Vol. 20). Princeton university press.
         """
-        #  Preparing arrays and pulling data
-        # ----------------------------------------------------------------------------------------------------------------- #
-        if self.type != "eddington":
-            raise ValueError("The model does not use a form of virialization that can use this function.")
-        n = self.num_elements
-        rho = np.zeros(n)
-        pden = self.model[f"{self.ptype}_density"].d  # -> This is the profile / model density array.
+        with Halo(log_string("Checking virialization..."),stream=sys.stdout) as halo:
+            #  Preparing arrays and pulling data
+            # -------------------------------------------------------------------------------------------------------- #
+            if self.type != "eddington":
+                halo.warn("Invalid virialization type.")
+                raise ValueError("The model does not use a form of virialization that can use this function.")
 
-        # - Defining the integrand - #
-        rho_int = lambda e, psi: self.f(e) * np.sqrt(2 * (psi - e))
 
-        # - Carrying out the cumulative integration - #
-        for i, e in enumerate(self.ee):
-            rho[i] = 4. * np.pi * quad(rho_int, 0., e, args=(e,))[0]
+            n = self.num_elements
+            rho = np.zeros(n)
+            pden = self.model[f"{self.ptype}_density"].d  # -> This is the profile / model density array.
 
-        # - performing the check.
-        chk = (rho[::-1] - pden) / pden
-        mylog.info("The maximum relative deviation of this profile from "
-                   "virial equilibrium is %g", np.abs(chk).max())
-        return rho[::-1], chk
+            # - Defining the integrand - #
+            rho_int = lambda e, psi: self.f(e) * np.sqrt(2 * (psi - e))
+
+            # - Carrying out the cumulative integration - #
+            for i, e in enumerate(self.ee):
+                rho[i] = 4. * np.pi * quad(rho_int, 0., e, args=(e,))[0]
+
+            # - performing the check.
+            chk = (rho[::-1] - pden) / pden
+
+            # -- checking to tolerance -- #
+            rr = self.model["radius"].to("kpc").d
+            max_rr = np.amax(rr[np.where(np.abs(chk) < rtol)])
+
+            if max_rr < r_det:
+                halo.fail(f"Halo virialized to {rtol} only within {max_rr} < {r_det}. Average = {np.mean(np.abs(chk))}")
+                res = False
+            else:
+                halo.succeed(f"Halo virialized to {rtol} within {max_rr} >={r_det}. Average = {np.mean(np.abs(chk))}")
+                res = True
+        return rho[::-1], chk, res
 
     def generate_particles(self, num_particles, r_max=None, sub_sample=1,
                            compute_potential=False, prng=None):
