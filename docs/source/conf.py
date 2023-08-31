@@ -20,7 +20,7 @@ print(sys.path)
 # -- Project information -----------------------------------------------------
 
 project = 'cluster_generator'
-copyright = '2020, John ZuHone'
+copyright = '2020, John ZuHone and Eliza DIggins'
 author = 'John ZuHone, Eliza Diggins'
 
 # -- General configuration ---------------------------------------------------
@@ -39,7 +39,8 @@ extensions = [
     "sphinx_copybutton",
     "sphinxcontrib.blockdiag",
     "sphinxcontrib.mermaid",
-    "nbsphinx"
+    "nbsphinx",
+    "sphinx_design"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -75,3 +76,7 @@ intersphinx_mapping = {'https://docs.python.org/3/'        : None,
 
 napoleon_use_param = True
 napoleon_preprocess_types = True
+
+jupyter_options = {
+
+}

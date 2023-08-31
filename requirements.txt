@@ -95,3 +95,4 @@ zipp==3.16.2
 halo
 dill
 pandas
+sphinx-design

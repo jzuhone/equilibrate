@@ -3,7 +3,7 @@ Implemented collections of cluster models.
 """
 import os
 import pathlib as pt
-
+import numpy as np
 import pandas as pd
 import yaml
 from halo import Halo
@@ -29,127 +29,110 @@ class ClusterCollection:
         # ------------------------------------------------------------------------------------------------------------ #
         _fail_with_alert = False
         self.path = path
-        with Halo(log_string(f"Loading collection from {path}...")) as halo:
 
-            # -- loading the yaml data -- #
+
+        # -- loading the yaml data -- #
+        try:
+            with open(path, "r+") as yf:
+                _col_data = yaml.load(yf, yaml.FullLoader)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"There is no {os.path.join(os.getcwd(), path)}. Is there a typo?")
+        except yaml.YAMLError as yex:
+            raise yaml.YAMLError(
+                f"The yaml file at {os.path.join(os.getcwd(), path)} failed to load. message = {yex.__repr__()}")
+        # -- pulling global data -- #
+        if "global" not in _col_data:
+            raise CollectionsError(f"Failed to locate the 'global' key in {path}.", section="global")
+        for attr in ["name", "description", "load_method"]:
             try:
-                with open(path, "r+") as yf:
-                    _col_data = yaml.load(yf, yaml.FullLoader)
-            except FileNotFoundError:
-                halo.fail("No such file")
-                raise FileNotFoundError(f"There is no {os.path.join(os.getcwd(), path)}. Is there a typo?")
-            except yaml.YAMLError as yex:
-                halo.fail("YAML error")
-                raise yaml.YAMLError(
-                    f"The yaml file at {os.path.join(os.getcwd(), path)} failed to load. message = {yex.__repr__()}")
-
-            # -- pulling global data -- #
-            if "global" not in _col_data:
-                halo.fail(f"`global` key not in {path}.")
-                raise CollectionsError(f"Failed to locate the 'global' key in {path}.", section="global")
-
-            for attr in ["name", "description", "load_method"]:
-                try:
-                    setattr(self, attr, _col_data["global"][attr])
-                except KeyError:
-                    halo.fail(f"Missing key {attr} in globals.")
-                    raise CollectionsError(f"Failed to locate `{attr}` key in globals for {path}.",
-                                           section=f"global.{attr}")
-
-            #  Managing profiles
-            # -------------------------------------------------------------------------------------------------------- #
-
-            # -- making sure they exist -- #
-            if "profiles" not in _col_data["global"]:
-                halo.fail("No profiles.")
-                raise CollectionsError(f"Failed to find profiles in {path}", section=f"global.profiles")
-
-            self._parameters, self._profiles = {}, {}
-
-            for profile, data in _col_data["global"]["profiles"].items():
-                # -- sanity checks -- #
-                if not data["is_custom"]:  # This isn't custom, make sure there's a name
-                    if "name" not in data:
-                        mylog.warning(f"The profile {profile} is not custom, but has no name. Skipping.")
-                        _fail_with_alert = True
-                        continue
-                else:
-                    if "function" not in data:
-                        mylog.warning(f"The profile {profile} is custom but has no function. Skipping.")
-                        _fail_with_alert = True
-                        continue
-
-                # -- actually loading -- #
-                if not data["is_custom"]:
-                    # this is not a custom profile. We just check it exists.
-                    if not hasattr(rprofs, data['name']):
-                        mylog.warning(
-                            f"The profile {profile} doesn't correspond to any radial profile. (name = {data['name']}).")
-                        _fail_with_alert = True
-                        continue
-                    else:
-                        self.profiles[profile] = getattr(rprofs, data['name'])
-                        self.parameters[profile] = data["parameters"]
-                else:
-                    # this is a custom module, we just if function exists
-                    if not "function" in data:
-                        mylog.warning(f"The profile {profile} doesn't have a function.")
-                        _fail_with_alert = True
-                        continue
-                    else:
-                        try:
-                            self.profiles[profile] = exec(data["function"])
-                        except Exception as ex:
-                            mylog.warning(f"The profile {profile} didn't execute correctly. Error = {ex.__repr__()}")
-                            _fail_with_alert = True
-                            continue
-
-                        self.parameters[profile] = data["parameters"]
-
-            #  Loading the actual datasets
-            # -------------------------------------------------------------------------------------------------------- #
-            self.objs = {}
-
-            if "uses" in _col_data["objects"]:
-                # -- We are going to be loading via external approach -- #
-                if _col_data["objects"]["uses"] == "load_from_file":
-                    del _col_data["objects"]["uses"]
-
-                    # loading in the necessary start information #
-                    try:
-                        assert "path" in _col_data["objects"]
-                        df = pd.read_csv(os.path.join(pt.Path(self.path).parents[0], _col_data["objects"]["path"]))
-                        del _col_data['objects']['path']
-                    except FileNotFoundError:
-                        mylog.warning(
-                            f"The data file {os.path.join(os.getcwd(), _col_data['objects']['path'])} doesn't exist. Skipping.")
-                        _fail_with_alert = True
-                        del _col_data['objects']['path']
-                    except AssertionError:
-                        mylog.warning(f"No path for external loading was specified.")
-                        _fail_with_alert = True
-
-                    # data manipulation
-                    self.objs = {
-                        **self.objs,
-                        **{df.iloc[i, 0]: {u: v for u, v in zip(df.columns[0:], df.iloc[i, 0:])} for i in
-                           range(len(df))}
-                    }
-                else:
-                    mylog.warning(
-                        f"The uses option {_col_data['objects']['uses']} is not valid")
+                setattr(self, attr, _col_data["global"][attr])
+            except KeyError:
+                raise CollectionsError(f"Failed to locate `{attr}` key in globals for {path}.",
+                                       section=f"global.{attr}")
+        #  Managing profiles
+        # -------------------------------------------------------------------------------------------------------- #
+        # -- making sure they exist -- #
+        if "profiles" not in _col_data["global"]:
+            raise CollectionsError(f"Failed to find profiles in {path}", section=f"global.profiles")
+        self._parameters, self._profiles = {}, {}
+        for profile, data in _col_data["global"]["profiles"].items():
+            # -- sanity checks -- #
+            if not data["is_custom"]:  # This isn't custom, make sure there's a name
+                if "name" not in data:
+                    mylog.warning(f"The profile {profile} is not custom, but has no name. Skipping.")
                     _fail_with_alert = True
+                    continue
             else:
-                pass
-
-            # -- Standard Loading -- #
-            for k, v in _col_data["objects"].items():
-                self.objs[k] = v
-
-            if _fail_with_alert:
-                halo.warn(log_string(f"Loaded collection {self.name} with warnings."))
+                if "function" not in data:
+                    mylog.warning(f"The profile {profile} is custom but has no function. Skipping.")
+                    _fail_with_alert = True
+                    continue
+            # -- actually loading -- #
+            if not data["is_custom"]:
+                # this is not a custom profile. We just check it exists.
+                if not hasattr(rprofs, data['name']):
+                    mylog.warning(
+                        f"The profile {profile} doesn't correspond to any radial profile. (name = {data['name']}).")
+                    _fail_with_alert = True
+                    continue
+                else:
+                    self.profiles[profile] = getattr(rprofs, data['name'])
+                    self.parameters[profile] = data["parameters"]
             else:
-                halo.succeed(log_string(f"Loaded collection {self.name}"))
+                # this is a custom module, we just if function exists
+                if not "function" in data:
+                    mylog.warning(f"The profile {profile} doesn't have a function.")
+                    _fail_with_alert = True
+                    continue
+                else:
+                    try:
+                        self.profiles[profile] = exec(data["function"])
+                    except Exception as ex:
+                        mylog.warning(f"The profile {profile} didn't execute correctly. Error = {ex.__repr__()}")
+                        _fail_with_alert = True
+                        continue
+                    self.parameters[profile] = data["parameters"]
+        #  Loading the actual datasets
+        # -------------------------------------------------------------------------------------------------------- #
+        self.objs = {}
+        if "uses" in _col_data["objects"]:
+            # -- We are going to be loading via external approach -- #
+            if _col_data["objects"]["uses"] == "load_from_file":
+                del _col_data["objects"]["uses"]
+                # loading in the necessary start information #
+                try:
+                    assert "path" in _col_data["objects"]
+                    df = pd.read_csv(os.path.join(pt.Path(self.path).parents[0], _col_data["objects"]["path"]))
+                    df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+                    df.columns = df.columns.str.rstrip()
+                    del _col_data['objects']['path']
+                except FileNotFoundError:
+                    mylog.warning(
+                        f"The data file {os.path.join(os.getcwd(), _col_data['objects']['path'])} doesn't exist. Skipping.")
+                    _fail_with_alert = True
+                    del _col_data['objects']['path']
+                except AssertionError:
+                    mylog.warning(f"No path for external loading was specified.")
+                    _fail_with_alert = True
+                # data manipulation
+                self.objs = {
+                    **self.objs,
+                    **{df.iloc[i, 0]: {u: v for u, v in zip(df.columns[0:], df.iloc[i, 0:])} for i in
+                       range(len(df))}
+                }
+            else:
+                mylog.warning(
+                    f"The uses option {_col_data['objects']['uses']} is not valid")
+                _fail_with_alert = True
+        else:
+            pass
+        # -- Standard Loading -- #
+        for k, v in _col_data["objects"].items():
+            self.objs[k] = v
+        if _fail_with_alert:
+            mylog.warning(f"Loaded {self.name} with warnings.")
+        else:
+            mylog.info(f"Loaded {self.name}.")
 
     def __repr__(self):
         return f"<ClusterCollection object> with (N={len(self.objs)},name={self.name})."
