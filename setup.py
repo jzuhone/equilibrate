@@ -24,12 +24,16 @@ setup(name='cluster_generator',
       url='https://github.com/jzuhone/cluster_generator',
       download_url='https://github.com/jzuhone/cluster_generator/tarball/0.1.0',
       install_requires=["numpy", "scipy", "yt", "unyt", "cython",
-                        "ruamel.yaml"],
+                        "ruamel.yaml","tqdm","dill","halo","pandas"],
       classifiers=[
           'Intended Audience :: Science/Research',
           'Operating System :: OS Independent',
           'Programming Language :: Python :: 3',
           'Topic :: Scientific/Engineering :: Visualization',
       ],
+      package_data={
+          "cluster_generator.bin..collections":["*.csv","*.yaml"],
+          "cluster_generator.bin..resources":["*.yaml"]
+      },
       ext_modules=cythonize([cython_utils]),
       )
