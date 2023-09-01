@@ -31,9 +31,6 @@ setup(name='cluster_generator',
           'Programming Language :: Python :: 3',
           'Topic :: Scientific/Engineering :: Visualization',
       ],
-      package_data={
-          "cluster_generator.bin..collections":["*.csv","*.yaml"],
-          "cluster_generator.bin..resources":["*.yaml"]
-      },
+      include_package_data=True,
       ext_modules=cythonize([cython_utils]),
       )
