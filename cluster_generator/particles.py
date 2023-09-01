@@ -19,7 +19,7 @@ from cluster_generator.utils import ensure_ytarray, ensure_list, \
 # Setup ============================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
 # - Loading the yaml file
-with open(os.path.join(pt.Path(__file__).parents[0], "bin", ".resources", "particle_fields.yaml")) as gfile:
+with open(os.path.join(pt.Path(__file__).parents[0], "bin", "resources", "particle_fields.yaml")) as gfile:
     _gadget_setup_dict = yaml.load(gfile, yaml.FullLoader)
     gadget_fields, gadget_field_map, gadget_field_units = _gadget_setup_dict["gadget_fields"], _gadget_setup_dict[
         "gadget_field_map"], _gadget_setup_dict["gadget_field_units"]

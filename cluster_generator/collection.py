@@ -17,7 +17,7 @@ from cluster_generator.utils import mylog, log_string
 # -------------------------------------------------------------------------------------------------------------------- #
 
 # -- finding the base storage directory -- #
-collections_directory = os.path.join(pt.Path(__file__).parents[0], "bin", ".collections")
+collections_directory = os.path.join(pt.Path(__file__).parents[0], "bin", "collections")
 
 
 class ClusterCollection:
