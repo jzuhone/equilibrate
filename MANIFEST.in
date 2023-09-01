@@ -1,1 +1,1 @@
-include cluster_generator/bin/*
+recursive-include cluster_generator/bin *
