@@ -161,6 +161,8 @@ class ClusterParticles:
         """
         mass = unyt_array([bh_mass], "Msun")
         if use_pot_min:
+            if ("dm", "potential_energy") not in self.fields:
+                raise KeyError("('dm', 'potential_energy') is not available!")
             idx = np.argmin(self.fields["dm", "potential_energy"])
             pos = unyt_array(self.fields["dm", "particle_position"][idx]
                              ).reshape(1,3)
