@@ -16,7 +16,7 @@ gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses",
                  "star": ["Coordinates", "Velocities", "Masses",
                           "ParticleIDs", "Potential"],
                  "black_hole": ["Coordinates", "Velocities", "Masses",
-                                "ParticleIDs", "Potential"]}
+                                "ParticleIDs"]}
 
 gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
@@ -159,9 +159,7 @@ class ClusterParticles:
             position and velocity of the black hole particle. Default:
             False
         """
-        mass = unyt_quantity(bh_mass, "Msun")
-        self.fields["black_hole", "particle_mass"] = unyt_array(
-            [bh_mass], "Msun")
+        mass = unyt_array([bh_mass], "Msun")
         if use_pot_min:
             idx = np.argmin(self.fields["dm", "potential_energy"])
             pos = unyt_array(self.fields["dm", "particle_position"][idx]
@@ -173,8 +171,8 @@ class ClusterParticles:
                 pos = unyt_array(np.zeros((1, 3)), "kpc")
             if vel is None:
                 vel = unyt_array(np.zeros((1, 3)), "kpc/Myr")
-            pos = ensure_ytarray(pos, "kpc")
-            vel = ensure_ytarray(vel, "kpc/Myr")
+            pos = ensure_ytarray(pos, "kpc").reshape(1,3)
+            vel = ensure_ytarray(vel, "kpc/Myr").reshape(1,3)
         if "black_hole" not in self.particle_types:
             self.particle_types.append("black_hole")
             self.fields["black_hole", "particle_position"] = pos
