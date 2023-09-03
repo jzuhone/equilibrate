@@ -4,6 +4,11 @@ Gravity
 The :py:mod:`gravity` module contains the :py:class:`gravity.Gravity` class, which essentially acts as a wrapper for
 solving the Poisson equation in each of the available gravitational theories. The various available gravitational theories are
 implemented in classes inheriting from the base :py:class:`gravity.Gravity` class.
+
+.. admonition:: Info
+
+    For more information on the underlying implementations, see :ref:`The Gravity Guide <gravity>`.
+
 """
 import sys
 
@@ -11,40 +16,50 @@ import numpy as np
 from halo import Halo
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.optimize import fsolve
-from unyt import unyt_array, unyt_quantity
+from unyt import unyt_array
 
 from cluster_generator.utils import \
-    integrate, mylog, G, integrate_toinf, truncate_spline, log_string
+    integrate, mylog, G, log_string, cgparams, devLogger
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Constants ========================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
 #: The MOND gravitational acceleration constant.
-a_0 = unyt_quantity(1.2e-10, "m/s**2")
+a0 = cgparams["gravity"]["general"]["mond"]["a0"]
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Classes ============================================================================================================ #
 # -------------------------------------------------------------------------------------------------------------------- #
 class Gravity:
-    """
-    The ``Gravity`` class is the basis class for custom gravity implementations in ``cluster_generator``.
-    
+    r"""
+    The :py:class:`~gravity.Gravity` is the base class for different gravity implementations in ``cluster_generator``.
+    This should typically not be called directly. Instead, select one of the fully constructed gravity theories from this module.
+
     Parameters
     ----------
-    model: cluster_generator.model.ClusterModel
-        The model on which this ``Gravity`` instance will be computing the potential.
-    
-    
+    model: :py:class:`model.ClusterModel`
+        The model to attach the :py:class:`gravity.Gravity` instance to.
+
+    **kwargs
+        Additional parameters to pass to the instance. These are stored in the ``self.attrs`` attribute.
+
+    See Also
+    --------
+    :py:class:`gravity.NewtonianGravity`
+    :py:class:`gravity.AQUALGravity`
+    :py:class:`gravity.QUMONDGravity`
+    :py:class:`gravity.EMONDGravity`
     """
     _classname = "BaseGravity"
 
     #  DUNDER METHODS
     # ----------------------------------------------------------------------------------------------------------------- #
-    def __init__(self, model):
-        #: The model being computed by this instance.
+    def __init__(self, model, **kwargs):
+        #: The model attached to the gravity instance.
         self.model = model
-        self.attrs = {}
+        #: additional attributes attached to the instance
+        self.attrs = kwargs
 
     def __repr__(self):
         return f"{self._classname} Instance"
@@ -68,40 +83,54 @@ class Gravity:
     #  Methods
     # ----------------------------------------------------------------------------------------------------------------- #
     def reset(self):
+        """
+        Resets the :py:class:`model.ClusterModel` instance's `gravitation_potential` field to ``None``.
+
+        Returns
+        -------
+        None
+        """
         mylog.info(f"Resetting {self}...")
         self.model["gravitational_field"] = None
 
 
 class NewtonianGravity(Gravity):
     """
-    The Newtonian Gravity instance of :py:class:`gravity.Gravity`
+    Newtonian gravity implementation.
+
+    See Also
+    --------
+    :py:class:`gravity.Gravity`
+    :py:class:`gravity.AQUALGravity`
+    :py:class:`gravity.QUMONDGravity`
+    :py:class:`gravity.EMONDGravity`
     """
     # Configuring the classname #
     _classname = "Newtonian"
 
     def __init__(self, model, **kwargs):
         # -- Providing the inherited structure -- #
-        super().__init__(model)
-
-        # -- Checking for necessary attributes -- #
-        self.attrs = kwargs
+        super().__init__(model, **kwargs)
 
     #  Methods
     # ---------------------------------------------------------------------------------------------------------------- #
     def potential(self, force=False):
         """
-        Computes the potential array for the model to which this instance is attached.
+        Computes the gravitational potential of the object.
+
+        .. attention::
+
+            This method passes directly to the class method :py:meth:`~cluster_model.gravity.NewtonianGravity.compute_potential`. If you only
+            have fields and not a model, that is the better approach.
 
         Parameters
         ----------
         force: bool
-            If ``True``, a new computation will occur even if the model already has a potential field.
+            If ``True``, the potential will be recomputed even if it already exists.
 
         Returns
         -------
-        np.ndarray
-            The relevant solution to the Poisson equation.
-
+        None
         """
         #  Logging
         # ------------------------------------------------------------------------------------------------------------ #
@@ -118,22 +147,8 @@ class NewtonianGravity(Gravity):
 
         #  Computing
         # ------------------------------------------------------------------------------------------------------------ #
-        # - Pulling arrays 
-        rr = self.model.fields["radius"].d
-
-        mylog.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={self._classname}.")
-        tdens_func = InterpolatedUnivariateSpline(rr, self.model.fields["total_density"].d)
-
-        # - Computing - #
-        gpot_profile = lambda r: tdens_func(r) * r
-
-        gpot1 = self.model.fields["total_mass"] / self.model.fields["radius"]
-        gpot2 = unyt_array(4. * np.pi * integrate(gpot_profile, rr), "Msun/kpc")
-
-        # - Finishing computation - #
-
-        self.model.fields["gravitational_potential"] = -G * (gpot1 + gpot2)
-        self.model.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
+        # - Pulling arrays
+        self.model.fields["gravitational_potential"] = self.compute_potential(self.model.fields, spinner=True)
 
     @classmethod
     def compute_mass(cls, fields, attrs=None):
@@ -149,51 +164,130 @@ class NewtonianGravity(Gravity):
 
         Returns
         -------
-        np.ndarray
+        unyt_array
             Computation result
 
         """
-        with Halo(text=log_string(f"Dyn. Mass comp; {cls._classname}."), stream=sys.stderr) as h:
-            _val = -fields["radius"] ** 2 * fields["gravitational_field"] / G
-            h.succeed(log_string("Dyn. Mass comp: [DONE] "))
-        return _val
 
+        return -fields["radius"] ** 2 * fields["gravitational_field"] / G
 
+    @classmethod
+    def compute_potential(cls, fields, attrs=None, spinner=True):
+        """
+        Computes the gravitational potential of the system directly from the provided ``fields``.
+
+        .. attention::
+
+            It is almost always ill-advised to call :py:meth:`gravity.NewtonianGravity.compute_potential` directly if you
+            have an active instance of the object. The :py:meth:`gravity.NewtonianGravity.potential` method will compute
+            the potential directly from the ``self.model`` object if an instances exists. This method should be reserved for cases when it
+            is undesirable to have to construct a full system.
+
+        Parameters
+        ----------
+        fields: dict
+            The fields from which to compute the potential.
+        attrs: dict
+            Additional attributes to pass. These would match the instance's attributes if this were a fully realized
+            instance of the class.
+        spinner: bool
+            ``False`` to disable the spinners.
+
+        Returns
+        -------
+        unyt_array
+            The computed gravitational potential of the system.
+        """
+        #  Managing inputs
+        # ------------------------------------------------------------------------------------------------------------ #
+        if attrs is None:
+            attrs = {}
+
+        #  Computing the potential
+        # ------------------------------------------------------------------------------------------------------------ #
+        devLogger.debug(f"Computing gravitational potential from {fields.keys()}. gravity={cls._classname}.")
+        with Halo(text=log_string("Computing potential..."), stream=sys.stderr,
+                  enabled=(cgparams["system"]["text"]["spinners"] and spinner)) as h:
+            # - Pulling arrays
+            rr = fields["radius"].d
+
+            devLogger.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={cls._classname}.")
+            tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
+
+            # - Computing - #
+            gpot_profile = lambda r: tdens_func(r) * r
+
+            gpot1 = fields["total_mass"] / fields["radius"]
+
+            _v, errs = integrate(gpot_profile, rr)
+            gpot2 = unyt_array(4. * np.pi * _v, "Msun/kpc")
+
+            # - Finishing computation - #
+            potential = -G * (gpot1 + gpot2)
+            potential.convert_to_units("kpc**2/Myr**2")
+            h.succeed(log_string("Computed potential."))
+
+        #  Managing warnings
+        # ------------------------------------------------------------------------------------------------------------ #
+        if len(errs) != 0:
+            mylog.warning(f"Detected {len(errs)} warnings from integration. Likely due to physicality issues.")
+
+            for wi in errs:
+                devLogger.warning(wi.message)
+
+        # -- Done -- #
+        return potential
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# MONDian Gravity Theories =====-===================================================================================== #
+# -------------------------------------------------------------------------------------------------------------------- #
 class AQUALGravity(Gravity):
     """
-    Computes the potential array for the model to which this instance is attached.
+    Implementation of the AQUAL (Aquadratic Lagrangian) formulation of MOND.
 
-    Parameters
-    ----------
-    force: bool
-        If ``True``, a new computation will occur even if the model already has a potential field.
-
-    Returns
-    -------
-    np.ndarray
-        The relevant solution to the Poisson equation.
-
+    See Also
+    --------
+    :py:class:`gravity.Gravity`
+    :py:class:`gravity.NewtonianGravity`
+    :py:class:`gravity.QUMONDGravity`
+    :py:class:`gravity.EMONDGravity`
     """
     _classname = "AQUAL"
+    _interpolation_function = cgparams["gravity"]["AQUAL"]["interpolation_function"]
 
     def __init__(self, model, **kwargs):
         # -- Providing the inherited structure -- #
-        super().__init__(model)
+        super().__init__(model, **kwargs)
 
-        # -- Checking for necessary attributes -- #
-        self.attrs = kwargs
-
+        # -- forcing inclusion of the necessary attributes -- #
         if "interp_function" not in self.attrs:
             mylog.warning(f"Gravity {self._classname} requires kwarg `interp_function`. Setting to default...")
             self.attrs["interp_function"] = self._interp
 
         if "a_0" not in self.attrs:
             mylog.warning(f"Gravity {self._classname} requires kwarg `a_0`. Setting to default...")
-            self.attrs["a_0"] = a_0
+            self.attrs["a_0"] = a0
 
     #  Methods
     # ---------------------------------------------------------------------------------------------------------------- #
     def potential(self, force=False):
+        """
+        Computes the gravitational potential of the object.
+
+        .. attention::
+
+            This method passes directly to the class method :py:meth:`~cluster_model.gravity.AQUALGravity.compute_potential`. If you only
+            have fields and not a model, that is the better approach.
+
+        Parameters
+        ----------
+        force: bool
+            If ``True``, the potential will be recomputed even if it already exists.
+
+        Returns
+        -------
+        None
+        """
         #  Logging
         # ------------------------------------------------------------------------------------------------------------ #
         mylog.info(f"Computing gravitational potential of {self.model.__repr__()}. gravity={self._classname}.")
@@ -209,56 +303,8 @@ class AQUALGravity(Gravity):
 
         #  Computing
         # ------------------------------------------------------------------------------------------------------------ #
-        mylog.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={self._classname}.")
-
-        # - pulling arrays
-        rr = self.model["radius"].d
-        tmass = self.model["total_mass"].d
-        a_0 = self.attrs["a_0"].to("kpc/Myr**2").d
-
-        # - Building the gamma function - #
-        gamma_func = InterpolatedUnivariateSpline(rr, G.d * tmass / (a_0 * (rr ** 2)), k=2)
-
-        # -- Redefining with an adjusted spline approach to prevent asymptotes from forming ---#
-        # =====================================================================================#
-        r_bound = 1.1 * rr[-1]
-        gamma_func__adjusted = lambda x: np.piecewise(x,
-                                                      [x <= r_bound,
-                                                       x > r_bound],
-                                                      [gamma_func,
-                                                       lambda l: gamma_func(r_bound) * (r_bound / l) ** 2])
-
-        self.model.fields["gamma"] = unyt_array(gamma_func__adjusted(rr))
-
-        # - generating guess solution - #
-        mylog.debug(f"[[Potential]] Creating AQUAL guess solution for implicit equation...")
-
-        Gamma_func = lambda x: (1 / 2) * (
-                gamma_func__adjusted(x) + np.sqrt(
-            gamma_func__adjusted(x) ** 2 + 4 * gamma_func__adjusted(x)))  # -> big gamma del Phi / a_0
-        _guess = Gamma_func(rr)
-
-        # - solving - #
-        mylog.debug(f"[[Potential]] Optimizing implicit solution...")
-        _fsolve_function = lambda t: t * self.attrs["interp_function"](t) - self.model["gamma"]
-
-        _Gamma_solution = fsolve(_fsolve_function, x0=_guess)
-
-        Gamma = InterpolatedUnivariateSpline(rr, _Gamma_solution, k=2)
-
-        # ** Defining the adjusted Gamma solution to prevent issues with divergence of the spline. **
-        #
-        #
-        adj_Gamma = truncate_spline(Gamma, 0.95 * rr[-1], 7)
-
-        # - Performing the integration process - #
-        with Halo(text=log_string("Integrating Gamma profile..."), spinner="dots", stream=sys.stderr,
-                  animation="marquee") as h:
-            gpot2 = a_0 * unyt_array(integrate_toinf(adj_Gamma, rr), "(kpc**2)/Myr**2")
-            h.succeed(text=log_string("Integrated Gamma profile."))
-        # - Finishing computation - #
-        self.model.fields["gravitational_potential"] = -gpot2
-        self.model.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
+        self.model.fields["gravitational_potential"] = self.compute_potential(self.model.fields, attrs=self.attrs,
+                                                                              spinner=True)
 
     @classmethod
     def compute_mass(cls, fields, attrs=None):
@@ -290,24 +336,131 @@ class AQUALGravity(Gravity):
 
             if "a_0" not in attrs:
                 mylog.debug(f"Gravity {cls._classname} requires kwarg `a_0`. Setting to default...")
-                attrs["a_0"] = a_0
+                attrs["a_0"] = a0
 
             #  Returning output
             # -------------------------------------------------------------------------------------------------------- #
             h.succeed(log_string("Dyn. Mass comp: [DONE] "))
+
         return (-fields["radius"] ** 2 * fields["gravitational_field"] / G) * attrs["interp_function"](
             np.abs(fields["gravitational_field"].to("kpc/Myr**2").d) / attrs["a_0"].to("kpc/Myr**2").d)
 
-    @staticmethod
-    def _interp(x):
-        return x / (1 + x)
+    @classmethod
+    def compute_potential(cls, fields, attrs=None, spinner=True):
+        """
+        Computes the gravitational potential of the system directly from the provided ``fields``.
+
+        .. attention::
+
+            It is almost always ill-advised to call :py:meth:`gravity.AQUALGravity.compute_potential` directly if you
+            have an active instance of the object. The :py:meth:`gravity.AQUALGravity.potential` method will compute
+            the potential directly from the ``self.model`` object if an instances exists. This method should be reserved for cases when it
+            is undesirable to have to construct a full system.
+
+        Parameters
+        ----------
+        fields: dict
+            The fields from which to compute the potential.
+        attrs: dict
+            Additional attributes to pass. These would match the instance's attributes if this were a fully realized
+            instance of the class.
+        spinner: bool
+            ``False`` to disable the spinners.
+
+        Returns
+        -------
+        unyt_array
+            The computed gravitational potential of the system.
+        """
+        #  Logging and array construction
+        # ------------------------------------------------------------------------------------------------------------ #
+        devLogger.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={cls._classname}.")
+
+        #  Managing required attributes
+        # ------------------------------------------------------------------------------------------------------------ #
+        # - providing a_0 - #
+        if attrs is not None and "a_0" in attrs:
+            a_0 = attrs["a_0"].to("kpc/Myr**2").d
+        else:
+            a_0 = a0.to("kpc/Myr**2").d
+
+        # - providing the interpolation function - #
+        if attrs is not None and "interp_function" in attrs:
+            pass
+        else:
+            if attrs is None:
+                attrs = {}
+            attrs["interp_function"] = cls._interp
+
+        # Carrying out computations
+        # ------------------------------------------------------------------------------------------------------------ #
+        with Halo(text=log_string("Computing potential..."), stream=sys.stderr,
+                  enabled=(cgparams["system"]["text"]["spinners"] and spinner)) as h:
+
+            # -- Pulling necessary arrays -- #
+            rr = fields["radius"].d
+            tmass = fields["total_mass"].d
+
+            # -- Computing the gamma function (mu(Gamma)Gamma = gamma) -- gamma = newt_acceleration. -- #
+            gamma_func = InterpolatedUnivariateSpline(rr, G.d * tmass / (a_0 * (rr ** 2)))
+            fields["gamma"] = unyt_array(gamma_func(rr))
+            gamma = gamma_func(rr)
+
+            # - generating guess solution - #
+            devLogger.debug(f"[[Potential]] Creating AQUAL guess solution for implicit equation...")
+            guess_function = lambda x: (1 / 2) * (gamma + np.sqrt(gamma ** 2 + 4 * np.sign(gamma) * gamma))
+            _guess = guess_function(rr)
+
+            # - solving - #
+            mylog.debug(f"[[Potential]] Optimizing implicit solution...")
+            _fsolve_function = lambda t: t * attrs["interp_function"](t) - gamma
+
+            _test_guess = _fsolve_function(_guess)
+
+            if np.amax(_test_guess) <= cgparams["numerical"]["implicit"]["check_tolerance"]:
+                _Gamma_solution = _guess
+            else:
+                _Gamma_solution = fsolve(_fsolve_function, x0=_guess,xtol=cgparams["numerical"]["implicit"]["solve_tolerance"])
+
+            Gamma = InterpolatedUnivariateSpline(rr, _Gamma_solution)
+
+            _v, errs = integrate(Gamma, rr, rmax=rr[-1])
+            gpot2 = a_0 * unyt_array(_v, "(kpc**2)/Myr**2")
+
+            # - Finishing computation - #
+            potential = -gpot2
+            potential.convert_to_units("kpc**2/Myr**2")
+            h.succeed(text=log_string("Computed potential..."))
+
+        #  Managing warnings
+        # ------------------------------------------------------------------------------------------------------------ #
+        if len(errs) != 0:
+            mylog.warning(f"Detected {len(errs)} warnings from integration. Likely due to physicality issues.")
+
+            for wi in errs:
+                devLogger.warning(wi.message)
+
+        # -- DONE -- #
+        return potential
+
+    @classmethod
+    def _interp(cls, x):
+        return cls._interpolation_function(x)
 
 
 class QUMONDGravity(Gravity):
     """
     QUMOND implementation of :py:class:`gravity.Gravity`.
+
+    See Also
+    --------
+    :py:class:`gravity.Gravity`
+    :py:class:`gravity.NewtonianGravity`
+    :py:class:`gravity.AQUALGravity`
+    :py:class:`gravity.EMONDGravity`
     """
     _classname = "QUMOND"
+    _interpolation_function = cgparams["gravity"]["QUMOND"]["interpolation_function"]
 
     def __init__(self, model, **kwargs):
         # -- Providing the inherited structure -- #
@@ -322,7 +475,7 @@ class QUMONDGravity(Gravity):
 
         if "a_0" not in self.attrs:
             mylog.warning(f"Gravity {self._classname} requires kwarg `a_0`. Setting to default...")
-            self.attrs["a_0"] = a_0
+            self.attrs["a_0"] = a0
 
     #  Methods
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -361,25 +514,11 @@ class QUMONDGravity(Gravity):
         # is to set the gauge at 2*rmax and then integrate out to it. Because we only need the potential out to rr #
         # its fine to not have an entirely integrated curve.                                                       #
         # -------------------------------------------------------------------------------------------------------- #
-        # - Pulling arrays
-        rr = self.model["radius"].to("kpc").d
-        rr_max = 2 * rr[-1]
-        tmass = self.model["total_mass"].to("Msun").d
-        a_0 = self.attrs["a_0"].to("kpc/Myr**2").d
-        ## -- Preparing for Execution -- ##
-        mylog.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={self._classname}.")
-        _gamma_func = InterpolatedUnivariateSpline(rr, (G.d * tmass) / (a_0 * (rr ** 2)), k=2)
-        gamma_func = lambda r: _gamma_func(r) * (1 / (1 + (r / rr_max) ** 4))
-        self.model["gamma"] = unyt_array(gamma_func(rr))
-        gpot_profile = lambda r: - gamma_func(r) * a_0 * self.attrs["interp_function"](gamma_func(r))
-        # - Performing the integration process - #
-        gpot2 = unyt_array(integrate(gpot_profile, rr, 2 * rr[-1]), "(kpc**2)/Myr**2")
-        # - Finishing computation - #
-        self.model.fields["gravitational_potential"] = gpot2
-        self.model.fields["gravitational_potential"].convert_to_units("kpc**2/Myr**2")
+        self.model.fields["gravitational_potential"] = self.compute_potential(self.model.fields, attrs=self.attrs,
+                                                                              spinner=True)
 
     @classmethod
-    def compute_mass(cls, fields, attrs={}):
+    def compute_mass(cls, fields, attrs=None):
         """
         Computes the dynamical mass from the provided fields.
 
@@ -406,7 +545,7 @@ class QUMONDGravity(Gravity):
 
             if "a_0" not in attrs:
                 mylog.debug(f"Gravity {cls._classname} requires kwarg `a_0`. Setting to default...")
-                attrs["a_0"] = a_0
+                attrs["a_0"] = a0
             # Compute the mass from QUMOND poisson equation
 
             # - Creating a function equivalent of the gravitational field - #
@@ -427,12 +566,281 @@ class QUMONDGravity(Gravity):
             h.succeed(log_string("Dyn. Mass comp: [DONE] "))
         return (attrs["a_0"] * fields["radius"] ** 2 / G) * _x
 
-    @staticmethod
-    def _interp(x):
-        return ((1 / 2) * (
-            np.sqrt(1 + (4 / x) + 1)) ** (
-                    1))
+    @classmethod
+    def compute_potential(cls, fields, attrs=None, spinner=True):
+        """
+        Computes the gravitational potential of the system directly from the provided ``fields``.
 
+        .. attention::
+
+            It is almost always ill-advised to call :py:meth:`gravity.QUMONDGravity.compute_potential` directly if you
+            have an active instance of the object. The :py:meth:`gravity.QUMONDGravity.potential` method will compute
+            the potential directly from the ``self.model`` object if an instances exists. This method should be reserved for cases when it
+            is undesirable to have to construct a full system.
+
+        Parameters
+        ----------
+        fields: dict
+            The fields from which to compute the potential.
+        attrs: dict
+            Additional attributes to pass. These would match the instance's attributes if this were a fully realized
+            instance of the class.
+        spinner: bool
+            ``False`` to disable the spinners.
+
+        Returns
+        -------
+        unyt_array
+            The computed gravitational potential of the system.
+        """
+        #  Logging
+        # ------------------------------------------------------------------------------------------------------------ #
+        devLogger.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={cls._classname}.")
+
+        #  Managing Attributes
+        # ------------------------------------------------------------------------------------------------------------ #
+        # - providing a_0 - #
+        if attrs is not None and "a_0" in attrs:
+            a_0 = attrs["a_0"].to("kpc/Myr**2").d
+        else:
+            a_0 = a0.to("kpc/Myr**2").d
+
+        # - providing the interpolation function - #
+        if attrs is not None and "interp_function" in attrs:
+            pass
+        else:
+            if attrs is None:
+                attrs = {}
+            attrs["interp_function"] = cls._interp
+
+        #  Computing
+        # ------------------------------------------------------------------------------------------------------------ #
+        with Halo(text=log_string("Computing potential..."), stream=sys.stderr,
+                  enabled=(cgparams["system"]["text"]["spinners"] and spinner)) as h:
+
+            # -- grabbing arrays -- #
+            rr = fields["radius"].to("kpc").d
+
+            # -- Computing the newtonian potential first -- #
+            newtonian_potential = NewtonianGravity.compute_potential(fields, attrs=None, spinner=False)
+
+            # -- determining the correct form of the proper potential -- #
+            n_accel = np.gradient(newtonian_potential.d, rr)
+            dphi = attrs["interp_function"](np.abs(n_accel) / a_0) * n_accel
+
+            dphi_func = InterpolatedUnivariateSpline(rr, dphi)
+            _v, errs = integrate(dphi_func, rr, rr[-1])
+            gpot2 = unyt_array(_v, "kpc**2/Myr**2")
+
+            # - Finishing computation - #
+            potential = -gpot2
+            potential.convert_to_units("kpc**2/Myr**2")
+            h.succeed(text=log_string("Computed potential..."))
+
+        #  Managing warnings
+        # ------------------------------------------------------------------------------------------------------------ #
+        if len(errs) != 0:
+            mylog.warning(f"Detected {len(errs)} warnings from integration. Likely due to physicality issues.")
+
+            for wi in errs:
+                devLogger.warning(wi.message)
+
+        # -- DONE -- #
+        return potential
+
+    @classmethod
+    def _interp(cls, x):
+        return cls._interpolation_function(x)
+
+class EMONDGravity(Gravity):
+    """
+    Implementation of the Extended MOND formulation of MOND.
+
+    See Also
+    --------
+    :py:class:`gravity.Gravity`
+    :py:class:`gravity.NewtonianGravity`
+    :py:class:`gravity.QUMONDGravity`
+    :py:class:`gravity.AQUALGravity`
+    """
+    _classname = "EMOND"
+    _interpolation_function = cgparams["gravity"]["AQUAL"]["interpolation_function"]
+    _base_a0 = cgparams["gravity"]["EMOND"]["a0_function"]
+    def __init__(self, model, **kwargs):
+        # -- Providing the inherited structure -- #
+        super().__init__(model, **kwargs)
+
+        if "a_0" not in self.attrs:
+            mylog.warning(f"Gravity {self._classname} requires kwarg `a_0`. Setting to default...")
+            self.attrs["a_0"] = self._base_a0
+
+    #  Methods
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def potential(self, force=False):
+        """
+        Computes the gravitational potential of the object.
+
+        .. attention::
+
+            This method passes directly to the class method :py:meth:`~cluster_model.gravity.AQUALGravity.compute_potential`. If you only
+            have fields and not a model, that is the better approach.
+
+        Parameters
+        ----------
+        force: bool
+            If ``True``, the potential will be recomputed even if it already exists.
+
+        Returns
+        -------
+        None
+        """
+        #  Logging
+        # ------------------------------------------------------------------------------------------------------------ #
+        mylog.info(f"Computing gravitational potential of {self.model.__repr__()}. gravity={self._classname}.")
+
+        #  Sanity Check
+        # ------------------------------------------------------------------------------------------------------------ #
+        if not force and self.is_calculated:
+            mylog.warning(
+                "There is already a calculated potential for this model. To force recomputation, use force=True.")
+            return None
+        else:
+            pass
+
+        #  Computing
+        # ------------------------------------------------------------------------------------------------------------ #
+        self.model.fields["gravitational_potential"] = self.compute_potential(self.model.fields, attrs=self.attrs,
+                                                                              spinner=True)
+
+    @classmethod
+    def compute_mass(cls, fields, attrs=None):
+        """
+        Computes the dynamical mass from the provided fields.
+
+        Parameters
+        ----------
+        fields: dict
+            The model fields associated with the object being computed.
+        attrs: dict
+            Additional attributes to use in computation.
+
+        Returns
+        -------
+        np.ndarray
+            Computation result
+
+        """
+        #  Managing attributes
+        # ------------------------------------------------------------------------------------------------------------ #
+        with Halo(text=log_string(f"Dyn. Mass comp; {cls._classname}."), stream=sys.stderr) as h:
+            if attrs is None:
+                attrs = {}
+
+            if "interp_function" not in attrs:
+                mylog.debug(f"Gravity {cls._classname} requires kwarg `interp_function`. Setting to default...")
+                attrs["interp_function"] = cls._interp
+
+            if "a_0" not in attrs:
+                mylog.debug(f"Gravity {cls._classname} requires kwarg `a_0`. Setting to default...")
+                attrs["a_0"] = cls._base_a0
+
+            #  Returning output
+            # -------------------------------------------------------------------------------------------------------- #
+            h.succeed(log_string("Dyn. Mass comp: [DONE] "))
+
+        return (-fields["radius"] ** 2 * fields["gravitational_field"] / G) * attrs["interp_function"](
+            np.abs(fields["gravitational_field"].to("kpc/Myr**2").d) / attrs["a_0"](fields["gravitational_potential"]))
+
+    @classmethod
+    def compute_potential(cls, fields, attrs=None, spinner=True,rmax=None):
+        """
+        Computes the gravitational potential of the system directly from the provided ``fields``.
+
+        .. attention::
+
+            It is almost always ill-advised to call :py:meth:`gravity.AQUALGravity.compute_potential` directly if you
+            have an active instance of the object. The :py:meth:`gravity.AQUALGravity.potential` method will compute
+            the potential directly from the ``self.model`` object if an instances exists. This method should be reserved for cases when it
+            is undesirable to have to construct a full system.
+
+        Parameters
+        ----------
+        fields: dict
+            The fields from which to compute the potential.
+        attrs: dict
+            Additional attributes to pass. These would match the instance's attributes if this were a fully realized
+            instance of the class.
+        spinner: bool
+            ``False`` to disable the spinners.
+
+        Returns
+        -------
+        unyt_array
+            The computed gravitational potential of the system.
+        """
+        #  Logging and array construction
+        # ------------------------------------------------------------------------------------------------------------ #
+        from scipy.integrate import solve_ivp
+        from cluster_generator.utils import truncate_spline
+        devLogger.debug(f"[[Potential]] Integrating gravitational potential profile. gravity={cls._classname}.")
+
+        #  Managing required attributes
+        # ------------------------------------------------------------------------------------------------------------ #
+        # - providing a_0 - #
+        if attrs is None:
+            attrs = {}
+
+        if "a_0" not in attrs:
+            attrs["a_0"] = cls._base_a0
+
+        # - providing the interpolation function - #
+        attrs["interp_function"] = cls._interp
+
+
+        # Carrying out computations
+        # ------------------------------------------------------------------------------------------------------------ #
+        with Halo(text=log_string("Computing potential..."), stream=sys.stderr,
+                  enabled=(cgparams["system"]["text"]["spinners"] and spinner)) as h:
+
+            # -- Pulling necessary arrays -- #
+            rr = fields["radius"].d
+
+            if not rmax:
+                rmax = rr[-1]
+
+            tmass = fields["total_mass"].d
+            alpha = attrs["alpha"]
+
+            # -- Computing the gamma function (mu(Gamma)Gamma = gamma) -- gamma = newt_acceleration. -- #
+            gamma_func = InterpolatedUnivariateSpline(rr, G.d * tmass / (rr ** 2))
+            gamma_func = truncate_spline(gamma_func,rr[-1],7)
+
+            gamma_f = lambda x,p: gamma_func(x)/attrs["a_0"](p)
+
+            fields["newtonian_field"] = unyt_array(gamma_func(rr))
+            gamma = gamma_func(rr)
+
+
+            # -- setting up lambda functions -- #
+            devLogger.debug(f"[[Potential]] Creating EMOND differential equation...")
+            Gamma_function = lambda x,p: attrs["a_0"](p)*((1+np.sqrt(1+4*(np.sign(gamma_f(x,p))/gamma_f(x,p))**alpha))**(1/alpha))*(np.sign(gamma_f(x,p))*np.abs(gamma_f(x,p)))/(2**(1/alpha))
+
+            devLogger.debug(f"[[Potential]] Solving EMOND differential equation...")
+            sol = solve_ivp(Gamma_function,(rmax,rr[0]),y0=[0],t_eval=rr[::-1],method="DOP853")
+
+            gpot2 = unyt_array(sol.y[0,::-1], "(kpc**2)/Myr**2")
+
+            # - Finishing computation - #
+            potential = gpot2
+            potential.convert_to_units("kpc**2/Myr**2")
+            h.succeed(text=log_string("Computed potential..."))
+
+        # -- DONE -- #
+        return potential
+
+    @classmethod
+    def _interp(cls, x):
+        return cls._interpolation_function(x)
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Catalog ============================================================================================================ #
@@ -443,3 +851,22 @@ available_gravities = {
     "AQUAL"    : AQUALGravity,
     "QUMOND"   : QUMONDGravity
 }
+
+if __name__ == '__main__':
+    from cluster_generator.radial_profiles import find_overdensity_radius, snfw_mass_profile, snfw_total_mass, \
+        snfw_density_profile
+
+    z = 0.1
+    M200 = 1.5e15
+    conc = 4.0
+    r200 = find_overdensity_radius(M200, 200.0, z=z)
+    a = r200 / conc
+    M = snfw_total_mass(M200, r200, a)
+    rhot = snfw_density_profile(M, a)
+    m = snfw_mass_profile(M, a)
+
+    rmin, rmax = 0.1, 2 * r200
+    r = np.geomspace(rmin, rmax, 1000)
+    m, d, r = unyt_array(m(r), "Msun"), unyt_array(rhot(r), "Msun/kpc**3"), unyt_array(r, "kpc")
+
+    QUMONDGravity.compute_potential({"total_mass": m, "total_density": d, "radius": r})

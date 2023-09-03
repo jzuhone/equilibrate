@@ -164,14 +164,14 @@ def test_N_lma(answer_dir, answer_store, standard_models_dens_tdens):
         m, ca, b = axes[0].errorbar(p.x.to("kpc"), p["dm", "particle_velocity_magnitude"].to("km/s"),
                                     yerr=p.standard_deviation["dm", "particle_velocity_magnitude"], ls=":", marker="+",
                                     capsize=2, color=c, label=l)
-        [ci.set_alpha(0.25) for ci in ca];
+        [ci.set_alpha(0.25) for ci in ca]
         [bi.set_alpha(0.25) for bi in b]
         avg_interp = InterpolatedUnivariateSpline(x.d, y.d)
         m, ca, b = axes[1].errorbar(p.x.to("kpc"), (
                 p["dm", "particle_velocity_magnitude"].to("km/s").d - avg_interp(p.x.to("kpc").d)) / avg_interp(
             p.x.to("kpc").d), yerr=p.standard_deviation["dm", "particle_velocity_magnitude"].d / avg_interp(
             p.x.to("kpc").d), ls="", marker="+", capsize=2, color=c, label=l)
-        [ci.set_alpha(0.25) for ci in ca];
+        [ci.set_alpha(0.25) for ci in ca]
         [bi.set_alpha(0.25) for bi in b]
 
     axes[0].loglog(x, y, label=r"$\left<|v|\right>$ (Jean's Equation)")

@@ -1,8 +1,10 @@
 """
-Core utilities for logging and computation throughout the library.
+Utility functions for basic functionality of the py:module:`cluster_generator` package.
 """
 import logging
 import time
+import sys
+import warnings
 
 import numpy as np
 from more_itertools import always_iterable
@@ -10,31 +12,94 @@ from numpy.random import RandomState
 from scipy.integrate import quad
 from unyt import physical_constants as pc
 from unyt import unyt_array, unyt_quantity, kpc
+import yaml
+import os
+import pathlib as pt
+
+# -- configuration directory -- #
+_config_directory = os.path.join(pt.Path(__file__).parents[0],"bin","config.yaml")
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# Loading cgparams =================================================================================================== #
+# -------------------------------------------------------------------------------------------------------------------- #
+# defining the custom yaml loader for unit-ed objects
+def _yaml_unit_constructor(loader:yaml.FullLoader,node:yaml.nodes.MappingNode):
+    kw = loader.construct_mapping(node)
+    i_s = kw["input_scalar"]
+    del kw["input_scalar"]
+    return unyt_array(i_s,**kw)
+
+def _yaml_lambda_loader(loader:yaml.FullLoader,node:yaml.nodes.ScalarNode):
+    return eval(loader.construct_scalar(node))
+
+def _get_loader():
+    loader = yaml.FullLoader
+    loader.add_constructor("!unyt",_yaml_unit_constructor)
+    loader.add_constructor("!lambda",_yaml_lambda_loader)
+    return loader
+
+
+# -- loading the yaml configuration file -- #
+try:
+    with open(_config_directory,"r+") as config_file:
+        cgparams = yaml.load(config_file,_get_loader())
+
+except FileNotFoundError as er:
+    raise FileNotFoundError(f"Couldn't find the configuration file! Is it at {_config_directory}? Error = {er.__repr__()}")
+except yaml.YAMLError as er:
+    raise yaml.YAMLError(f"The configuration file is corrupted! Error = {er.__repr__()}")
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Constructing the Logger ============================================================================================ #
 # -------------------------------------------------------------------------------------------------------------------- #
 # warnings.filterwarnings("ignore")
 cgLogger = logging.getLogger("cluster_generator")
-
-ufstring = "%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s"
-cfstring = "%(name)-3s : [%(levelname)-18s] %(asctime)s %(message)s"
-
 cg_sh = logging.StreamHandler()
 # create formatter and add it to the handlers
-formatter = logging.Formatter(ufstring)
+formatter = logging.Formatter(cgparams["system"]["logging"]["ufstring"])
 cg_sh.setFormatter(formatter)
 # add the handler to the logger
 cgLogger.addHandler(cg_sh)
-cgLogger.setLevel('INFO')
+cgLogger.setLevel(cgparams["system"]["logging"]["level"])
 cgLogger.propagate = False
 
 mylog = cgLogger
 
 
-def log_string(message):
-    return ufstring % {"name": "cluster_generator", "asctime": time.asctime(), "message": message, "levelname": "INFO"}
+# -- Setting up the developer debugger -- #
+devLogger = logging.getLogger("development_logger")
 
+if cgparams["system"]["logging"]["developer_log"]["is_enabled"]: # --> We do want to use the development logger.
+    # -- checking if the user has specified a directory -- #
+    if cgparams["system"]["logging"]["developer_log"]["output_directory"] is not None:
+        from datetime import datetime
+        dv_fh = logging.FileHandler(os.path.join(cgparams["system"]["logging"]["developer_log"]["output_directory"],f"{datetime.now().strftime('%m-%d-%y_%H-%M-%S')}.log"))
+
+        # adding the formatter
+        dv_formatter = logging.Formatter(cgparams["system"]["logging"]["developer_log"]["format"])
+
+        dv_fh.setFormatter(dv_formatter)
+        devLogger.addHandler(dv_fh)
+        devLogger.setLevel(cgparams["system"]["logging"]["developer_log"]["level"])
+        devLogger.propagate = False
+
+    else:
+        mylog.warning("User enabled development logger but did not specify output directory. Dev logger will not be used.")
+else:
+    devLogger.propagate = False
+    devLogger.disabled = True
+
+
+def log_string(message):
+    return cgparams["system"]["logging"]["ufstring"] % {"name": "cluster_generator", "asctime": time.asctime(), "message": message, "levelname": "INFO"}
+
+def eprint(message,n,location=None,frmt=True,**kwargs):
+    if cgparams["system"]["logging"]["level"] in ["INFO","WARNING","ERROR","CRITICAL"]:
+        if frmt:
+            print("%(tabs)s[%(location)s]: %(asctime)s %(message)s"%{"location": (location if location is not None else "-"), "asctime": time.asctime(), "message": message, "tabs": "\t"*n},
+              file=sys.stderr,**kwargs)
+        else:
+            print(message,file=sys.stderr,**kwargs)
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Units and Constants ================================================================================================ #
@@ -49,7 +114,8 @@ kboltz = (pc.kboltz).to("Msun*kpc**2/Myr**2/K")
 kpc_to_cm = (1.0 * kpc).to_value("cm")
 
 #: Hydrogen abundance
-X_H = 0.76
+X_H = cgparams["physics"]["hydrogen_abundance"]
+
 #: mean molecular mass
 mu = 1.0 / (2.0 * X_H + 0.75 * (1.0 - X_H))
 mue = 1.0 / (X_H + 0.5 * (1.0 - X_H))
@@ -194,9 +260,13 @@ def integrate(profile, rr, rmax=None):
         rmax = rr[-1]
 
     ret = np.zeros(rr.shape)
-    for i, r in enumerate(rr):
-        ret[i] = quad(profile, r, rmax)[0]
-    return ret
+    with warnings.catch_warnings(record=True) as w:
+        for i, r in enumerate(rr):
+            ret[i] = quad(profile, r, rmax)[0]
+
+        errs = w
+
+    return ret, errs
 
 
 def integrate_toinf(profile, rr):
@@ -290,3 +360,8 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     # - Inversely sampling the distribution at points ``u`` from x=P_r, y=r.
     radius = np.interp(u, P_r, r, left=0.0, right=1.0)
     return radius, mtot
+if __name__ == '__main__':
+    print(cgparams["gravity"]["AQUAL"]["interpolation_function"](3))
+    mylog.warning("sdfds")
+    print(devLogger)
+    devLogger.warning("SDfdsdfsdfSDFDFSDF")

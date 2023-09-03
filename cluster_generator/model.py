@@ -25,7 +25,7 @@ from cluster_generator.particles import \
 from cluster_generator.utils import \
     integrate, mylog, integrate_mass, \
     mp, generate_particle_radii, mu, mue, \
-    ensure_ytquantity, kpc_to_cm, log_string
+    ensure_ytquantity, kpc_to_cm, log_string, devLogger,eprint
 from cluster_generator.virial import \
     VirialEquilibrium
 
@@ -50,7 +50,7 @@ class ClusterModel:
         The number of elements included. This is equivalent to the number of radii at which the model is sampled.
     fields: dict[str,unyt_array]
         The fields to attribute to the :py:class:`model.ClusterModel`.
-    gravity: str
+    gravity: str or :py:class:`gravity.Gravity`
         The gravity theory to apply. Options are ``[Newtonian,AQUAL,QUMOND]``.
     **kwargs:
         Additional kwargs to pass through to the object. These become incorporated in the ``self.attrs`` dictionary.
@@ -336,7 +336,7 @@ class ClusterModel:
     def _from_scratch(cls, fields, stellar_density=None, gravity="Newtonian", **kwargs):
         #  Sanity check
         # ------------------------------------------------------------------------------------------------------------ #
-        mylog.debug("Constructing ClusterModel. Method='from_scratch'.")
+        devLogger.debug("Constructing ClusterModel. Method='from_scratch'.")
 
         _required_fields = ["radius", "total_density", "total_mass"]
 
@@ -349,7 +349,9 @@ class ClusterModel:
         rr = fields["radius"].d
 
         # Standardizing Construction
-        # ----------------------------------------------------------------------------------------------------------------- #
+        # ------------------------------------------------------------------------------------------------------------ #
+        eprint("Checking for missing mass / density fields...",2,location="from_scratch",end="")
+        devLogger.debug("[[from_scratch]] Checking for missing mass / density fields.")
         # - Gas mass integration -#
         if "density" in fields and "gas_mass" not in fields:
             mylog.debug("[[from_scratch]] Integrating gas mass profile.")
@@ -365,11 +367,12 @@ class ClusterModel:
                                                    "Msun/kpc**3")
             fields["stellar_mass"] = unyt_array(
                 integrate_mass(stellar_density, rr), "Msun")
-
+        eprint("[DONE]",0,frmt=False,location="from_scratch")
         #  Managing the halo mass component
         # ------------------------------------------------------------------------------------------------------------ #
         if "dark_matter_density" not in fields:
-            mylog.debug("[[from_scratch]] Determining the halo component.")
+            devLogger.debug("[[from_scratch]] Determining the halo component.")
+            eprint("Determining the halo component...",2,location="from_scratch",end="")
             ddm = fields["total_density"].copy()
             if "density" in fields:
                 ddm -= fields["density"]
@@ -377,12 +380,13 @@ class ClusterModel:
                 ddm -= fields["stellar_density"]
 
             fields["dark_matter_density"] = ddm
+            eprint("[DONE]",0,frmt=False,location="from_scratch")
         else:
             mylog.info("\tHalo component manually specified.")
 
         # -- Computing the dark matter mass -- #
         if "dark_matter_mass" not in fields:
-            mylog.debug("[[from_scratch]] Integrating halo density.")
+            devLogger.debug("[[from_scratch]] Integrating halo density.")
             m0 = fields["dark_matter_density"].d[0] * rr[0] ** 3
             fields["dark_matter_mass"] = unyt_array(
                 (4.0 / 3.0) * np.pi * cumtrapz(fields["dark_matter_density"] * rr * rr,
@@ -390,14 +394,16 @@ class ClusterModel:
 
         #  Computing subsidiary fields
         # ------------------------------------------------------------------------------------------------------------ #
+        eprint("Computing additional fields...", 2, location="from_scratch", end="")
         if "density" in fields:
-            mylog.debug("[[from_scratch]] Computing g_fraction, n_e, S.")
+            devLogger.debug("[[from_scratch]] Computing g_fraction, n_e, S.")
             fields["gas_fraction"] = fields["gas_mass"] / fields["total_mass"]
             fields["electron_number_density"] = \
                 fields["density"].to("cm**-3", "number_density", mu=mue)
             fields["entropy"] = \
                 fields["temperature"] * fields["electron_number_density"] ** mtt
-
+        eprint("[DONE]",0,frmt=False,location="from_scratch")
+        eprint("Initializing the ClusterModel...",n=2,location="from_scratch")
         obj = cls(fields, gravity=gravity, **kwargs)
 
         #  Computing the potential
@@ -440,10 +446,11 @@ class ClusterModel:
         ClusterModel
 
         """
-        mylog.info(f"Constructing ClusterModel. Method='from_dens_and_temp', gravity={gravity}.")
-
-        #  Sanity Checks
+        #  Logging and Setup
         # ------------------------------------------------------------------------------------------------------------ #
+        mylog.info(f"Constructing ClusterModel. Method='from_dens_and_temp', gravity={gravity}.")
+        devLogger.debug(f"Constructing ClusterModel. Method='from_dens_and_temp', gravity={gravity}.")
+        # -- Sanity Check: make sure gravity is real -- #
         if isinstance(gravity, str):
             try:
                 gravity = available_gravities[gravity]
@@ -453,41 +460,50 @@ class ClusterModel:
         else:
             gravity = gravity.__class__
 
-        #  Building the radius array
-        # ------------------------------------------------------------------------------------------------------------ #
-        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
-                         endpoint=True)
-
-        #  Building arrays
-        # ------------------------------------------------------------------------------------------------------------ #
-        mylog.debug("[[dens/temp]] Constructing r, rho_g, T from profiles.")
+        # -- Setting up arrays -- #
+        devLogger.debug("[[dens/temp]] Constructing r, rho_g, T from profiles.")
+        eprint("Computing r, rho_g, T from profiles...",2,end="",location="from_dens_and_temp")
+        rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,endpoint=True)
         fields = OrderedDict()
         fields["radius"] = unyt_array(rr, "kpc")
         fields["density"] = unyt_array(density(rr), "Msun/kpc**3")
         fields["temperature"] = unyt_array(temperature(rr), "keV")
+        eprint("[DONE]",0,frmt=False,location="from_dens_and_temp")
 
-        # - Deriving the pressure field - #
-        mylog.debug("[[dens/temp]] Constructing pressure field.")
+        #  Carrying out computations
+        # ------------------------------------------------------------------------------------------------------------ #
+        # -- Pressure -- #
+        eprint("Computing calculating the pressure...",2, end="",location="from_dens_and_temp")
+        devLogger.debug("[[dens/temp]] Constructing pressure...")
         fields["pressure"] = (fields["density"] * fields["temperature"]) / (mu * mp)
         fields["pressure"].convert_to_units("Msun/(Myr**2*kpc)")
         pressure_spline = InterpolatedUnivariateSpline(rr, fields["pressure"].d)
+        eprint("[DONE]", 0, frmt=False, location="from_dens_and_temp")
 
-        # - Deriving acceleration - #
-        mylog.debug("[[dens/temp]] Constructing gravitational field.")
+        # -- Field -- #
+        devLogger.debug("[[dens/temp]] Constructing gravitational field.")
+        eprint("Computing the field...",2,end="",location="from_dens_and_temp")
         dPdr = unyt_array(pressure_spline(rr, 1), "Msun/(Myr**2*kpc**2)")
         fields["gravitational_field"] = dPdr / fields["density"]
         fields["gravitational_field"].convert_to_units("kpc/Myr**2")
+        eprint("[DONE]",0,frmt=False,location="from_dens_and_temp")
 
-        # - Integrating to get gas mass - #
+        # -- masses (integration) -- #
+        devLogger.debug("[[dens/temp]] Constructing mass fields and density.")
+        eprint("Computing the mass and density fields...",2,end="",location="from_dens_and_temp")
         fields["gas_mass"] = unyt_array(integrate_mass(density, rr), "Msun")
-
         fields["total_mass"] = gravity.compute_mass(fields, attrs=kwargs)
-
         total_mass_spline = InterpolatedUnivariateSpline(rr,
                                                          fields["total_mass"].v)
         dMdr = unyt_array(total_mass_spline(rr, nu=1), "Msun/kpc")
         fields["total_density"] = dMdr / (4. * np.pi * fields["radius"] ** 2)
+        eprint("[DONE]",0,frmt=False,location="from_dens_and_temp")
 
+        # -- sanity check warning: looking for non-physical systems -- #
+        if np.any(fields["total_density"].d < 0):
+            mylog.warning("The model being generated has non-physical attributes.")
+
+        eprint("Passing to `from_scratch`...",2,location="from_dens_and_temp")
         return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity,
                                  profiles={"density"        : density, "temperature": temperature,
                                            "stellar_density": stellar_density}, **kwargs)
@@ -589,7 +605,7 @@ class ClusterModel:
         g_r = InterpolatedUnivariateSpline(rr, g)
         dPdr_int = lambda r: density(r) * g_r(r)
         mylog.info("Integrating pressure profile.")
-        P = -integrate(dPdr_int, rr)
+        P,_ = -integrate(dPdr_int, rr)
         dPdr_int2 = lambda r: density(r) * g[-1] * (rr[-1] / r) ** 2
         P -= quad(dPdr_int2, rr[-1], np.inf, limit=100)[0]
         fields["pressure"] = unyt_array(P, "Msun/kpc/Myr**2")
@@ -1100,7 +1116,7 @@ class ClusterModel:
 
         dPdr_int = lambda r: dens_func(r) * g_r(r)
         mylog.info("Integrating pressure profile.")
-        P = -integrate(dPdr_int, obj["radius"].d)
+        P,_ = -integrate(dPdr_int, obj["radius"].d)
         dPdr_int2 = lambda r: dens_func(r) * g[-1] * (obj["radius"].d[-1] / r) ** 2
         P -= quad(dPdr_int2, obj["radius"].d[-1], np.inf, limit=100)[0]
         obj.fields["pressure"] = unyt_array(P, "Msun/kpc/Myr**2")

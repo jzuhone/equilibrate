@@ -78,12 +78,12 @@ Features
             comprehensive catalog of alternative gravity theories to explore. The following are built-in, but adding more
             is a relatively simple task:
 
-            - Newtonian Gravity
+            - :ref:`Newtonian Gravity <gravity>`
 
             .. dropdown:: MONDian Gravities
 
-                - QUMOND
-                - AQUAL
+                - :ref:`AQUAL <aqual>`
+                - :ref:`QUMOND <qumond>`
 
 
     .. grid-item::
@@ -199,13 +199,9 @@ Contents
    :maxdepth: 1
 
    Getting_Started
-   radial_profiles
    gravity
    models
    collections
-   particles
-   initial_conditions
-   codes
    examples
    api
 

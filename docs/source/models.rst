@@ -165,7 +165,7 @@ be used to generate a :py:class:`model.ClusterModel` object manually. The availa
 
 ``ClusterModel`` from Gas Density and Gas Temperature Profiles
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-The user may generate a :py:class:`model.ClusterModel` from the :py:meth:`ClusterModel.from_dens_and_temp` method, which requires :py:class:`radial_profiles.RadialProfile` objects
+The user may generate a :py:class:`model.ClusterModel` from the :py:meth:`model.ClusterModel.from_dens_and_temp` method, which requires :py:class:`radial_profiles.RadialProfile` objects
 for the temperature and the gas density. Using the condition of hydrostatic equilibrium, the potential, pressure, dynamical mass, and other
 necessary fields are automatically computed based on the chosen gravity theory.
 
@@ -198,100 +198,6 @@ by extension determine the necessary halo component.
 | :math:`\rho_{\star}`  |                                   |
 +-----------------------+-----------------------------------+
 
-Additional Notes
-................
-.. attention::
-
-    In general, this approach will yield a dark matter halo component regardless of the chosen gravity theory. As such,
-    if the user is studying a MOND theory outside of the context of MOND + DM, this approach will not generally be viable
-    unless it has already been confirmed that the dynamical mass determined by the hydrostatic equilibrium condition matches
-    that contributed by :math:`\rho_\star` and :math:`\rho_g`.
-
-Non-Physical Profiles
-`````````````````````
-In many situations, a galaxy cluster may be **mathematically** constructed using pathological, incomplete, or ill-determined profiles which
-create (in the case of generation from density and temperature) similarly pathological values for the resulting fields. Because the aim of ``cluster_generator`` is to
-reasonably produce realizable galaxy cluster initial conditions, these pathological cases can interfere with the underlying mathematics used in initial condition generation
-from determining particle velocities to sampling profiles. Nonetheless, ``cluster_generator`` will not prevent the user from generating a :py:class:`model.ClusterModel` which is non-physical.
-Such :py:class:`model.ClusterModel` objects are most easily generated from temperature and density profiles, as their behavior at large and small radii has immediate implications for the
-dynamical variables which are derived during generation.
-
-As an example, consider the following :py:class:`model.ClusterModel` object:
-
-.. highlight:: python
-.. code-block:: python
-    :force:
-    :linenos:
-
-    from cluster_generator.model import ClusterModel
-    from cluster_generator.radial_profiles import find_overdensity_radius, \
-        snfw_density_profile, snfw_total_mass, vikhlinin_density_profile, vikhlinin_temperature_profile, \
-        rescale_profile_by_mass, find_radius_mass, snfw_mass_profile
-
-    # Configuring pathological model
-    #------------------------------------
-    # - Parameters
-    z = 0.1
-    M200 = 1.5e15
-    conc = 4.0
-
-    # - Constructing the density profile
-    r200 = find_overdensity_radius(M200, 200.0, z=z)
-    a = r200 / conc
-    M = snfw_total_mass(M200, r200, a)
-    rhot = snfw_density_profile(M, a)
-    Mt = snfw_mass_profile(M, a)
-    r500, M500 = find_radius_mass(Mt, z=z, delta=500.0)
-    f_g = 0.12
-    rhog = vikhlinin_density_profile(1.0, 100.0, r200, 1.0, 0.67, 3)
-    rhog = rescale_profile_by_mass(rhog, f_g * M500, r500)
-
-    # - Constructing the temperature profile
-    temp = vikhlinin_temperature_profile(2.42,-0.02,5.00,1.1,350,1,19,2)
-    rhos = 0.02 * rhot
-    rmin = 0.1
-    rmax = 10000.0
-
-    # - Producing the model
-    m = ClusterModel.from_dens_and_temp(rmin, rmax, rhog, temp,
-                                        stellar_density=rhos)
-    m.set_magnetic_field_from_beta(100.0, gaussian=True)
-
-.. figure:: _images/model/non-physical-example.png
-
-    The resulting profiles after the :py:class:`model.ClusterModel` object has been generated. Notice that
-    even thought the gas density and temperature profiles are reasonable, the dynamical mass and
-    halo mass have non-physical behaviors.
-
-**How does ``cluster_generator`` handle this?**
-
-The user can specify the ``require_physical`` kwarg when generating a :py:class:`model.ClusterModel`. There are 3 values of the
-``require_physical`` parameter:
-
-1. ``False``: If ``require_physical == False``, then the :py:class:`model.ClusterModel` object will make no attempt to correct these errors.
-2. ``True``: If ``require_physical == True``, then the :py:class:`model.ClusterModel` will **force** all of the density profiles to
-   be corrected so that everywhere than :math:`\rho_i < 0`, :math:`\rho_i' = 0`.
-
-   This is the simplest approach for correction. Each of the altered density profiles will then be integrated to determine the total mass profile.
-
-   .. warning::
-
-        This choice for ``require_physical`` does **not** change the temperature profile, meaning that depending on the degree
-        of the non-physicalities faced by your system, the deviation from hydrostatic equilibrium may be significant.
-3. ``"rebuild"``: This is the most comprehensive choice. The profiles are fixed as if ``require_physical == True``; however, a new :py:class:`model.ClusterModel` object is
-   instead generated which uses the :py:meth:`~model.ClusterModel.from_dens_tdens` approach to rebuild the corrected temperature / entropy profiles.
-
-.. figure:: _uml/uml_flow--non-phys.drawio.png
-
-    UML activity diagram showing the steps for regeneration after non-physicality is caught.
-
-.. figure:: _images/model/non-physical-fixed.png
-
-    The result of setting ``require_physical`` during model generation. Here **magenta** is the original model without
-    any restriction of physical viability. The profiles for halo (dm) density, and dynamical (total) density clearly have
-    regions of non-physical behavior. The **forest-green** corresponds to ``require_physical == True``, and thus removes all
-    of the non-physical regions of the density and mass profiles; however, leaves the temperature profile the same. Finally,
-    **teal** corresponds to ``require_physical == "rebuild"``, which entirely recomputes the temperature profile after fixing non-physical regions.
 
 
 ``ClusterModel`` from Gas Density and Total Density Profiles
@@ -407,3 +313,109 @@ options available; however, we advice consulting the API reference for each of t
 +---------------+--------------------------------------------------------+-----------------------------------------------------+-----------------------------------+
 | BINARY        | :py:meth:`~model.ClusterModel.write_model_to_binary`   | **Not Yet Implemented**                             | None                              |
 +---------------+--------------------------------------------------------+-----------------------------------------------------+-----------------------------------+
+
+Additional Notes
+................
+.. attention::
+
+    In general, this approach will yield a dark matter halo component regardless of the chosen gravity theory. As such,
+    if the user is studying a MOND theory outside of the context of MOND + DM, this approach will not generally be viable
+    unless it has already been confirmed that the dynamical mass determined by the hydrostatic equilibrium condition matches
+    that contributed by :math:`\rho_\star` and :math:`\rho_g`.
+
+Non-Physical Systems
+====================
+In many situations, a galaxy cluster may be **mathematically** constructed using pathological, incomplete, or ill-determined profiles which
+create (in the case of generation from density and temperature) similarly pathological values for the resulting fields. Because the aim of ``cluster_generator`` is to
+reasonably produce realizable galaxy cluster initial conditions, these pathological cases can interfere with the underlying mathematics used in initial condition generation
+from determining particle velocities to sampling profiles. Nonetheless, ``cluster_generator`` will not prevent the user from generating a :py:class:`model.ClusterModel` which is non-physical.
+Such :py:class:`model.ClusterModel` objects are most easily generated from temperature and density profiles, as their behavior at large and small radii has immediate implications for the
+dynamical variables which are derived during generation.
+
+As an example, consider the following :py:class:`model.ClusterModel` object:
+
+.. highlight:: python
+.. code-block:: python
+    :force:
+    :linenos:
+
+    from cluster_generator.model import ClusterModel
+    from cluster_generator.radial_profiles import find_overdensity_radius, \
+        snfw_density_profile, snfw_total_mass, vikhlinin_density_profile, vikhlinin_temperature_profile, \
+        rescale_profile_by_mass, find_radius_mass, snfw_mass_profile
+
+    # Configuring pathological model
+    #------------------------------------
+    # - Parameters
+    z = 0.1
+    M200 = 1.5e15
+    conc = 4.0
+
+    # - Constructing the density profile
+    r200 = find_overdensity_radius(M200, 200.0, z=z)
+    a = r200 / conc
+    M = snfw_total_mass(M200, r200, a)
+    rhot = snfw_density_profile(M, a)
+    Mt = snfw_mass_profile(M, a)
+    r500, M500 = find_radius_mass(Mt, z=z, delta=500.0)
+    f_g = 0.12
+    rhog = vikhlinin_density_profile(1.0, 100.0, r200, 1.0, 0.67, 3)
+    rhog = rescale_profile_by_mass(rhog, f_g * M500, r500)
+
+    # - Constructing the temperature profile
+    temp = vikhlinin_temperature_profile(2.42,-0.02,5.00,1.1,350,1,19,2)
+    rhos = 0.02 * rhot
+    rmin = 0.1
+    rmax = 10000.0
+
+    # - Producing the model
+    m = ClusterModel.from_dens_and_temp(rmin, rmax, rhog, temp,
+                                        stellar_density=rhos)
+    m.set_magnetic_field_from_beta(100.0, gaussian=True)
+
+.. figure:: _images/model/non-physical-example.png
+
+    The resulting profiles after the :py:class:`model.ClusterModel` object has been generated. Notice that
+    even thought the gas density and temperature profiles are reasonable, the dynamical mass and
+    halo mass have non-physical behaviors.
+
+**What does cluster generator do about this?**
+
+The short answer is **nothing**. At least, not until the user says something. All :py:class:`model.ClusterModel` instances have the
+:py:meth:`model.ClusterModel.is_physical` method, which will determine if the system is physical and to what radii.
+
+.. code-block:: python
+
+    m.is_physical()
+
+will yield.
+
+.. code-block:: shell
+
+    ✖ [ClusterModel object; gravity=Newtonian] is non-physical over 35.2% of domain.
+
+ If the user wants to fix the system, they can then call the :py:meth:`model.ClusterModel.rebuild_physical` method, which returns a
+newly constructed equivalent of the original model which is physically self-consistent.
+
+.. code-block:: python
+
+    m2 = m.rebuild_physical()
+    m2.is_physical()
+
+which will instead yield the much more pleasant
+
+.. code-block:: shell
+
+    ✔ ClusterModel object; gravity=Newtonian is physical.
+
+To do this, all of the density profiles are prevented from reaching 0 and then each field is recomputed with that
+new, physically consistent, set of profiles.
+
+
+.. figure:: _images/model/non-physical-fixed.png
+
+    The result of setting ``require_physical`` during model generation. Here **magenta** is the original model without
+    any restriction of physical viability. The profiles for halo (dm) density, and dynamical (total) density clearly have
+    regions of non-physical behavior. The **forest-green** corresponds to ``require_physical == True``, and thus removes all
+    of the non-physical regions of the density and mass profiles; however, leaves the temperature profile the same. Finally,
+    **teal** corresponds to ``require_physical == "rebuild"``, which entirely recomputes the temperature profile after fixing non-physical regions.

@@ -2,17 +2,60 @@
 
 Gravity Theories
 ----------------
+
 The ``cluster_generator`` library allows users to build galaxy cluster models and initial conditions not only in Newtonian
 gravity, but also in a couple of additional gravitational theories. On this page, summaries of all of the gravity theories included are provided.
+Additional gravitational models can be easily written on the user side and a guide for doing so is also provided at the end.
+
+Available Gravity Theories
+++++++++++++++++++++++++++
+
+.. card-carousel:: 2
+
+    .. card:: Newtonian Gravity
+
+        **Type**: Classical
+        ^^^
+        Standard implementation of Newtonian gravity.
+        +++
+        | **Class**: :py:class:`gravity.NewtonianGravity`
+
+    .. card:: AQUAL Gravity
+        :link: aqual
+        :link-type: ref
+
+        **Type**: MONDian
+        ^^^
+        A classical MOND implementation with a non-linear aquadratic field lagrangian.
+        +++
+        | **Source**: `1984ApJ...286....7B <https://ui.adsabs.harvard.edu/link_gateway/1984ApJ...286....7B/ADS_PDF>`_
+        | **Class**: :py:class:`gravity.AQUALGravity`
+    .. card:: QUMOND Gravity
+        :link: qumond
+        :link-type: ref
+
+        **Type**: MONDian
+        ^^^
+        A classical MOND implementation with 2 scalar fields and two linear (modified) poisson equations.
+        +++
+        | **Source**: `2010MNRAS.403..886M <https://ui.adsabs.harvard.edu/link_gateway/2010MNRAS.403..886M/EPRINT_PDF>`_
+        | **Class**: :py:class:`gravity.QUMONDGravity`
+.. raw:: html
+
+   <hr style="height:2px;background-color:black">
+
+
+.. contents::
 
 .. raw:: html
 
    <hr style="height:10px;background-color:black">
 
+.. _mond:
 MONDian Gravity
-===============
++++++++++++++++
 MOND (MOdified Newtonian Dynamics) is a set of gravitational theories which postulate a divergence from Newtonian gravity in
-regions of low acceleration. First proposed by Milgrom [1]_, MOND theories are universally held to 3 core-postulates:
+regions of low acceleration. First proposed by M. Milgrom [1]_ in 1983, MOND theories are universally held to 3 core-postulates:
 
 1. At accelerations below some characteristic :math:`a_0`, MOND gravity diverges from the Newtonian theory.
 2. In that asymptotic case,
@@ -24,10 +67,12 @@ regions of low acceleration. First proposed by Milgrom [1]_, MOND theories are u
 3. The transition between the Newtonian regime and the deep-MOND regime occurs over a range of acclerations around :math:`a_0`.
 
 There are a variety of approaches by which to implement these postulates into a comprehensive classical field theory, several of which have been
-implemented in ``cluster_generator``.
+implemented in ``cluster_generator``. Furthermore, many attempts are underway to establish self consistent covariant formulations of the
+theory; however, there remains no standout candidate for a complete MOND theory.
 
+.. _aqual:
 AQUAL
-+++++
+=====
 The AQUAL [3]_ (Aquadtratic Lagrangian) theory (``gravity = 'AQUAL'``) is typically considered the quintessential MOND theory, and has a Lagrangian of the form
 
 .. math::
@@ -40,11 +85,49 @@ which, upon variation over the field, yields a modified poisson equation
 
     4\pi G \rho = \nabla \cdot \left[\mu\left(\frac{|\nabla \Phi|}{a_0}\right)\nabla\Phi\right].
 
-Here :math:`\mu(x) = d\mathcal{F}(z)/dz`, where `z = x^2`. To fulfill the postulates of the MOND paradigm, we require that
-:math:`\mu(x) \to 1` as :math:`x \to infty`, and :math:`\mu(x) \to x` as :math:`x\to 0`.
+Here :math:`\mu(x) = d\mathcal{F}(z)/dz`, where :math:`z = x^2`. To fulfill the postulates of the MOND paradigm, we require that
+:math:`\mu(x) \to 1` as :math:`x \to \infty`, and :math:`\mu(x) \to x` as :math:`x\to 0`.
+
+Implementation
+^^^^^^^^^^^^^^
+
+Cluster generator implements the AQUAL theory using the :py:class:`gravity.AQUALGravity` class, which contains the relevant poisson solver. As with all of the
+spherically symmetric gravity theories implemented in this library, there are only two major alterations that have to be made: the potential and the dynamical mass.
+
+| **Potential**:
+
+In spherical symmetry, the Poisson equation for AQUAL simplifies to
+
+.. math::
+
+    \mu\left(\frac{|\nabla \Phi|}{a_0}\right)\nabla \Phi = \nabla \Psi,
+
+where :math:`\Psi` is the Newtonian potential for the same system. Letting :math:`\gamma = \nabla \Psi /a_0` and :math:`\Gamma = \nabla \Phi / a_0`, this reduces to
+:math:`\mu(|\Gamma|)\Gamma = \gamma`. As such, an implicit form of :math:`\Gamma` can be solved for and then integrated. In the :py:meth:`gravity.AQUALGravity.compute_potential` method,
+we utilize a numerical solver to solve the implicit equation. To allow for optimal convergence, we first posit an approximate guess. To generate one, we assume :math:`\mu(x) = x/(1+x)`, which
+is essentially the simplest interpolation function available. Then
+
+.. math::
+
+    \frac{\mathrm{sign}(\gamma) \Gamma^2}{1+ \mathrm{sign}(\gamma) \Gamma} = \gamma,
+
+which leads to the guess
+
+.. math::
+
+    \Gamma_{\mathrm{guess}} = \frac{1}{2}\left\{\gamma + \sqrt{\gamma^2 + 4\mathrm{sign}(\gamma)\gamma}\right\}
+
+We then integrate :math:`\Gamma` to obtain the complete solution.
+
+.. attention::
+
+    Because the deep-field behavior of MOND theories is to go as :math:`1/r`, the potential may not be treated as zero at infinity and then integrated inwards.
+    Instead, we enforce a zero point of the potential at the edge of the system being initialized.
+
+.. _qumond:
 
 QUMOND
-++++++
+======
 Unlike the AQUAL theory, QUMOND is a quasi-linear implementation of MOND [2]_. The Lagrangian takes the form
 
 .. math::
@@ -117,7 +200,7 @@ In order to meet the necessary criteria for MOND's core postulates, :math:`\nu(x
         \mu(x) = \nu^\textbf{M}(x)
 
 References
-----------
+++++++++++
 .. [1] Milgrom, M. 1983ApJ...270..365M
 .. [2] Milgrom, M. 2010MNRAS.403..886M
 .. [3] Bekenstein, J. Milgrom, M. 1984ApJ...286....7B
