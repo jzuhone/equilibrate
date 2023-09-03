@@ -16,8 +16,8 @@ system:
 
     developer_log:
       # -- These settings can be used to control the output of the development logger (no output to terminal) -- #
-      is_enabled: true
-      output_directory: "/home/ediggins/logger"
+      is_enabled: false
+      output_directory: ~
       level: "DEBUG"
       format:  "%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s"
   text:
