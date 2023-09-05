@@ -44,12 +44,11 @@ rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
 
 class ClusterParticles:
-    def __init__(self, particle_types, fields, box_size=None):
+    def __init__(self, particle_types, fields):
         self.particle_types = ensure_list(particle_types)
         self.fields = fields
         self._update_num_particles()
         self._update_field_names()
-        self.box_size = box_size
         self.passive_scalars = []
 
     def __getitem__(self, key):
