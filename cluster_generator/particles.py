@@ -294,7 +294,7 @@ class ClusterParticles:
             Overwrite an existing file with the same name. Default False.
         """
         if Path(output_filename).exists() and not overwrite:
-            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
+            raise IOError(f"Cannot create {output_filename}. It exists and overwrite=False.")
         with h5py.File(output_filename, "w") as f:
             for ptype in self.particle_types:
                 f.create_group(ptype)
@@ -304,7 +304,7 @@ class ClusterParticles:
                     g = f[field[0]]
                     g.create_dataset("particle_index", data=self.fields[field])
             else:
-                self.fields[field].write_hdf5(output_filename, 
+                self.fields[field].write_hdf5(output_filename,
                     dataset_name=field[1], group_name=field[0])
 
     def write_particles_to_h5(self, output_filename, overwrite=False):
@@ -359,8 +359,7 @@ class ClusterParticles:
             if units is not None:
                 self.fields[ptype, name].convert_to_units(units)
         else:
-            raise ValueError("The length of the array needs to be %d particles!"
-                             % num_particles)
+            raise ValueError(f"The length of the array needs to be {num_particles} particles!")
 
     def add_offsets(self, r_ctr, v_ctr, ptypes=None):
         """
@@ -496,8 +495,8 @@ class ClusterParticles:
             pos = data.pop((ptype, "particle_position"))
             vel = data.pop((ptype, "particle_velocity"))
             for i, ax in enumerate("xyz"):
-                data[ptype, "particle_position_%s" % ax] = pos[:,i]
-                data[ptype, "particle_velocity_%s" % ax] = vel[:,i]
+                data[ptype, f"particle_position_{ax}"] = pos[:, i]
+                data[ptype, f"particle_velocity_{ax}"] = vel[:, i]
         return load_particles(data, length_unit="kpc", bbox=[[0.0, box_size]]*3,
                               mass_unit="Msun", time_unit="Myr")
 
