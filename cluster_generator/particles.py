@@ -191,6 +191,14 @@ class ClusterParticles:
         self._update_num_particles()
 
     @classmethod
+    def from_fields(cls, fields):
+        particle_types = []
+        for key in fields:
+            if key[0] not in particle_types:
+                particle_types.append(key[0])
+        cls(particle_types, fields)
+
+    @classmethod
     def from_file(cls, filename, ptypes=None):
         r"""
         Generate cluster particles from an HDF5 file.
