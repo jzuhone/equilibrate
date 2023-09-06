@@ -1,5 +1,6 @@
 cluster_generator
 =================
+
 |yt-project| |docs| |testing| |Github Page| |Pylint| |coverage|
 
 .. raw:: html
@@ -14,134 +15,195 @@ assumptions, and non-Newtonian gravity options.
 .. raw:: html
 
    <hr style="color:black">
-
 Features
 ========
 
-.. raw:: html
+.. grid:: 2
 
-   <table width="100%" table-layout="fixed">
-   <tr>
-      <td width="500" style="vertical-align: middle;">
-      <h3 style="text-align: center;"> Gravities </h3> </td>
-      <td width="500" style="vertical-align: middle;">
-      <h3 style="text-align: center;"> Profiles </h3> </td>
-   </tr>
-   <tr>
-      <td>
-      <ul>
-      <li> Newtonian Gravity </li>
-      <li> <a href="https://en.wikipedia.org/wiki/AQUAL">AQUAL</a> (<a href="https://en.wikipedia.org/wiki/Modified_Newtonian_dynamics">MOND</a>ian) </li>
-      <li> <a href="https://watermark.silverchair.com/mnras0403-0886.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAA2UwggNhBgkqhkiG9w0BBwagggNSMIIDTgIBADCCA0cGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMGb-fef5Ctx7fV5WJAgEQgIIDGKepu4GZqp7A-i3x1gJbehOyxm4vG9kx4eohWE2ipnUGBf_25ORxOWVF3RG5-wVYger-KaprllV2wY4GHZ0wgwHvb21RfjhDFLkQH7iVLLR2PJTIIEXVfrdU1djeQtRmtcc-NbRF_iAAxoE6q3RDr3hhTndEaYnR_ElwbUhCctE9UcZHCqiD4-3MbwCfKmQm1NJRsI38vjiti9EoHbuz0VVT4-vyOrMIySssTS6A_qGUnW_r2Ar0yDBrtqbjJk5QkOhxG6ZtJQtLFWAJZ6rh5j66ifwBdmPpIaBlsPUM0FcctpFVi8BuvdhaQkE06WzsAvCm-etmIkzV83sNw0bT1G2l-YkZYMJ6IqqX8oqN4kzKxlwYp58CfHg4RNbIXtGwkwmw-FYIXRgbTlinbwlxa9pQO3XxtCySEjDbwFKGzQy-FtqNVDSWpAa4F87y1ie2XzU5pDZri7Fzw4Tw2W0izjptcb6hG1TPFFmQ_X-eXC48yToIXTaoVcdZrAiX3CtLWDLoXM2PbeaSs3ARJszpgZKavP3Et-kPnkhskV589iZSLKVGR4eR8uhCGXWu07sNFCixOMPA6KGkUOBrvukhhdcT0tjbX93SsPB_UH1MOyVowaKjJwkVGGUFEcb3LfYTsqBbs8PZWcu3Jomr6yd7zo5s6hExmHACfz_h_ic8kUZWSnAr3P2TlGNQgyX9DX9O6pghWMtkuhomWu4r9f6Mv2xMjVJ1A_ZCwGZIPm7SeBc70s1TaT4daMzLG6UDEQevzv8M3W7jkd4gYOWqBojvWz2JyR2SO7YWC_LHb4JD6VgrvsvAwZcrEoHyIGb_O25ULxEtgz2d8hd_cbmsO8XgE_VrTp2gz6Twp3c2J46_TpOJitrkKR7MUhr91MNHR5XypthZfQ5zxYR13fQ78TvE-RDe9enShgqlIYU0QQGmfSqocSx8LHFq8B1HPcQiCEMQl5-8tz39dANME-Hvmxn0a9XGblHeGeO5R6Dfgb-AyWW3oZJYJUmNHMpY2P-lS2Bpy8Fmhb_LthPyZqyqj7w2INBr6mWv2TkTpA">QUMOND</a> (<a href="https://en.wikipedia.org/wiki/Modified_Newtonian_dynamics">MOND</a>ian) </li>
-      </ul>
-      </td>
-      <td>
-      <ul>
-      <li> [T/S]-NFW  </li>
-      <li> Hernquist [cored / uncored] </li>
-      <li> Einasto </li>
-      <li> Power Law </li>
-      <li> Beta Model </li>
-      <li> am06 </li>
-      <li> Vikhlinin (density) </li>
-      <li> Vikhlinin (temperature) </li>
-      <li> Entropy [baseline, broken, walker] </li>
-      </ul>
-      </td>
-   </tr>
-   </table>
+    .. grid-item::
 
-Installing ``cluster_generator``
-================================
-In this guide are instructions on the installation of the ``cluster_generator`` library. If you encounter any issues during
-the installation process, please visit the **ISSUES** page of the github and report the issue. We will attempt to provide
-support as quickly as possible.
+        .. dropdown:: Radial Profiles
 
+            Each of the following radial profiles is included for use in cluster construction:
+
+            .. dropdown:: NFW Profiles
+
+              - :py:func:`~radial_profiles.nfw_density_profile`
+              - :py:func:`~radial_profiles.nfw_mass_profile`
+              - :py:func:`~radial_profiles.snfw_density_profile`
+              - :py:func:`~radial_profiles.snfw_mass_profile`
+              - :py:func:`~radial_profiles.cored_snfw_density_profile`
+              - :py:func:`~radial_profiles.cored_snfw_mass_profile`
+              - :py:func:`~radial_profiles.tnfw_density_profile`
+              - :py:func:`~radial_profiles.tnfw_mass_profile`
+
+            .. dropdown:: Hernquist Profiles
+
+              - :py:func:`~radial_profiles.hernquist_density_profile`
+              - :py:func:`~radial_profiles.hernquist_mass_profile`
+              - :py:func:`~radial_profiles.cored_hernquist_density_profile`
+              - :py:func:`~radial_profiles.cored_hernquist_mass_profile`
+
+            .. dropdown:: Einasto Profiles
+
+              - :py:func:`~radial_profiles.einasto_density_profile`
+              - :py:func:`~radial_profiles.einasto_mass_profile`
+
+            .. dropdown:: General Profiles
+
+              - :py:func:`~radial_profiles.power_law_profile`
+              - :py:func:`~radial_profiles.constant_profile`
+              - :py:func:`~radial_profiles.beta_model_profile`
+
+            .. dropdown:: Paper Specific Profiles
+
+              - **Vikhlinin et. al. 2006**
+                - :py:func:`~radial_profiles.vikhlinin_density_profile`
+                - :py:func:`~radial_profiles.vikhlinin_temperature_profile`
+              - **Ascasibar & Markevitch 2006**
+                - :py:func:`~radial_profiles.am06_density_profile`
+                - :py:func:`~radial_profiles.am06_temperature_profile`
+
+            .. dropdown:: Entropy Profiles
+
+              - :py:func:`~radial_profiles.walker_entropy_profile`
+              - :py:func:`~radial_profiles.baseline_entropy_profile`
+              - :py:func:`~radial_profiles.broken_entropy_profile`
+
+    .. grid-item::
+
+        .. dropdown:: Gravitational Theories
+
+            ``cluster_generator`` provides not only high quality initial condition generation capacity, but also provides a
+            comprehensive catalog of alternative gravity theories to explore. The following are built-in, but adding more
+            is a relatively simple task:
+
+            - :ref:`Newtonian Gravity <gravity>`
+
+            .. dropdown:: MONDian Gravities
+
+                - :ref:`AQUAL <aqual>`
+                - :ref:`QUMOND <qumond>`
+
+
+    .. grid-item::
+
+        .. dropdown:: Implemented Codes
+
+            ``cluster_generator`` provides end-to-end initial condition generation tools for **all** of the following
+            codes:
+
+            - :ref:`RAMSES <ramses>`
+            - :ref:`ATHENA++ <athena>`
+            - :ref:`AREPO <arepo>`
+            - :ref:`GAMER <gamer>`
+            - :ref:`FLASH <flash>`
+            - :ref:`GIZMO <gizmo>`
+            - :ref:`ENZO <enzo>`
+
+    .. grid-item::
+
+        .. dropdown:: Available Datasets
+
+            The :ref:`Collections <collections>` system provides users access to pre-built galaxy clusters from the available literature. Cluster fits
+            are available for all of the following papers:
+
+            - `Vikhlinin et. al. 2006 <https://ui.adsabs.harvard.edu/abs/2006ApJ...640..691V/abstract>`_
+
+
+Resources
+=========
+
+.. grid:: 2
+    :padding: 3
+    :gutter: 5
+
+    .. grid-item-card::
+        :img-top: _images/index/stopwatch_icon.png
+
+        Quickstart Guide
+        ^^^^^^^^^^^^^^^^
+        New to ``cluster_generator``? The quickstart guide is the best place to start learning to use all of the
+        tools that we have to offer!
+
+        +++
+
+        .. button-ref:: Getting_Started
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            To The Quickstart Page
+
+    .. grid-item-card::
+        :img-top: _images/index/lightbulb.png
+
+        Examples
+        ^^^^^^^^
+        Have some basic experience with ``cluster_generator``, but want to see a guide on how to execute a particular task? Need
+        to find some code to copy and paste? The examples page contains a wide variety of use case examples and explainations
+        for all of the various parts of the ``cluster_generator`` library.
+
+        +++
+
+        .. button-ref:: examples
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            To the Examples Page
+
+    .. grid-item-card::
+        :img-top: _images/index/book.svg
+
+        User References
+        ^^^^^^^^^^^^^^^^
+        The user guide contains comprehensive, text based explainations of the backbone components of the ``cluster_generator`` library.
+        If you're looking for information on the underlying code or for more details on particular aspects of the API, this is your best resource.
+
+        +++
+
+        .. button-ref:: codes
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            To the User Guide
+
+    .. grid-item-card::
+        :img-top: _images/index/api_icon.png
+
+        API Reference
+        ^^^^^^^^^^^^^
+
+        Doing a deep dive into our code? Looking to contribute to development? The API reference is a comprehensive resource
+        complete with source code and type hinting so that you can find every detail you might need.
+
+        +++
+
+        .. button-ref:: api
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            API Reference
+
+
+Contents
+========
 .. raw:: html
 
    <hr style="height:10px;background-color:black">
 
+.. toctree::
+   :maxdepth: 1
 
-Getting the Package
-===================
-From PyPI
-+++++++++
-
-.. attention::
-
-    This package is not yet published on PyPI
-
-From Source
-+++++++++++
-To gather the necessary code from source, simple navigate to a directory in which you'd like to store the local copy
-of the package and execute
-
-.. code-block:: bash
-
-    git clone https://github.com/jzuhone/cluster_generator
-
-If you want a specific branch of the project, use the ``-b`` flag in the command and provide the name of the branch.
-
-Once the git clone has finished, there should be a directory ``./cluster_generator`` in your current working directory.
-
-.. raw:: html
-
-   <hr style="height:3px;background-color:black">
-
-Dependencies
-============
-
-``cluster_generator`` is compatible with Python 3.8+, and requires the following
-Python packages:
-
-- `unyt <http://unyt.readthedocs.org>`_ [Units and quantity manipulations]
-- `numpy <http://www.numpy.org>`_ [Numerical operations]
-- `scipy <http://www.scipy.org>`_ [Interpolation and curve fitting]
-- `h5py <http://www.h5py.org>`_ [h5 file interaction]
-- `tqdm <https://tqdm.github.io>`_ [Progress bars]
-- `ruamel.yaml <https://yaml.readthedocs.io>`_ [yaml support]
-
-These will be installed automatically if you use ``pip`` or ``conda`` as detailed below.
-
-.. admonition:: Recommended
-
-    Though not required, it may be useful to install `yt <https://yt-project.org>`_
-    for creation of in-memory datasets from ``cluster_generator`` and/or analysis of
-    simulations which are created using initial conditions from
-    ``cluster_generator``.
-
-Installation
-============
-
-``cluster_generator`` can be installed in a few different ways. The simplest way
-is via the conda package if you have the
-`Anaconda Python Distribution <https://store.continuum.io/cshop/anaconda/>`_:
-
-.. code-block:: bash
-
-    [~]$ conda install -c jzuhone cluster_generator
-
-This will install all of the necessary dependencies.
-
-The second way to install ``cluster_generator`` is via pip. pip will attempt to
-download the dependencies and install them, if they are not already installed
-in your Python distribution:
-
-.. code-block:: bash
-
-    [~]$ pip install cluster_generator
-
-Alternatively, to install into your Python distribution from
-`source <http://github.com/jzuhone/cluster_generator>`_:
-
-.. code-block:: bash
-
-    [~]$ git clone https://github.com/jzuhone/cluster_generator
-    [~]$ cd cluster_generator
-    [~]$ python -m pip install .
-
-
-
+   Getting_Started
+   gravity
+   models
+   collections
+   examples
+   api
 
 Indices and tables
 ==================
