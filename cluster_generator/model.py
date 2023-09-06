@@ -605,7 +605,7 @@ class ClusterModel:
         g_r = InterpolatedUnivariateSpline(rr, g)
         dPdr_int = lambda r: density(r) * g_r(r)
         mylog.info("Integrating pressure profile.")
-        P,_ = -integrate(dPdr_int, rr)
+        P = -integrate(dPdr_int, rr)[0]
         dPdr_int2 = lambda r: density(r) * g[-1] * (rr[-1] / r) ** 2
         P -= quad(dPdr_int2, rr[-1], np.inf, limit=100)[0]
         fields["pressure"] = unyt_array(P, "Msun/kpc/Myr**2")
@@ -1116,7 +1116,7 @@ class ClusterModel:
 
         dPdr_int = lambda r: dens_func(r) * g_r(r)
         mylog.info("Integrating pressure profile.")
-        P,_ = -integrate(dPdr_int, obj["radius"].d)
+        P = -integrate(dPdr_int, obj["radius"].d)[0]
         dPdr_int2 = lambda r: dens_func(r) * g[-1] * (obj["radius"].d[-1] / r) ** 2
         P -= quad(dPdr_int2, obj["radius"].d[-1], np.inf, limit=100)[0]
         obj.fields["pressure"] = unyt_array(P, "Msun/kpc/Myr**2")

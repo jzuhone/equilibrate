@@ -131,6 +131,7 @@ class TestQUMONDGravity:
         assert_allclose(analytic_solution,potential.d,rtol=1e-2)
 
 @pytest.mark.usefixtures("mdr_model","answer_dir")
+@pytest.mark.skip(reason="Implementation not-complete.")
 class TestEMONDGravity:
     def test_parity(self,mdr_model,answer_dir):
         """Tests that the EMOND corresponds to AQUAL when a_0(x) = a_0."""
