@@ -1,4 +1,4 @@
-.. |yt-project| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"
+.. |ytproject| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"
    :target: https://yt-project.org
 
 .. |docs| image:: https://img.shields.io/badge/docs-latest-brightgreen.svg
@@ -10,7 +10,7 @@
 .. |coverage| image:: https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=MOND
    :target: https://coveralls.io/github/Eliza-Diggins/cluster_generator?branch=MOND
 
-|yt-project| |docs| |testing| |Github Page| |Pylint| |coverage|
+|ytproject| |docs| |testing| |Github Page| |Pylint| |coverage|
 
 
 ``cluster_generator`` is a cross-platform galaxy cluster initializer for N-body / hydrodynamics codes. ``cluster_generator`` supports
