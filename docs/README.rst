@@ -1,4 +1,6 @@
-.. |ytproject| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"
+|yt-project|
+
+.. |yt-project| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"
    :target: https://yt-project.org
 
 .. |docs| image:: https://img.shields.io/badge/docs-latest-brightgreen.svg
