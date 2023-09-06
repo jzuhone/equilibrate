@@ -1,3 +1,15 @@
+.. |yt-project| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"
+   :target: https://yt-project.org
+
+.. |docs| image:: https://img.shields.io/badge/docs-latest-brightgreen.svg
+   :target: https://eliza-diggins.github.io/cluster_generator/build/html/index.html
+
+.. |testing| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test.yml/badge.svg
+.. |Pylint| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/pylint.yml/badge.svg
+.. |Github Page| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg
+.. |coverage| image:: https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=MOND
+   :target: https://coveralls.io/github/Eliza-Diggins/cluster_generator?branch=MOND
+
 |yt-project| |docs| |testing| |Github Page| |Pylint| |coverage|
 
 
@@ -84,14 +96,3 @@ Alternatively, to install into your Python distribution from
     [~]$ cd cluster_generator
     [~]$ python -m pip install .
 
-.. |yt-project| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"
-   :target: https://yt-project.org
-
-.. |docs| image:: https://img.shields.io/badge/docs-latest-brightgreen.svg
-   :target: https://eliza-diggins.github.io/cluster_generator/build/html/index.html
-
-.. |testing| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test.yml/badge.svg
-.. |Pylint| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/pylint.yml/badge.svg
-.. |Github Page| image:: https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg
-.. |coverage| image:: https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=MOND
-   :target: https://coveralls.io/github/Eliza-Diggins/cluster_generator?branch=MOND
