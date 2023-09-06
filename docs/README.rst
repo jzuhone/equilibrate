@@ -10,7 +10,7 @@
 .. |coverage| image:: https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=MOND
    :target: https://coveralls.io/github/Eliza-Diggins/cluster_generator?branch=MOND
 
-|yt-project| |docs| |testing| |Github Page| |Pylint| |coverage|
+ |yt-project| |docs| |testing| |Github Page| |Pylint| |coverage|
 
 
 ``cluster_generator`` is a cross-platform galaxy cluster initializer for N-body / hydrodynamics codes. ``cluster_generator`` supports
