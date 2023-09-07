@@ -29,7 +29,7 @@ For installation directions, continue reading this README, or visit the [getting
 ---
 
 - [Getting The Package](#Getting-the-Package)
-  - [From PyPI](#From PyPI)
+  - [From PyPI](#From-PyPI)
   - [With Conda](#With-Conda)
   - [With PIP](#With-PIP)
   - [Dependencies](#dependencies)
@@ -44,7 +44,7 @@ below for installation from source code, from ``pip`` and from ``conda``.
 
 ### From PyPI
 
-[!IMPORTANT]
+[!IMPORTANT]  
 This feature is not yet available.
 
 ### From Source
