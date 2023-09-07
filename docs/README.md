@@ -2,6 +2,7 @@
 
 ---
 [![yt-project](https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet")](https://yt-project.org)
+[![ncodes](https://img.shields.io/static/v1?label="Implemented%20Sim.%20Codes"&message="7"&color="red")](https://eliza-diggins.github.io/cluster_generator/build/html/codes.html)
 [![docs]( https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://eliza-diggins.github.io/cluster_generator)
 ![testing](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test.yml/badge.svg)
 ![Pylint](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/pylint.yml/badge.svg)
@@ -40,7 +41,7 @@ For installation directions, continue reading this README, or visit the [getting
 
 ## Getting the Package
 
-The ``cluster_generator`` package can be obtained for python versions 3.6 and up. Installation instructions are provided
+The ``cluster_generator`` package can be obtained for python versions 3.8 and up. Installation instructions are provided
 below for installation from source code, from ``pip`` and from ``conda``.
 
 ### From PyPI
@@ -109,6 +110,9 @@ Python packages:
 - [h5py](http://www.h5py.org>) [h5 file interaction]
 - [tqdm](https://tqdm.github.io) [Progress bars]
 - [ruamel.yaml](https://yaml.readthedocs.io) [yaml support]
+- [dill](https://github.com/uqfoundation/dill) [Serialization]
+- [halo](https://github.com/manrajgrover/halo) [Progress Spinners]
+- [pandas](https://github.com/pandas-dev/pandas) [Dataset Manipulations]
 
 These will be installed automatically if you use ``pip`` or ``conda`` as detailed below.
 
@@ -117,3 +121,13 @@ Though not required, it may be useful to install [yt](https://yt-project.org)
 for creation of in-memory datasets from ``cluster_generator`` and/or analysis of
 simulations which are created using initial conditions from
 ``cluster_generator``.
+
+## Contributing Code Documentation or Feedback
+
+All contributions, bug fixes, documentation improvements, and ideas are welcome. If you're interested in pursuing further development of the
+Cluster Generator Project, we suggest you start by browsing the [API Documentation](https://eliza-diggins.github.io/cluster_generator/build/html/api.html). When you're ready
+create a fork of this branch and begin your development. When you finish,
+feel free to  add a pull request to this repositiory and we will review your code contribution.
+
+## Licence
+
