@@ -8,7 +8,7 @@
 ![Github Pages](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg)
 [![Coverage](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=master)](https://coveralls.io/github/Eliza-Diggins/cluster_generator)
 
-The [Cluster Generator Project](https:eliza-diggins.github.io/cluster_generator) (CGP) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
+The [Cluster Generator Project](https://eliza-diggins.github.io/cluster_generator) (CGP) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
 CGP provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, the CGP is intented to interface with 
 the vast majority of N-body / hydrodynamics codes, reducing the headache of converting initial conditions between formats for different simulation softwares. GCP's goal is to provide
 comprehensive tools for modeling and implementation of galaxy clusters in astrophysical simulations to promote the study of galaxy cluster dynamics.
@@ -21,7 +21,7 @@ You can access the documentation [here](http:eliza-diggins.github.io/cluster_gen
 Developement occurs here on Github, if you encounter any bugs, issues, documentation failures, or want to suggest features, we recommend that you submit an issue on 
 the issues page of the repository.
 
-For installation directions, continue reading this README, or visit the [getting started page](http:eliza-diggins.github.io/cluster_generator/Getting_Started).
+For installation directions, continue reading this README, or visit the [getting started page](https://eliza-diggins.github.io/cluster_generator/build/html/Getting_Started.html).
 
 
 ## Contents
