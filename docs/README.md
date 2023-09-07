@@ -8,9 +8,44 @@
 ![Github Pages](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg)
 [![Coverage](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=master)](https://coveralls.io/github/Eliza-Diggins/cluster_generator?branch=MOND)
 
-``cluster_generator`` is a cross-platform galaxy cluster initializer for N-body / hydrodynamics codes. ``cluster_generator`` supports
-a variety of different possible configurations for the initialized galaxy clusters, including a variety of profiles, different construction
-assumptions, and non-Newtonian gravity options.
+The [Cluster Generator Project](https:eliza-diggins.github.io/cluster_generator) (CGP) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
+CGP provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, the CGP is intented to interface with 
+the vast majority of N-body / hydrodynamics codes, reducing the headache of converting initial conditions between formats for different simulation softwares. GCP's goal is to provide
+comprehensive tools for modeling and implementation of galaxy clusters in astrophysical simulations to promote the study of galaxy cluster dynamics.
+
+This repository contains the core package, which is constructed modularly to facilitate easy development by users to meet particular scientific use cases. All of the 
+necessary tools to get started building initial conditions are provided.
+
+You can access the documentation [here](http:eliza-diggins.github.io/cluster_generator), or build it from scratch using the ``./docs`` directory in this source distribution.
+
+Developement occurs here on Github, if you encounter any bugs, issues, documentation failures, or want to suggest features, we recommend that you submit an issue on 
+the issues page of the repository.
+
+For installation directions, continue reading this README, or visit the [getting started page](http:eliza-diggins.github.io/cluster_generator/Getting_Started).
+
+
+<div class="panel panel-success">
+**Contents**
+{: .panel-heading}
+<div class="panel-body">
+
+- [Getting The Package](#Getting-the-Package)
+  - [From PyPI](#From PyPI)
+  - [With Conda](#With-Conda)
+  - [With PIP](#With-PIP)
+  - [Dependencies](#dependencies)
+- [Contributing Code, Documentation, or Feedback](#Contributing-Code-Documentation-or-Feedback)
+- [License](#licence)
+
+</div>
+</div>
+
+## Contents
+
+---
+
+
+---
 
 ## Getting the Package
 
@@ -26,6 +61,10 @@ of the package and execute
 ```bash
     git clone https://github.com/jzuhone/cluster_generator
 ```
+
+### With Conda
+
+### With PIP
 
 
 If you want a specific branch of the project, use the ``-b`` flag in the command and provide the name of the branch.
