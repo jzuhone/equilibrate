@@ -24,28 +24,28 @@ the issues page of the repository.
 For installation directions, continue reading this README, or visit the [getting started page](http:eliza-diggins.github.io/cluster_generator/Getting_Started).
 
 
-<div class="panel panel-success">
-**Contents**
-{: .panel-heading}
-<div class="panel-body">
-
-THINGS TO DO
-
-</div>
-</div>
-
 ## Contents
 
 ---
 
-
+- [Getting The Package](#Getting-the-Package)
+  - [From PyPI](#From PyPI)
+  - [With Conda](#With-Conda)
+  - [With PIP](#With-PIP)
+  - [Dependencies](#dependencies)
+- [Contributing Code, Documentation, or Feedback](#Contributing-Code-Documentation-or-Feedback)
+- [License](#licence)
 ---
 
 ## Getting the Package
 
+The ``cluster_generator`` package can be obtained for python versions 3.6 and up. Installation instructions are provided
+below for installation from source code, from ``pip`` and from ``conda``.
+
 ### From PyPI
 
-[Not yet implemented]
+[!IMPORTANT]
+This feature is not yet available.
 
 ### From Source
 
