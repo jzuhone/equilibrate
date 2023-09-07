@@ -1,13 +1,12 @@
 # Cluster Generator
 
----
 [![yt-project](https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet")](https://yt-project.org)
 [![ncodes](https://img.shields.io/static/v1?label="Implemented%20Sim.%20Codes"&message="7"&color="red")](https://eliza-diggins.github.io/cluster_generator/build/html/codes.html)
 [![docs]( https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://eliza-diggins.github.io/cluster_generator)
 ![testing](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test.yml/badge.svg)
 ![Pylint](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/pylint.yml/badge.svg)
 ![Github Pages](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg)
-[![Coverage](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=master)](https://coveralls.io/github/Eliza-Diggins/cluster_generator?branch=MOND)
+[![Coverage](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=master)](https://coveralls.io/github/Eliza-Diggins/cluster_generator)
 
 The [Cluster Generator Project](https:eliza-diggins.github.io/cluster_generator) (CGP) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
 CGP provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, the CGP is intented to interface with 
@@ -26,8 +25,6 @@ For installation directions, continue reading this README, or visit the [getting
 
 
 ## Contents
-
----
 
 - [Getting The Package](#Getting-the-Package)
   - [From PyPI](#From-PyPI)
