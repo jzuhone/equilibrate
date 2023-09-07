@@ -44,8 +44,8 @@ below for installation from source code, from ``pip`` and from ``conda``.
 
 ### From PyPI
 
-[!IMPORTANT]  
-This feature is not yet available.
+> [!IMPORTANT]  
+> This feature is not yet available.
 
 ### From Source
 
