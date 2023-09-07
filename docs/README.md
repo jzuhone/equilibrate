@@ -29,13 +29,7 @@ For installation directions, continue reading this README, or visit the [getting
 {: .panel-heading}
 <div class="panel-body">
 
-- [Getting The Package](#Getting-the-Package)
-  - [From PyPI](#From PyPI)
-  - [With Conda](#With-Conda)
-  - [With PIP](#With-PIP)
-  - [Dependencies](#dependencies)
-- [Contributing Code, Documentation, or Feedback](#Contributing-Code-Documentation-or-Feedback)
-- [License](#licence)
+THINGS TO DO
 
 </div>
 </div>
