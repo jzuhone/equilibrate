@@ -17,7 +17,7 @@ cython_utils = Extension("cluster_generator.cython_utils",
 
 setup(name='cluster_generator',
       packages=['cluster_generator'],
-      version='0.1.0',
+      version='1.0.0',
       description='Generating equilbrium models of galaxy clusters.',
       author='John ZuHone',
       author_email='jzuhone@gmail.com',

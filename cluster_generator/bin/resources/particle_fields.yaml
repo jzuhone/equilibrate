@@ -10,7 +10,7 @@ gadget_fields:
   star: [ "Coordinates", "Velocities", "Masses",
           "ParticleIDs", "Potential" ]
   black_hole: [ "Coordinates", "Velocities", "Masses",
-                "ParticleIDs", "Potential" ]
+                "ParticleIDs"]
 gadget_field_map:
   #
   # -- Aliases for gadget fields.

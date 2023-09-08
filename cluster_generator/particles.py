@@ -64,7 +64,7 @@ class ClusterParticles:
     - ``__getitem__`` and ``__setitem__`` index into ``self.fields``. Similarly, ``.keys()`` is an alias for ``self.fields.keys()``.
     """
 
-    def __init__(self, particle_types, fields, box_size=None):
+    def __init__(self, particle_types, fields):
         #: The associated particle types for this set of particles.
         self.particle_types = ensure_list(particle_types)
         #: The available data fields related to the particles.
@@ -73,8 +73,7 @@ class ClusterParticles:
         self._update_num_particles()  # --> Keeps number of particles current
         self._update_field_names()  # --> Keeps field names current.
 
-        #: the particle set's box size.
-        self.box_size = box_size
+
         #: any passive scalars that are included.
         self.passive_scalars = []
 
@@ -202,22 +201,22 @@ class ClusterParticles:
             position and velocity of the black hole particle. Default:
             False
         """
-        mass = unyt_quantity(bh_mass, "Msun")
-        self.fields["black_hole", "particle_mass"] = unyt_array(
-            [bh_mass], "Msun")
+        mass = unyt_array([bh_mass], "Msun")
         if use_pot_min:
+            if ("dm", "potential_energy") not in self.fields:
+                raise KeyError("('dm', 'potential_energy') is not available!")
             idx = np.argmin(self.fields["dm", "potential_energy"])
             pos = unyt_array(self.fields["dm", "particle_position"][idx]
-                             ).reshape(1, 3)
+                             ).reshape(1,3)
             vel = unyt_array(self.fields["dm", "particle_velocity"][idx]
-                             ).reshape(1, 3)
+                             ).reshape(1,3)
         else:
             if pos is None:
                 pos = unyt_array(np.zeros((1, 3)), "kpc")
             if vel is None:
                 vel = unyt_array(np.zeros((1, 3)), "kpc/Myr")
-            pos = ensure_ytarray(pos, "kpc")
-            vel = ensure_ytarray(vel, "kpc/Myr")
+            pos = ensure_ytarray(pos, "kpc").reshape(1,3)
+            vel = ensure_ytarray(vel, "kpc/Myr").reshape(1,3)
         if "black_hole" not in self.particle_types:
             self.particle_types.append("black_hole")
             self.fields["black_hole", "particle_position"] = pos
@@ -234,6 +233,14 @@ class ClusterParticles:
                 self.fields["black_hole", "particle_mass"], mass)
         self._update_num_particles()
 
+
+    @classmethod
+    def from_fields(cls, fields):
+        particle_types = []
+        for key in fields:
+            if key[0] not in particle_types:
+                particle_types.append(key[0])
+        cls(particle_types, fields)
     @classmethod
     def from_file(cls, filename, ptypes=None):
         r"""
