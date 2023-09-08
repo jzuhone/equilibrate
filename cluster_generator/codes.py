@@ -7,6 +7,7 @@ Available Softwares
 .. csv-table::
     :file: ../docs/source/_images/tables/softwares.csv
 """
+
 from pathlib import Path
 
 import numpy as np
@@ -261,12 +262,11 @@ def setup_arepo_ics(ics, boxsize, nx, ic_file, overwrite=False,
     fields["gas", "particle_velocity"] = unyt_array(np.zeros((nleft, 3)), "kpc/Myr")
     fields["gas", "particle_mass"] = unyt_array(m, "Msun")
     fields["gas", "density"] = unyt_array(m/dV, "Msun/kpc**3")
-    fields["gas", "thermal_energy"] = unyt_array(eint, "kpc**2/Myr**2")
+    #fields["gas", "thermal_energy"] = unyt_array(eint, "kpc**2/Myr**2") TODO: fix this
     mylog.info("Background cell density is %g.",
                fields["gas", "density"][0].to_value("g/cm**3"))
     all_parts = cparts + ClusterParticles.from_fields(fields)
     all_parts.write_to_gadget_file(ic_file, boxsize, overwrite=overwrite)
-
 
 
 def setup_gizmo_ics(ics):
@@ -277,3 +277,7 @@ def setup_gizmo_ics(ics):
         The ClusterICs object to generate the GIZMO funcs from.
     """
     pass
+
+def setup_art_ics(ics):
+    pass
+

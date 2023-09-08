@@ -15,6 +15,7 @@ from unyt import unyt_array, unyt_quantity, uconcatenate
 from cluster_generator.utils import ensure_ytarray, ensure_list, \
     mylog, truncate_spline
 
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # Setup ============================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -23,6 +24,7 @@ with open(os.path.join(pt.Path(__file__).parents[0], "bin", "resources", "partic
     _gadget_setup_dict = yaml.load(gfile, yaml.FullLoader)
     gadget_fields, gadget_field_map, gadget_field_units = _gadget_setup_dict["gadget_fields"], _gadget_setup_dict[
         "gadget_field_map"], _gadget_setup_dict["gadget_field_units"]
+
 
 ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType1", "dm"),
@@ -69,6 +71,7 @@ class ClusterParticles:
         self.particle_types = ensure_list(particle_types)
         #: The available data fields related to the particles.
         self.fields = fields
+
 
         self._update_num_particles()  # --> Keeps number of particles current
         self._update_field_names()  # --> Keeps field names current.
@@ -242,6 +245,14 @@ class ClusterParticles:
                 particle_types.append(key[0])
         cls(particle_types, fields)
     @classmethod
+    def from_fields(cls, fields):
+        particle_types = []
+        for key in fields:
+            if key[0] not in particle_types:
+                particle_types.append(key[0])
+        cls(particle_types, fields)
+
+    @classmethod
     def from_file(cls, filename, ptypes=None):
         r"""
         Generate cluster particles from an HDF5 file.
@@ -347,7 +358,7 @@ class ClusterParticles:
             Overwrite an existing file with the same name. Default False.
         """
         if Path(output_filename).exists() and not overwrite:
-            raise IOError("Cannot create %s. It exists and overwrite=False." % output_filename)
+            raise IOError(f"Cannot create {output_filename}. It exists and overwrite=False.")
 
         with h5py.File(output_filename, "w") as f:
             for ptype in self.particle_types:
@@ -414,8 +425,7 @@ class ClusterParticles:
             if units is not None:
                 self.fields[ptype, name].convert_to_units(units)
         else:
-            raise ValueError("The length of the array needs to be %d particles!"
-                             % num_particles)
+            raise ValueError(f"The length of the array needs to be {num_particles} particles!")
 
     def add_offsets(self, r_ctr, v_ctr, ptypes=None):
         """
@@ -551,9 +561,9 @@ class ClusterParticles:
             pos = data.pop((ptype, "particle_position"))
             vel = data.pop((ptype, "particle_velocity"))
             for i, ax in enumerate("xyz"):
-                data[ptype, "particle_position_%s" % ax] = pos[:, i]
-                data[ptype, "particle_velocity_%s" % ax] = vel[:, i]
-        return load_particles(data, length_unit="kpc", bbox=[[0.0, box_size]] * 3,
+                data[ptype, f"particle_position_{ax}"] = pos[:, i]
+                data[ptype, f"particle_velocity_{ax}"] = vel[:, i]
+        return load_particles(data, length_unit="kpc", bbox=[[0.0, box_size]]*3,
                               mass_unit="Msun", time_unit="Myr")
 
 
