@@ -8,6 +8,8 @@ from unyt import unyt_array,unyt_quantity
 import cluster_generator.gravity as gr
 from cluster_generator.utils import G
 from numpy.testing import assert_allclose
+from cluster_generator.model import ClusterModel
+from cluster_generator.tests.utils import generate_model_dens_tdens
 # -------------------------------------------------------------------------------------------------------------------- #
 # Fixtures =========================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -26,6 +28,14 @@ def mdr_model():
     r = np.geomspace(rmin, rmax, 1000)
     return unyt_array(m(r), "Msun"), unyt_array(rhot(r), "Msun/kpc**3"), unyt_array(r, "kpc")
 
+def standard_models_dens_tdens(answer_dir, answer_store, gravity):
+    import os
+    if os.path.exists(f"{answer_dir}/{gravity}_model_dens_tdens.h5") and not answer_store:
+        return ClusterModel.from_h5_file(f"{answer_dir}/{gravity}_model_dens_tdens.h5")
+    else:
+        m = generate_model_dens_tdens(gravityity=gravity)
+        m.write_model_to_h5(f"{answer_dir}/{gravity}_model_dens_tdens.h5", overwrite=True)
+    return m
 # -------------------------------------------------------------------------------------------------------------------- #
 # Asymptotic Tests =================================================================================================== #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -109,6 +119,22 @@ class TestAQUALGravity:
 
         analytic_solution = a_0*(integral(r.d) - integral(r.d[-1]))
         assert_allclose(analytic_solution,potential.d)
+
+    @pytest.mark.usefixtures("answer_store", "answer_dir")
+    def test_virialization(self,answer_dir,answer_store):
+        """
+        Tests the virialization of the system and its ability to create particles.
+        """
+        # -- Building the Model -- #
+        mod = generate_model_dens_tdens(gravity="AQUAL")
+
+        vir = mod.dm_virial
+
+        parts = vir.generate_particles(1_000_000)
+
+
+
+
 
 class TestQUMONDGravity:
     def test_sphere(self):

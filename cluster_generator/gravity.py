@@ -19,7 +19,7 @@ from scipy.optimize import fsolve
 from unyt import unyt_array
 
 from cluster_generator.utils import \
-    integrate, mylog, G, log_string, cgparams, devLogger
+    integrate, mylog, G, log_string, cgparams, devLogger,truncate_spline
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # Constants ========================================================================================================== #
@@ -423,8 +423,8 @@ class AQUALGravity(Gravity):
                 _Gamma_solution = fsolve(_fsolve_function, x0=_guess,xtol=cgparams["numerical"]["implicit"]["solve_tolerance"])
 
             Gamma = InterpolatedUnivariateSpline(rr, _Gamma_solution)
-
-            _v, errs = integrate(Gamma, rr, rmax=rr[-1])
+            Gamma = truncate_spline(Gamma,rr[-1],7)
+            _v, errs = integrate(Gamma, rr, rmax=2*rr[-1])
             gpot2 = a_0 * unyt_array(_v, "(kpc**2)/Myr**2")
 
             # - Finishing computation - #
@@ -629,7 +629,8 @@ class QUMONDGravity(Gravity):
             dphi = attrs["interp_function"](np.abs(n_accel) / a_0) * n_accel
 
             dphi_func = InterpolatedUnivariateSpline(rr, dphi)
-            _v, errs = integrate(dphi_func, rr, rr[-1])
+            dphi_func = truncate_spline(dphi_func,rr[-1],7)
+            _v, errs = integrate(dphi_func, rr, 2*rr[-1])
             gpot2 = unyt_array(_v, "kpc**2/Myr**2")
 
             # - Finishing computation - #
