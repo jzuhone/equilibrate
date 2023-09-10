@@ -2,6 +2,16 @@
 Quickstart Guide
 ----------------
 
+.. raw:: html
+
+   <hr style="color:black">
+
+.. contents::
+
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
+
 Introduction
 ============
 
@@ -31,28 +41,81 @@ for a number of N-body/hydrodynamic codes used in the astrophysics commmunity.
 Getting the Package
 ===================
 
+The ``cluster_generator`` package can be obtained for python versions 3.8 and up. Installation instructions are provided
+below for installation from source code, from ``pip`` and from ``conda``.
+
 From PyPI
 +++++++++
-.. attention::
 
-    This package is not yet published on PyPI
+.. info::
+
+    This feature is not yet available.
+
+
+With CONDA
+++++++++++
+
+.. info::
+
+    This feature is not yet available.
+
+With PIP
+++++++++
+
+.. info::
+
+    This feature is not yet available.
 
 From Source
 +++++++++++
-To gather the necessary code from source, simple navigate to a directory in which you'd like to store the local copy
-of the package and execute
+
+To install the library directly from source code, there are two options. If you are using / have installed pip, you can
+install directly from the github URL as follows:
+
+- Using your preferred environment (venv, local python installation, etc), call
+
+  .. code-block:: bash
+
+      pip install git+https://www.github.com/eliza-diggins/cluster_generator
+
+
+  This will install directly from this repository without generating a local clone.
+
+- If you're interested in having a local clone, you can instead do the following
+
+  - First, clone the repository using
+
+    .. code-block:: bash
+
+        git clone https://www.github.com/eliza-diggins/cluster_generator
+
+    .. warning::
+
+        Make sure to navigate to a directory where you want the clone to appear.
+
+    Once the clone has been generated, change your directory so that you are inside the clone and in the same directory as the ``setup.py`` script. Then run the following command:
+
+    .. code-block:: bash
+
+        pip install .
+
+    This will install the local clone to your python installations ``site-packages`` directory. If you want to install the package in place, you can use
+
+    .. code-block:: bash
+
+        pip install -e .
+
+    which will install the package in development mode.
+
+    .. warning::
+
+        If you install the clone in editing mode (``-e``), you will have to be in the install directory to import the library.
+
+To test that you've installed the project, simply run
 
 .. code-block:: bash
 
-    git clone https://github.com/jzuhone/cluster_generator
-
-If you want a specific branch of the project, use the ``-b`` flag in the command and provide the name of the branch.
-
-Once the git clone has finished, there should be a directory ``./cluster_generator`` in your current working directory.
-
-.. raw:: html
-
-   <hr style="height:3px;background-color:black">
+    pip show cluster_generator
 
 
 Dependencies
@@ -67,45 +130,17 @@ Python packages:
 - `h5py <http://www.h5py.org>`_ [h5 file interaction]
 - `tqdm <https://tqdm.github.io>`_ [Progress bars]
 - `ruamel.yaml <https://yaml.readthedocs.io>`_ [yaml support]
+- `dill <https://github.com/uqfoundation/dill>`_ [Serialization]
+- `halo <https://github.com/manrajgrover/halo>`_ [Progress Spinners]
+- `pandas <https://github.com/pandas-dev/pandas>`_ [Dataset Manipulations]
 
 These will be installed automatically if you use ``pip`` or ``conda`` as detailed below.
 
-.. admonition:: Recommended
 
-    Though not required, it may be useful to install `yt <https://yt-project.org>`_
-    for creation of in-memory datasets from ``cluster_generator`` and/or analysis of
-    simulations which are created using initial conditions from
-    ``cluster_generator``.
-
-Installation
-++++++++++++
-
-``cluster_generator`` can be installed in a few different ways. The simplest way
-is via the conda package if you have the
-`Anaconda Python Distribution <https://store.continuum.io/cshop/anaconda/>`_:
-
-.. code-block:: bash
-
-    [~]$ conda install -c jzuhone cluster_generator
-
-This will install all of the necessary dependencies.
-
-The second way to install ``cluster_generator`` is via pip. pip will attempt to
-download the dependencies and install them, if they are not already installed
-in your Python distribution:
-
-.. code-block:: bash
-
-    [~]$ pip install cluster_generator
-
-Alternatively, to install into your Python distribution from
-`source <http://github.com/jzuhone/cluster_generator>`_:
-
-.. code-block:: bash
-
-    [~]$ git clone https://github.com/jzuhone/cluster_generator
-    [~]$ cd cluster_generator
-    [~]$ python -m pip install .
+Though not required, it may be useful to install `yt <https://yt-project.org>`_
+for creation of in-memory datasets from ``cluster_generator`` and/or analysis of
+simulations which are created using initial conditions from
+``cluster_generator``.
 
 Getting Started
 ===============
@@ -120,17 +155,58 @@ we recommend you begin on this page by reading through our quickstart guide to g
 
    <hr style="height:2px;background-color:black">
 
-.. toctree::
-    :maxdepth: 1
-    :caption: Quickstart Guides:
+Quickstart Guides
++++++++++++++++++
 
-    notebooks/quick_notebooks/quickbook
-    notebooks/quick_notebooks/quickbook2
-    notebooks/quick_notebooks/quickbook3
+.. card-carousel:: 2
 
-.. raw:: html
+    .. card:: The Basics
+        :link: notebooks/quick_notebooks/quickbook
+        :link-type: doc
 
-   <hr style="height:2px;background-color:black">
+        **Length**: 10 minutes
+        ^^^
+        Get a basic understanding of the ``cluster_generator`` library and its capabilities. Suitable for first time users.
+        +++
+        :doc:`Quickstart Guide: The Basics <notebooks/quick_notebooks/quickbook>`
+
+
+    .. card:: Your First Simulation
+        :link: notebooks/quick_notebooks/quickbook2
+        :link-type: doc
+
+        **Length**: 20 minutes
+        ^^^
+        So you know the basics, but you want to start actually doing your science? Use this guide as a reference for the
+        entire process of initializing and simulating a cluster from ``cluster_generator``. This guide uses RAMSES as an
+        example.
+        +++
+        :doc:`Quickstart Guide: Your First Simulation <notebooks/quick_notebooks/quickbook2>`
+
+    .. card:: Getting the Most Out of the CGP
+        :link: notebooks/quick_notebooks/quickbook3
+        :link-type: doc
+
+        **Length**: 40 minutes
+        ^^^
+        Starting to feel like you know the ropes? This guide will give you some deeper insight into the functionality of the
+        library and teach you to use advanced resources like alternative virialization methods, saving profiles, and accessing
+        collections.
+        +++
+        :doc:`Quickstart Guide: Getting the Most Out of the CGP <notebooks/quick_notebooks/quickbook3>`
+
+    .. card:: Getting Funky: MONDian Gravity
+        :link: notebooks/quick_notebooks/quickbook4
+        :link-type: doc
+
+        **Length**: 20 minutes
+        ^^^
+        Feeling ready to jump down a rabbit hole? This guide will show you how to use the MONDian gravity theories built
+        into cluster generator!
+        +++
+        :doc:`Quickstart Guide: Getting Funky - MONDian Gravity <notebooks/quick_notebooks/quickbook4>`
+
+
 
 If you're already somewhat familiar with
 the code and you're looking for something a little more in depth, the following sections may provide a more concrete introduction to

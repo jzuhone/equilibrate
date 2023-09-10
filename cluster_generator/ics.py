@@ -356,19 +356,37 @@ class ClusterICs:
         """
         from yt.loaders import load_uniform_grid
         from scipy.interpolate import InterpolatedUnivariateSpline
+        from cluster_generator.utils import mylog
+
+        mylog.info(f"Loading yt dataset of {self}...")
+        #  Managing Domain configuration issues
+        # ------------------------------------------------------------------------------------------------------------ #
+        # Dealing with the left edge of the domain.
         if left_edge is None:
             left_edge = np.zeros(3)
         left_edge = np.array(left_edge)
+
+        # Building the boundary box
         bbox = [
             [left_edge[0], left_edge[0] + box_size],
             [left_edge[1], left_edge[1] + box_size],
             [left_edge[2], left_edge[2] + box_size]
         ]
-        x, y, z = np.mgrid[
+
+        # Creating the underlying meshgrid
+        try:
+            x, y, z = np.mgrid[
                   bbox[0][0]:bbox[0][1]:domain_dimensions[0] * 1j,
                   bbox[1][0]:bbox[1][1]:domain_dimensions[1] * 1j,
                   bbox[2][0]:bbox[2][1]:domain_dimensions[2] * 1j,
                   ]
+        except MemoryError as err:
+            raise MemoryError(f"Failed to allocate memory for the grid. Error msg = {err.__str__()}.")
+
+
+        #  Building the fields
+        # ------------------------------------------------------------------------------------------------------------ #
+        # -- Segmenting the fields by type -- #
         fields1 = ["density", "pressure", "dark_matter_density"
                                           "stellar_density", "gravitational_potential"]
         fields2 = ["temperature"]
@@ -385,59 +403,65 @@ class ClusterICs:
             "velocity_z"             : "kpc/Myr",
             "magnetic_field_strength": "G"
         }
+
+        # -- Building the fields for each of the profiles -- #
         fields = fields1 + fields2
         data = {}
         for i, profile in enumerate(self.profiles):
+            # -- Loading the profile, pulling density and positions -- #
             p = ClusterModel.from_h5_file(profile)
-            print(p.fields.keys())
             xx = x - self.center.d[i][0]
             yy = y - self.center.d[i][1]
             zz = z - self.center.d[i][2]
             rr = np.sqrt(xx * xx + yy * yy + zz * zz)
             fd = InterpolatedUnivariateSpline(p["radius"].d,
                                               p["density"].d)
+
+            # -- Managing constituent fields -- #
             for field in fields:
-                if field not in p:
+                if field not in p: # We don't have this data, don't do anything.
                     continue
-                if field not in data:
+                if field not in data: # This data needs to be initialized in the data object.
                     data[field] = unyt_array(
                         np.zeros(domain_dimensions), units[field]
                     )
+
+                #-- creating interpolation of the data to sample --#
                 f = InterpolatedUnivariateSpline(p["radius"].d,
                                                  p[field].d)
+
                 if field in fields1:
-                    data[field] += unyt_array(f(rr), units[field])
+                    data[field] += unyt_array(f(rr), units[field]) # Just add the values
                 elif field in fields2:
-                    data[field] += unyt_array(f(rr) * fd(rr), Unit(units[field]))
-            for field in fields3:
+                    data[field] += unyt_array(f(rr) * fd(rr), Unit(units[field])) # Density weighted values
+
+            # -- Managing Velocities -- #
+            for j,field in enumerate(fields3):
                 if field not in data:
                     data[field] = unyt_array(
                         np.zeros(domain_dimensions), units[field]
                     )
 
-                data[field] += unyt_array(self.velocity.d[i][0] * fd(rr), Unit(units[field]))
+                # We do need to add it #
+                data[field] += unyt_array(self.velocity.d[i][j] * fd(rr), Unit(units[field]))
+
         if "density" in data:
             for field in fields2 + fields3:
-                data[field] /= data["density"]
+                data[field] /= data["density"].d
+
         return load_uniform_grid(data, domain_dimensions, length_unit="kpc",
-                                 bbox=bbox, mass_unit="Msun", time_unit="Myr",
+                                 bbox=np.array(bbox), mass_unit="Msun", time_unit="Myr",
                                  **kwargs)
 
 
 if __name__ == '__main__':
-    # test = ClusterICs(
-    #    "test",
-    #    2,
-    #    ["/home/ediggins/test/Newtonian_model.h5","/home/ediggins/test/AQUAL_model.h5"],
-    #    [[0,0,0],[0,0,0]],
-    #    [[0,0,0],[0,0,0]],
-    #    num_particles={"dm":2e4}
-    #
-    # )
-    #
-    # test.to_file("testic.h5",overwrite=True)
+
     test = ClusterICs.from_file("testic.h5")
     print(test)
-    ds = test.create_dataset([300, 300, 300], 15000, [-5000, -5000, -5000])
+    ds = test.create_dataset([200,200,200], 10000, [-5000, -5000, -5000])
+
 
     print(ds)
+    import yt
+    p = yt.SlicePlot(ds,"z",("gas","temperature"),width=(1000,"kpc"))
+    p.save()

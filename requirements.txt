@@ -96,3 +96,4 @@ halo
 dill
 pandas
 sphinx-design
+colossus

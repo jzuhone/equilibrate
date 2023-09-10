@@ -813,6 +813,8 @@ class ClusterModel:
 
         # -- setting fields -- #
         for k, v in self.fields.items():
+            if v is None:
+                continue
             if in_cgs:
                 if k == "temperature":
                     fd = v[mask].to_equivalent("K", "thermal")
