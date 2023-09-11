@@ -1149,13 +1149,3 @@ def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
     return r_delta, m_r(r_delta)
 
 
-if __name__ == '__main__':
-    print(globals().keys())
-    u = power_law_profile(1, 2, 3)
-    u.to_binary("test.rp")
-    print(u(5000))
-    del u
-
-    u = RadialProfile.from_binary("test.rp")
-    print(u)
-    print(u(5000))

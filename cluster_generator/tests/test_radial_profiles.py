@@ -31,8 +31,40 @@ _params = {  # Stores all of the parameters for the generation of each of the te
     "am06_density_profile"           : [1, 0.5, 0.7, 50, 2],
     "vikhlinin_density_profile"      : [1, 0.75, 0.3, 0.6, -3, 4],
     "vikhlinin_temperature_profile"  : [1, 0.1, 0.5, 1, 500, 1, 20, 2],
-    "am06_temperature_profile"       : [1, 0.1, 0.3, 50]
+    "am06_temperature_profile"       : [1, 0.1, 0.3, 50],
+    "ad07_density_profile"           : [1,1,1,1],
+    "ad07_temperature_profile"           : [1,1,1,1],
+    "broken_entropy_profile": [1,1,1],
+    "walker_entropy_profile": [1,1,1]
 }
+@pytest.mark.usefixtures("answer_dir")
+class TestProfiles:
+    """Base tests for core functionality of profiles"""
+
+    prof_a = constant_profile(5)
+    prof_b = power_law_profile(1,50,4)
+
+    def test_dunder(self):
+        u = [self.prof_b.__str__(),self.prof_b.__repr__(),self.prof_b.__pow__(3)]
+
+    def test_core(self,answer_dir):
+        import matplotlib.pyplot as plt
+        test_profile = self.prof_b.add_core(20,3)
+
+        fig,axes = plt.subplots(1,1)
+        test_profile.plot(1,1000,fig=fig,ax=axes)
+        fig.savefig(f"{answer_dir}/profile_core_test.png")
+
+
+    def test_trunc(self,answer_dir):
+        import matplotlib.pyplot as plt
+        test_profile = self.prof_b.cutoff(500)
+
+        fig,axes = plt.subplots(1,1)
+        test_profile.plot(1,1000,fig=fig,ax=axes)
+        fig.savefig(f"{answer_dir}/profile_trunc_test.png")
+
+
 
 
 @pytest.mark.filterwarnings("ignore:Casting")

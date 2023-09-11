@@ -432,6 +432,9 @@ class Ascasibar07(ClusterCollection):
         return super().load_model(model_name, r_min, r_max, num_points=num_points, gravity=gravity, **kwargs)
 
 class Sanderson10(ClusterCollection):
+    """
+    :py:class:`collection.ClusterCollection` instance representing the dataset from `A.J.R.Sanderson and T.J.Ponman 2010MNRAS.402...65S <https://ui.adsabs.harvard.edu/abs/2010MNRAS.402...65S/abstract>`_.
+    """
     #  Dunder methods
     # ---------------------------------------------------------------------------------------------------------------- #
     def __init__(self):
