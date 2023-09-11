@@ -62,24 +62,31 @@ def test_amr_ics(answer_dir,gravity,answer_store):
 def test_gamer_ics(answer_dir,gravity,answer_store):
     import os
     num_particles = {k: 100000 for k in ["dm", "star", "gas"]}
-    ics = ClusterICs("single", 1, [f"{answer_dir}/{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+    loc = os.getcwd()
+    os.chdir(answer_dir)
+    ics = ClusterICs("single", 1, [f"{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
                      num_particles=num_particles)
     cds.setup_gamer_ics(ics)
+    os.chdir(loc)
 
 def test_flash_ics(answer_dir,gravity,answer_store):
     import os
     num_particles = {k: 100000 for k in ["dm", "star", "gas"]}
-    ics = ClusterICs("single", 1, [f"{answer_dir}/{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+    loc = os.getcwd()
+    os.chdir(answer_dir)
+    ics = ClusterICs("single", 1, [f"{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
                      num_particles=num_particles)
     cds.setup_flash_ics(ics)
-
+    os.chdir(loc)
 def test_ramses_ics(answer_dir,gravity,answer_store):
     import os
     num_particles = {k: 100000 for k in ["dm", "star", "gas"]}
-    ics = ClusterICs("single", 1, [f"{answer_dir}/{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+    loc = os.getcwd()
+    os.chdir(answer_dir)
+    ics = ClusterICs("single", 1, [f"{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
                      num_particles=num_particles)
     cds.setup_ramses_ics(ics)
-
+    os.chdir(loc)
 @pytest.mark.skip(reason="Not sure how this actually works yet!.")
 def test_arepo_ics(answer_dir,gravity,answer_store):
     import os
