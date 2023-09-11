@@ -26,16 +26,25 @@ Available Datasets
         ^^^
         Phenomenological models of the Vikhlinin et. al. 2006 clusters using Hernquist profiles for the total mass and a 5 parameter fitting procedure.
         +++
-        | **Publication**: `Ascasibar, Y.; Diego, J. M. 2008MNRAS.383..369A <https://ui.adsabs.harvard.edu/abs/2008MNRAS.383..369A/abstract>`_
+        | **Publication**: `Vikhlinin, A. et. al. 2006ApJ...640..691V <https://ui.adsabs.harvard.edu/abs/2006ApJ...640..691V/abstract>`_
 
-    .. card:: :py:class:`collection.Ascasibar08`
+    .. card:: :py:class:`collection.Ascasibar07`
 
 
         **Methodology**: CHANDRA X-ray Observations
         ^^^
         Gas temperature and gas density profiles for a set of 13 low-redshift, relaxed clusters with temperatures between 0.7-9 keV.
         +++
-        | **Publication**: `Vikhlinin, A. et. al. 2006ApJ...640..691V <https://ui.adsabs.harvard.edu/abs/2006ApJ...640..691V/abstract>`_
+        | **Publication**: `Ascasibar, Y.; Diego, J. M. 2008MNRAS.383..369A <https://ui.adsabs.harvard.edu/abs/2008MNRAS.383..369A/abstract>`_
+
+    .. card:: :py:class:`collection.Sanderson10`
+
+
+        **Methodology**: CHANDRA X-ray Observations
+        ^^^
+        Gas temperature and gas density profiles for a set of 20 clusters from CHANDRA.
+        +++
+        | **Publication**: `Sanderson, A.J.R.; Ponman, T.J.  <https://ui.adsabs.harvard.edu/abs/2010MNRAS.402...65S/abstract>`_
 
 .. raw:: html
 

@@ -266,6 +266,23 @@ class ClusterCollection:
         return m
 
     def plot_summary(self,rmin=0.1,rmax=5000,npoints=5000,**kwargs):
+        """
+        Generates a plot gallery of all of the constituent profiles.
+        Parameters
+        ----------
+        rmin: float
+            The minimum radius to plot.
+        rmax: float
+            The maximum radius to plot.
+        npoints: int
+            The number of points to include.
+        kwargs: dict, optional
+            Additional key word arguments to pass through the function.
+
+        Returns
+        -------
+        None
+        """
         #  Setting up the arrays
         # ------------------------------------------------------------------------------------------------------------ #
         import matplotlib.pyplot as plt
@@ -414,6 +431,24 @@ class Ascasibar07(ClusterCollection):
 
         return super().load_model(model_name, r_min, r_max, num_points=num_points, gravity=gravity, **kwargs)
 
+class Sanderson10(ClusterCollection):
+    #  Dunder methods
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def __init__(self):
+        """
+        Initializes the instance.
+        """
+        super().__init__(os.path.join(collections_directory, "Sanderson10.yaml"))
+
+    @staticmethod
+    def load():
+        """
+        Same as :py:meth:`collection.Vikhlinin10.__init__`, but as a static method.
+        """
+        return Sanderson10()
+
+
+
 class CollectionsError(Exception):
     """
     Exception class for errors during dataset loading.
@@ -450,7 +485,6 @@ def get_collections():
 
 if __name__ == '__main__':
     import numpy as np
-    u = Vikhlinin06.load()
-    x = np.geomspace(1,1000,1000)
+    u = Sanderson10.load()
     u.plot_summary(100,5000,c="red")
 
