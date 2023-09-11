@@ -5,7 +5,7 @@ from cluster_generator.model import ClusterModel
 from cluster_generator.ics import ClusterICs, \
     compute_centers_for_binary
 import cluster_generator.codes as cds
-from cluster_generator.tests.utils import particle_answer_testing
+from cluster_generator.tests.utils import particle_answer_testing, generate_model_dens_tdens
 
 
 prng = RandomState(25)
@@ -64,6 +64,10 @@ def test_gamer_ics(answer_dir,gravity,answer_store):
     num_particles = {k: 100000 for k in ["dm", "star", "gas"]}
     loc = os.getcwd()
     os.chdir(answer_dir)
+    if not os.path.exists(f"{gravity}_model_dens_tdens.h5"):
+        m = generate_model_dens_tdens(gravity=gravity)
+        m.write_model_to_h5(f"{gravity}_model_dens_tdens.h5")
+
     ics = ClusterICs("single", 1, [f"{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
                      num_particles=num_particles)
     cds.setup_gamer_ics(ics)
@@ -74,6 +78,10 @@ def test_flash_ics(answer_dir,gravity,answer_store):
     num_particles = {k: 100000 for k in ["dm", "star", "gas"]}
     loc = os.getcwd()
     os.chdir(answer_dir)
+    if not os.path.exists(f"{gravity}_model_dens_tdens.h5"):
+        m = generate_model_dens_tdens(gravity=gravity)
+        m.write_model_to_h5(f"{gravity}_model_dens_tdens.h5")
+
     ics = ClusterICs("single", 1, [f"{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
                      num_particles=num_particles)
     cds.setup_flash_ics(ics)
@@ -83,6 +91,10 @@ def test_ramses_ics(answer_dir,gravity,answer_store):
     num_particles = {k: 100000 for k in ["dm", "star", "gas"]}
     loc = os.getcwd()
     os.chdir(answer_dir)
+    if not os.path.exists(f"{gravity}_model_dens_tdens.h5"):
+        m = generate_model_dens_tdens(gravity=gravity)
+        m.write_model_to_h5(f"{gravity}_model_dens_tdens.h5")
+
     ics = ClusterICs("single", 1, [f"{gravity}_model_dens_tdens.h5"], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
                      num_particles=num_particles)
     cds.setup_ramses_ics(ics)

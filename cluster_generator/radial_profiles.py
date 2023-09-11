@@ -860,6 +860,52 @@ def am06_density_profile(rho_0, a, a_c, c, n):
     p = lambda r: rho_0 * (1. + r / a_c) * (1. + r / a_c / c) ** alpha * (1. + r / a) ** beta
     return RadialProfile(p, name=inspect.stack()[0][3])
 
+def ad07_density_profile(T0,t,a,alpha,f,n=4,mu=0.6,omega_b=0.048,omega_dm=0.262):
+    """
+    Pseudo-polytropic gas density profile from Ascasibar & Diego, 2008MNRAS.383..369A
+
+    Parameters
+    ----------
+    T0: float
+        (keV) The core temperature of the gas distribution.
+    t: float
+        (Dimensionless) value representing the degree of cooling in the cluster core.
+    a: float
+        (kpc) Scale length of both the temperature and density profiles.
+    alpha: float
+        (dimensionless) Ratio of a_c/a, a_c is the cooling radius.
+    f: float
+        (dimensionless) The gas fraction.
+    n: int, optional
+        (dimensionless) the polytropic index. Default is 4.
+    mu: float, optional
+        (dimensionless) the mean molecular mass of the gas. Default is 0.6
+    omega_b: float, optional
+        (dimensionless) the cosmic baryon fraction parameter. Default is 0.048.
+    omega_dm: float, optional
+        (dimensionless) the cosmic dark matter fraction parameter. Default is 0.262
+    Returns
+    -------
+    :py:class:`radial_profiles.RadialProfile`
+        The corresponding radial profile.
+    """
+    from unyt import unyt_quantity
+    from unyt import physical_constants as const
+    #  Computing the normalization
+    # ---------------------------------------------------------------------------------------------------------------- #
+    #- computing the mass norm -#
+    M = unyt_quantity(a,"kpc")*(n+1)*unyt_quantity(T0,"keV")/(mu*const.mp*const.G)
+    M = M.to("Msun")
+
+    #- computing the density norm -#
+    rho0 = f*(omega_b/omega_dm)*(M/(2*np.pi*unyt_quantity(a,"kpc")**3))
+    rho0 = rho0.to("Msun/kpc**3")
+
+    #  Producting the profile
+    # ---------------------------------------------------------------------------------------------------------------- #
+    function = lambda r,A=a,T=t,ALPHA=alpha,N=4,RHO=rho0.d: RHO*((1+(r/A))/(T*ALPHA + (r/A)))**(1+((ALPHA-T*ALPHA)*(1-T*ALPHA))*(N+1)) * (ALPHA+(r/A))/((1+(r/A))**(N+1))
+    return RadialProfile(function,name=inspect.stack()[0][3])
+
 
 def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta,
                               epsilon, gamma=None):
@@ -898,6 +944,28 @@ def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta,
                         (1. + (r / r_s) ** gamma) ** (-0.5 * epsilon / gamma)
     return RadialProfile(profile, name=inspect.stack()[0][3])
 
+def ad07_temperature_profile(T0,t,a,alpha):
+    """
+    Pseudo-polytropic gas temperature profile from Ascasibar & Diego, 2008MNRAS.383..369A
+
+    Parameters
+    ----------
+    T0: float
+        (keV) The core temperature of the gas distribution.
+    t: float
+        (Dimensionless) value representing the degree of cooling in the cluster core.
+    a: float
+        (kpc) Scale length of both the temperature and density profiles.
+    alpha: float
+        (dimensionless) a_c/a
+
+    Returns
+    -------
+    :py:class:`radial_profiles.RadialProfile`
+        The corresponding radial profile.
+    """
+    function = lambda r,A=a,ALPHA=alpha,T=t,TEMP0=T0: (TEMP0/(1+(r/A)))*((T+(r/(ALPHA*A)))/(1+(r/(ALPHA*A))))
+    return RadialProfile(function,name=inspect.stack()[0][3])
 
 def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min,
                                   r_cool, a_cool):

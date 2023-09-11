@@ -1,0 +1,67 @@
+#-----------------------------------------------------------#
+# =========== Basic Template for Collection =============== #
+#-----------------------------------------------------------#
+global:
+  #------------------------------------------------------------------------#
+  # The global dictionary of the collection contains collection wide data  #
+  # regarding the name of the collection, the profiles to use, etc.        #
+  #------------------------------------------------------------------------#
+  name: "Ascasibar & Diego 2007" # The name you give your collection
+
+  profiles:
+    #--------------------------------------------------------------------------------------#
+    # The profiles dictionary should contain all of the profiles that the various          #
+    # data objects are providing. There are two formats for profiles, either referencing   #
+    # built in profiles or user defined profiles                                           #
+    #--------------------------------------------------------------------------------------#
+    density: # these should be the field names.
+
+      name: "ad07_density_profile" # This is the name that is used to look up the function. It must match.
+
+      is_custom: false # If true, function must be an expression.
+
+      parameters:
+        #-------------------------------------------------#
+        # These are the input parameters and their units  #
+        #-------------------------------------------------#
+        T0: "keV"
+        t: ""
+        a: "kpc"
+        alpha: ""
+        f: ""
+
+      function: null
+
+    temperature:
+
+      name: "ad07_temperature_profile"
+
+      is_custom: false #--> This means we have to provide a function
+
+      parameters:
+
+        T0: "keV"
+        t: ""
+        a: "kpc"
+        alpha: ""
+
+      # The function should be written as a multiline string and should be readable by the exec function in
+      # python. It takes a parameter x and an argument list p, which should match the parameters above.
+      function: null
+
+  description: |
+    This dataset (Ascasibar & Diego, 2008MNRAS.383..369A) contains temperature and density profiles from a pseudo-polytropic 
+    profile which was fit to the Vikhlinin et. al. 2006 profiles to determine parity.
+
+  # The load_method is the method that is used to load the cluster models
+  load_method: "from_dens_and_temp"
+
+objects:
+  #-----------------------------------------------------------------------------------------------------#
+  # This is where you place the actual objects. There are two ways to do this and they can be combined  #
+  # -------                                                                                             #
+  # 1. You can include the keys "uses" and "path" to load from a csv file, and                          #
+  # 2. You can include custom objects as well                                                           #
+  #-----------------------------------------------------------------------------------------------------#
+  uses: "load_from_file"
+  path: "Ascasibar07.csv"

@@ -2,19 +2,99 @@
 Collections
 -----------
 
-To facilitate rapid implementation of various reasonable cluster scenarios, the ``cluster_generator`` package includes
-several "collections" composed of best fit profiles to various real-world clusters. In this guide, we will discuss how
-to use these collections and also how to add custom collections and help us to develop yet more of these collections.
+To help facilitate productive science, the :py:mod:`cluster_generator` library provides sets of documented galaxy clusters and
+their fits to known profiles. These profiles are stored in a class called :py:class:`collection.ClusterCollection`, which allows the user
+to interact with the stored profile data to generate known clusters directly from their observed behaviors.
 
-Developer's Guide
------------------
+.. raw:: html
 
-We've finishing covering the basics of actually accessing the built-in collection objects, but what about adding collections?
+   <hr style="color:black">
+
+.. contents::
+
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
+Available Datasets
+------------------
+.. card-carousel:: 2
+
+    .. card:: :py:class:`collection.Vikhlinin06`
+
+
+        **Methodology**: CHANDRA X-ray Observations
+        ^^^
+        Phenomenological models of the Vikhlinin et. al. 2006 clusters using Hernquist profiles for the total mass and a 5 parameter fitting procedure.
+        +++
+        | **Publication**: `Ascasibar, Y.; Diego, J. M. 2008MNRAS.383..369A <https://ui.adsabs.harvard.edu/abs/2008MNRAS.383..369A/abstract>`_
+
+    .. card:: :py:class:`collection.Ascasibar08`
+
+
+        **Methodology**: CHANDRA X-ray Observations
+        ^^^
+        Gas temperature and gas density profiles for a set of 13 low-redshift, relaxed clusters with temperatures between 0.7-9 keV.
+        +++
+        | **Publication**: `Vikhlinin, A. et. al. 2006ApJ...640..691V <https://ui.adsabs.harvard.edu/abs/2006ApJ...640..691V/abstract>`_
+
+.. raw:: html
+
+   <hr style="height:2px;background-color:black">
+
+
+Accessing Collections
+---------------------
+
+Built-In Collections
+++++++++++++++++++++
+
+For most purposes, built-in collections are the easiest way to go. There are several available in the library, the complete list can be seen in the :py:mod:`collection` documentation.
+To load a built-in collection, one simply needs to call the ``.load`` method on the corresponding class. For example
+
+.. code-block:: python
+
+    >>> u = Vikhlinin06.load()
+
+This will then provide you with access to the fully realized class. You can see the available clusters using the :py:attr:`collection.ClusterCollection.names` attribute.
+
+.. code-block:: python
+
+    >>> print(u.names)
+    ... ['A133', 'A262', 'A383', 'A478', 'A907', 'A1413', 'A1795', 'A1991', 'A2029', 'A2390', 'RX J1159+5531', 'MKW 4', 'USGC S152']
+
+If you want to load one of these as a :py:class:`model.ClusterModel` instance, simply use the following:
+
+.. code-block:: python
+
+    >>> model = u.load_model("A133")
+    ... cluster_generator : [INFO     ] 2023-09-11 08:40:53,510 Loaded Vikhlinin et. al. 2006.
+    ... cluster_generator : [INFO     ] 2023-09-11 08:40:53,519 Constructing ClusterModel. Method='from_dens_and_temp', gravity=Newtonian.
+    ... 		[from_dens_and_temp]: Mon Sep 11 08:40:53 2023 Computing r, rho_g, T from profiles...[DONE]
+    ... 		[from_dens_and_temp]: Mon Sep 11 08:40:53 2023 Computing calculating the pressure...[DONE]
+    ... 		[from_dens_and_temp]: Mon Sep 11 08:40:53 2023 Computing the field...[DONE]
+    ... 		[from_dens_and_temp]: Mon Sep 11 08:40:53 2023 Computing the mass and density fields...[DONE]
+    ... cluster_generator : [WARNING  ] 2023-09-11 08:40:53,917 The model being generated has non-physical attributes.
+    ... 		[from_dens_and_temp]: Mon Sep 11 08:40:53 2023 Passing to `from_scratch`...
+    ... 		[from_scratch]: Mon Sep 11 08:40:53 2023 Checking for missing mass / density fields...[DONE]
+    ... 		[from_scratch]: Mon Sep 11 08:40:53 2023 Determining the halo component...[DONE]
+    ... 		[from_scratch]: Mon Sep 11 08:40:53 2023 Computing additional fields...[DONE]
+    ... 		[from_scratch]: Mon Sep 11 08:40:53 2023 Initializing the ClusterModel...
+    ... cluster_generator : [INFO     ] 2023-09-11 08:40:53,923 ClusterModel [ClusterModel object; gravity=Newtonian] has no virialization method. Setting to default = eddington
+    ... cluster_generator : [INFO     ] 2023-09-11 08:40:53,923 Computing gravitational potential of ClusterModel object; gravity=Newtonian. gravity=Newtonian.
+    ... ✔ cluster_generator : [INFO     ] Mon Sep 11 08:40:55 2023 Computed potential.
+
+And there you go, you've got you :py:class:`model.ClusterModel` instance ready to go!
+
+Custom Collections
+++++++++++++++++++
+
+If you're looking to make your own collections, the process is a bit more intricate, but still manageable.
+
 
 Every collection is housed in a custom class bearing its name. For example, the Vikhlinin 2006 fits are housed in the
-:py:class:`collections.Vikhlinin06` class. All of these custom classes inherit from one common class; the :py:class:`collections.ClusterCollection` class.
+:py:class:`collections.Vikhlinin06` class. All of these custom classes inherit from one common class; the :py:class:`collection.ClusterCollection` class.
 
-The :py:class:`collections.ClusterCollection` class is largely just a wrapper for IO interaction. It is initialized with a single argument: ``path``,
+The :py:class:`collection.ClusterCollection` class is largely just a wrapper for IO interaction. It is initialized with a single argument: ``path``,
 which is the path to the ``.yaml`` file containing the actual collection data. All that the :py:class:`collections.ClusterCollection` instance does
 is read in the data contained in the ``.yaml`` for user interaction.
 

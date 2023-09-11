@@ -16,3 +16,4 @@ API
     virial
     gravity
     codes
+    collection
