@@ -32,10 +32,10 @@ _params = {  # Stores all of the parameters for the generation of each of the te
     "vikhlinin_density_profile"      : [1, 0.75, 0.3, 0.6, -3, 4],
     "vikhlinin_temperature_profile"  : [1, 0.1, 0.5, 1, 500, 1, 20, 2],
     "am06_temperature_profile"       : [1, 0.1, 0.3, 50],
-    "ad07_density_profile"           : [1,1,1,1],
+    "ad07_density_profile"           : [1,1,1,1,1],
     "ad07_temperature_profile"           : [1,1,1,1],
     "broken_entropy_profile": [1,1,1],
-    "walker_entropy_profile": [1,1,1]
+    "walker_entropy_profile": [1,1,1,1]
 }
 @pytest.mark.usefixtures("answer_dir")
 class TestProfiles:
