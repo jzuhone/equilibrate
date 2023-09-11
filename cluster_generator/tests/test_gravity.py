@@ -1,5 +1,5 @@
 """
-This file contains a variety of test cases for the implemented gravity theories and their potential computations.
+Tests for gravity objects
 """
 import pytest
 import numpy as np
@@ -15,6 +15,7 @@ from cluster_generator.tests.utils import generate_model_dens_tdens
 # -------------------------------------------------------------------------------------------------------------------- #
 @pytest.fixture
 def mdr_model():
+    # This creates a model with mass-density-radius
     z = 0.1
     M200 = 1.5e15
     conc = 4.0
@@ -24,7 +25,7 @@ def mdr_model():
     rhot = snfw_density_profile(M, a)
     m = snfw_mass_profile(M, a)
 
-    rmin, rmax = 0.1, 2 * r200
+    rmin, rmax = 0.1, 10000
     r = np.geomspace(rmin, rmax, 1000)
     return unyt_array(m(r), "Msun"), unyt_array(rhot(r), "Msun/kpc**3"), unyt_array(r, "kpc")
 
@@ -117,7 +118,7 @@ class TestAQUALGravity:
 
         integral = lambda x: (-alpha/(2*x))*(np.sqrt(((4*x**2)/alpha) + 1)- (2*x*np.arcsinh(2*x/np.sqrt(alpha)))/(np.sqrt(alpha)) + 1)
 
-        analytic_solution = a_0*(integral(r.d) - integral(r.d[-1]))
+        analytic_solution = a_0*(integral(r.d) - integral(2*r.d[-1]))
         assert_allclose(analytic_solution,potential.d)
 
     @pytest.mark.usefixtures("answer_store", "answer_dir")
@@ -153,7 +154,7 @@ class TestQUMONDGravity:
 
         integral = lambda x: (-alpha/(2*x))*(np.sqrt(((4*x**2)/alpha) + 1)- (2*x*np.arcsinh(2*x/np.sqrt(alpha)))/(np.sqrt(alpha)) + 1)
 
-        analytic_solution = a_0*(integral(r.d) - integral(r.d[-1]))
+        analytic_solution = a_0*(integral(r.d) - integral(2*r.d[-1]))
         assert_allclose(analytic_solution,potential.d,rtol=1e-2)
 
 @pytest.mark.usefixtures("mdr_model","answer_dir")
