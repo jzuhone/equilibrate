@@ -8,7 +8,7 @@ from cluster_generator.model import ClusterModel
 from cluster_generator.particles import \
     ClusterParticles, concat_clusters, resample_clusters
 from cluster_generator.utils import ensure_ytarray, ensure_list, \
-    parse_prng
+    parse_prng, mylog, devLogger
 
 
 def compute_centers_for_binary(center, d, b, a=0.0):
@@ -109,6 +109,7 @@ class ClusterICs:
 
         #  Checking for pre-provided particle files
         # ------------------------------------------------------------------------------------------------------------ #
+        self.gravity = None
         self._determine_num_particles()
         self.particle_files = [None] * 3
         if particle_files is not None:
@@ -128,6 +129,14 @@ class ClusterICs:
         for pf in self.profiles:
             # Loading the cluster model object #
             p = ClusterModel.from_h5_file(pf)
+
+            # -- Managing the gravity -- #
+            if self.gravity is None:
+                self.gravity = p.gravity._classname
+            else:
+                if self.gravity != p.gravity._classname:
+                    raise ValueError(f"Gravity theories for profiles are not consistent in {self}.")
+
             idxs = p["radius"] < self.r_max  # These are the valid radii for our use.
 
             # Determining allowable number.
@@ -453,15 +462,38 @@ class ClusterICs:
                                  bbox=np.array(bbox), mass_unit="Msun", time_unit="Myr",
                                  **kwargs)
 
+    def compute_orbits(self):
+        """
+        Computes the point-mass orbital behavior of the systems to give an approximate idea of the
+        resulting dynamics when simulated.
+
+        Returns
+        -------
+
+        """
+        #  Setup
+        # ------------------------------------------------------------------------------------------------------------ #
+        mylog.info(f"Computing point-mass orbits for {self}...")
+
+        # -- Loading the halo's -- #
+        halos = [[i,j,None] for i,j in zip(self.center,self.velocity)]
+        for k,model_path in enumerate(self.profiles):
+            m = ClusterModel.from_h5_file(model_path)
+
+            assert m.gravity._classname == self.gravity, f"Model {m} and {self} have inconsistent gravity theories."
+
+            # Fetching the mass data
+            halos[k][2] = m["total_mass"][-1]
+
+        mylog.info(f"Successfully loaded {len(halos)} halos.")
+
+
+        #  Beginning Computations 
+        # ------------------------------------------------------------------------------------------------------------ #
 
 if __name__ == '__main__':
-
-    test = ClusterICs.from_file("testic.h5")
-    print(test)
-    ds = test.create_dataset([200,200,200], 10000, [-5000, -5000, -5000])
-
-
-    print(ds)
-    import yt
-    p = yt.SlicePlot(ds,"z",("gas","temperature"),width=(1000,"kpc"))
-    p.save()
+    import os
+    os.chdir("/home/ediggins/test")
+    test = ClusterModel.from_h5_file("Newtonian_model_dens_tdens.h5")
+    ic = ClusterICs("test",2,["Newtonian_model_dens_tdens.h5","Newtonian_model_dens_tdens.h5"],[[0,0,0],[1000,0,3000]],[[0,0,0],[0,0,0]])
+    print(ic.compute_orbits())
