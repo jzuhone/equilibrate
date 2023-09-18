@@ -80,7 +80,7 @@ class TestGravityAsymptotic():
 
         for i,ac in enumerate(accel[1:],1):
             assert_allclose(accel[0],ac,rtol=1e-2,err_msg=f"gravity classes {_included_gravity_classes[0]._classname} and {_included_gravity_classes[i]._classname} were not equal to within tolerance.")
-
+@pytest.mark.usefixtures("mdr_model","answer_dir")
 class TestNewtonianGravity():
     """
     These tests are designed to confirm that the correct results are obtained from Newtonian gravity calculations.
@@ -100,6 +100,45 @@ class TestNewtonianGravity():
 
 
         assert_allclose(analytic_solution(r.d),potential.d)
+
+    def test_orbit(self,answer_dir):
+        """Tests that the orbital computations are accurate. Checks for circular orbits."""
+        from cluster_generator import orbits as orb
+        import matplotlib.pyplot as plt
+
+        # -- building the array --#
+        x_0 = np.array([[0,3000],[0,0],[0,0]],dtype="float64")
+        v_0 = np.array([[0,0],[0,1.223],[0,0]],dtype="float64")
+        assert x_0.shape == (3,2), "The arrays aren't the right shape."
+
+        # -- Building out the data -- #
+        data = orb.newtonian_orbits(x_0,v_0,np.array([1e15,1],dtype="float64"),2,10000,1,1,10000,1,50)
+
+
+        # -- Generating the figure -- #
+        x_test,y_test = 3000 * np.cos(4.076e-4 * data[0]), 3000*np.sin(4.076e-4 * data[0])
+        fig = plt.figure()
+        ax = fig.add_subplot(211)
+        ax2 = fig.add_subplot(212)
+        for k in range(2):
+            ax.plot(data[1][0,k,:],data[1][1,k,:],alpha=0.7)
+
+        ax.plot(x_test,y_test,color="red",ls="-.",alpha=0.4)
+        ax.set_xlim([-5000,5000])
+        ax.set_ylim([-5000,5000])
+
+        ax2.semilogx(data[0],(data[1][0,1,:]-x_test)/data[1][0,1,:])
+        ax2.semilogx(data[0], (data[1][1, 1, :] - y_test) / data[1][1, 1, :])
+        fig.savefig(f"{answer_dir}/newtonian_orbit_circular.png")
+
+        # -- running the first test -- #
+        assert data[4] == 0, f"The orbital solver came back with error code {data[4]}."
+
+        # -- Running the main test -- #
+
+        r = x_test**2 + y_test**2
+
+        np.testing.assert_allclose(r,(3000**2)*np.ones(data[0].size))
 
 class TestAQUALGravity:
     def test_sphere(self):
@@ -133,8 +172,44 @@ class TestAQUALGravity:
 
         parts = vir.generate_particles(1_000_000)
 
+    def test_orbit(self,answer_dir):
+        """Tests that the orbital computations are accurate. Checks for circular orbits."""
+        from cluster_generator import orbits as orb
+        import matplotlib.pyplot as plt
+
+        # -- building the array --#
+        x_0 = np.array([[0,3000],[0,0],[0,0]],dtype="float64")
+        v_0 = np.array([[0,0],[0,1.223],[0,0]],dtype="float64")
+        assert x_0.shape == (3,2), "The arrays aren't the right shape."
+
+        # -- Building out the data -- #
+        data = orb.aqual_orbits(x_0,v_0,np.array([1e15,1],dtype="float64"),2,10000,1,1,10000,1,50)
 
 
+        # -- Generating the figure -- #
+        x_test,y_test = 3000 * np.cos(6.807e-4 * data[0]), 3000*np.sin(6.807e-4 * data[0])
+        fig = plt.figure()
+        ax = fig.add_subplot(211)
+        ax2 = fig.add_subplot(212)
+        for k in range(2):
+            ax.plot(data[1][0,k,:],data[1][1,k,:],alpha=0.7)
+
+        ax.plot(x_test,y_test,color="red",ls="-.",alpha=0.4)
+        ax.set_xlim([-5000,5000])
+        ax.set_ylim([-5000,5000])
+
+        ax2.semilogx(data[0],(data[1][0,1,:]-x_test)/data[1][0,1,:])
+        ax2.semilogx(data[0], (data[1][1, 1, :] - y_test) / data[1][1, 1, :])
+        fig.savefig(f"{answer_dir}/aqual_orbit_circular.png")
+
+        # -- running the first test -- #
+        assert data[4] == 0, f"The orbital solver came back with error code {data[4]}."
+
+        # -- Running the main test -- #
+
+        r = x_test**2 + y_test**2
+
+        np.testing.assert_allclose(r,(3000**2)*np.ones(data[0].size))
 
 
 class TestQUMONDGravity:
@@ -156,6 +231,7 @@ class TestQUMONDGravity:
 
         analytic_solution = a_0*(integral(r.d) - integral(2*r.d[-1]))
         assert_allclose(analytic_solution,potential.d,rtol=1e-2)
+
 
 @pytest.mark.usefixtures("mdr_model","answer_dir")
 @pytest.mark.skip(reason="Implementation not-complete.")
