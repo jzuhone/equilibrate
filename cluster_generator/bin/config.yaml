@@ -25,10 +25,12 @@ system:
 
   io:
     # -- Settings regarding io methodology -- #
+#======================================================================================================================#
 physics:
   # -- The physics settings are basic user-configurable physical parameters -- #
   hydrogen_abundance: 0.76 # The primordial hydrogen abundance (0.76 generally accepted value)
 
+#======================================================================================================================#
 gravity:
   # -- These settings are all regarding the gravity systems in cluster generator -- #
   general:
@@ -48,9 +50,24 @@ gravity:
     # - Settings for the EMOND implementation - #
     a0_function: !lambda "lambda x,a=0.003868,A=0.30944,p0=-7.614: a + (A-a)*(0.5*np.tanh(np.log10(x/p0)**2) + 0.5)"
 
+#======================================================================================================================#
 numerical:
   # -- These are settings regarding the numerical methods implemented in the code -- #
   implicit:
     # -- These are settings for implicit function solutions in alternative gravity theories -- #
     check_tolerance: !!float 1e-10 # The tolerance below which we skip optimization because the guess is sufficiently good.
     solve_tolerance: !!float 1e-7 # The tolerance required once the code actually reaches the implicit solver.
+
+#======================================================================================================================#
+plotting:
+  # These are options for any of the default plots generated in cluster generator.
+  defaults:
+    # -- Latex settings -- #
+    text.usetex: false
+    # -- Tick Settings -- #
+    xtick.major.size: 8
+    ytick.major.size: 8
+    xtick.minor.size: 5
+    ytick.minor.size: 5
+    xtick.direction: "in"
+    ytick.direction: "in"

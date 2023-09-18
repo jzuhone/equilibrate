@@ -8,7 +8,7 @@ from cluster_generator.model import ClusterModel
 from cluster_generator.particles import \
     ClusterParticles, concat_clusters, resample_clusters
 from cluster_generator.utils import ensure_ytarray, ensure_list, \
-    parse_prng
+    parse_prng, mylog, devLogger
 
 
 def compute_centers_for_binary(center, d, b, a=0.0):
@@ -109,6 +109,7 @@ class ClusterICs:
 
         #  Checking for pre-provided particle files
         # ------------------------------------------------------------------------------------------------------------ #
+        self.gravity = None
         self._determine_num_particles()
         self.particle_files = [None] * 3
         if particle_files is not None:
@@ -128,6 +129,14 @@ class ClusterICs:
         for pf in self.profiles:
             # Loading the cluster model object #
             p = ClusterModel.from_h5_file(pf)
+
+            # -- Managing the gravity -- #
+            if self.gravity is None:
+                self.gravity = p.gravity._classname
+            else:
+                if self.gravity != p.gravity._classname:
+                    raise ValueError(f"Gravity theories for profiles are not consistent in {self}.")
+
             idxs = p["radius"] < self.r_max  # These are the valid radii for our use.
 
             # Determining allowable number.
@@ -453,15 +462,112 @@ class ClusterICs:
                                  bbox=np.array(bbox), mass_unit="Msun", time_unit="Myr",
                                  **kwargs)
 
+    def compute_orbits(self,t_max,max_step=1,dx_max=1,n_iter=10000,softening_length=0.1,collision_distance=100):
+        """
+        Computes the point-mass orbital behavior of the systems to give an approximate idea of the
+        resulting dynamics when simulated.
 
-if __name__ == '__main__':
+        Parameters
+        ----------
+        t_max: float
+            The maximum computed time of the orbit [Myr].
+        max_step: float, optional
+            The maximum allowed timestep of the orbit [Myr]. Default is 1 Myr.
+        dx_max: float, optional
+            The maximum distance change per timestep. Used to reduce loss of accuracy when bodies pass close to one
+            another. Default is 1 kpc.
+        n_iter: int, optional
+            The number of iterations to allow. Default is 10000.
+        softening_length: float, optional
+            The gravitational softening length. Default is 0.1 kpc.
+        collision_distance: float, optional
+            The distance between any two halos at which to stop the calculation and return data indicating a collision
+            has occurred.
 
-    test = ClusterICs.from_file("testic.h5")
-    print(test)
-    ds = test.create_dataset([200,200,200], 10000, [-5000, -5000, -5000])
 
 
-    print(ds)
-    import yt
-    p = yt.SlicePlot(ds,"z",("gas","temperature"),width=(1000,"kpc"))
-    p.save()
+        Returns
+        -------
+        SimpleNamespace:
+            t: np.ndarray
+                The output times in Myrs.
+            x: np.ndarray
+                The output locations. Has shape ``(halo, time_index)``.
+            y: np.ndarray
+                The output locations. Has shape ``(halo, time_index)``.
+            z: np.ndarray
+                The output locations. Has shape ``(halo, time_index)``.
+            dx: np.ndarray
+                The output velocity. Has shape ``(halo, time_index)``.
+            dy: np.ndarray
+                The output velocity. Has shape ``(halo, time_index)``.
+            dz: np.ndarray
+                The output velocity. Has shape ``(halo, time_index)``.
+            ddx: np.ndarray
+                The output acceleration. Has shape ``(halo, time_index)``.
+            ddy: np.ndarray
+                The output acceleration. Has shape ``(halo, time_index)``.
+            ddz: np.ndarray
+                The output acceleration. Has shape ``(halo, time_index)``.
+            return_code: int
+                The exit code from the cython module. Exit code 0 is passing.
+            errs: list
+                A list of any exceptions or warnings called during the execution.
+        """
+        #  Setup
+        # ------------------------------------------------------------------------------------------------------------ #
+        mylog.info(f"Preparing to computing point-mass orbits for {self}...")
+
+        # -- Loading the halo's -- #
+        xs = np.array(self.center.to("kpc").d).transpose()
+        dxs = np.array(self.velocity.to("kpc/Myr").d).transpose()
+        masses = []
+        for k,model_path in enumerate(self.profiles):
+            m = ClusterModel.from_h5_file(model_path)
+
+            assert m.gravity._classname == self.gravity, f"Model {m} and {self} have inconsistent gravity theories."
+
+            # Fetching the mass data
+            masses.append(float(m["total_mass"][-1].to("Msun").d))
+
+        mylog.info(f"Successfully loaded {len(masses)} halos for orbit analysis. Dispatching...")
+
+        #  Beginning Computations 
+        # ------------------------------------------------------------------------------------------------------------ #
+        import cluster_generator.orbits as orbs
+        import warnings
+        from types import SimpleNamespace
+
+        if hasattr(orbs,f"{self.gravity}_orbits".lower()):
+            mylog.info("Dispatch complete. Computing orbits using cluster_generator.orbits.%s."%(f"{self.gravity}_orbits".lower()))
+
+            #  Calling the orbit
+            # -------------------------------------------------------------------------------------------------------- #
+            # CALL SIGNATURE: x0, dx0, masses, nhalos, tmax, dtmax, lmax, Nmax, epsilon, additional arguments.
+            #
+            #
+            with warnings.catch_warnings(record=True) as w:
+                _out = getattr(orbs,f"{self.gravity}_orbits".lower())(xs,dxs,np.array(masses,dtype="float64"),len(masses),t_max,max_step,dx_max,n_iter,softening_length,collision_distance)
+
+                errs = w
+        else:
+            raise ValueError(f"The gravity {self.gravity} doesn't have an orbit computation.")
+
+        #  Building the output object
+        # ------------------------------------------------------------------------------------------------------------ #
+        output = SimpleNamespace(
+            t = _out[0],
+            x = _out[1][0,:,:],
+            y = _out[1][1,:,:],
+            z = _out[1][2,:,:],
+            dx = _out[2][0,:,:],
+            dy = _out[2][1,:,:],
+            dz = _out[2][2,:,:],
+            ddx = _out[3][0,:,:],
+            ddy = _out[3][1,:,:],
+            ddz = _out[3][2,:,:],
+            return_code = _out[4],
+            errs = errs
+        )
+
+        return output

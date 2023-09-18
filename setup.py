@@ -14,6 +14,10 @@ cython_utils = Extension("cluster_generator.cython_utils",
                          sources=["cluster_generator/cython_utils.pyx"],
                          language='c', libraries=["m"],
                          include_dirs=[np.get_include()])
+cython_orbits = Extension("cluster_generator.orbits",
+                          sources=["cluster_generator/orbits.pyx"],
+                          language="c",libraries=["m"],
+                          include_dirs=[np.get_include()])
 
 setup(name='cluster_generator',
       packages=['cluster_generator'],
@@ -32,5 +36,5 @@ setup(name='cluster_generator',
           'Topic :: Scientific/Engineering :: Visualization',
       ],
       include_package_data=True,
-      ext_modules=cythonize([cython_utils]),
+      ext_modules=cythonize([cython_utils,cython_orbits]),
       )
