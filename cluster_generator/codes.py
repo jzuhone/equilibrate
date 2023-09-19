@@ -69,9 +69,6 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     in the ICs, a note will be given about how it should be named
     for GAMER to use it.
 
-    NOTE: Gas particles in the initial conditions will be interpreted
-    as tracer particles.
-
     Parameters
     ----------
     ics : ClusterICs object
@@ -117,8 +114,6 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     for line in outlines:
         print(line)
     num_particles = sum([ics.tot_np[key] for key in ics.tot_np])
-    mylog.info(f"In the Input__Parameter file, "
-               f"set PAR__NPAR = {num_particles}.")
     if ics.mag_file is not None:
         mylog.info(f"Rename the file '{ics.mag_file}' to 'B_IC' "
                    f"and place it in the same directory as the "
@@ -234,28 +229,29 @@ def setup_arepo_ics(ics, boxsize, nx, ic_file, overwrite=False,
     cparts = ics.setup_particle_ics(regenerate_particles=regenerate_particles,
                                     prng=prng)
     ngrid = nx**3
-    dx = 1.0/nx
-    posg = np.mgrid[0.5*dx:1.0-0.5*dx:nx*1j,
-                    0.5*dx:1.0-0.5*dx:nx*1j,
-                    0.5*dx:1.0-0.5*dx:nx*1j].reshape(3, ngrid)*boxsize
+    dx = boxsize/nx
+    le = 0.5*dx
+    re = boxsize - 0.5*dx
+    posg = np.mgrid[le:re:nx*1j,le:re:nx*1j,le:re:nx*1j].reshape(3, ngrid).T
     rmax2 = ics.r_max**2
-    idxs = np.sum((posg-ics.center[0])**2, axis=1) < rmax2
+    idxs = np.sum((posg-ics.center[0].v)**2, axis=1) > rmax2[0]
     if ics.num_halos > 1:
-        idxs |= np.sum((posg-ics.center[1])**2, axis=1) < rmax2
+        idxs |= np.sum((posg-ics.center[1].v)**2, axis=1) > rmax2[1]
     if ics.num_halos > 2:
-        idxs |= np.sum((posg-ics.center[2])**2, axis=1) < rmax2
-    dV = (dx*boxsize)**3
+        idxs |= np.sum((posg-ics.center[2].v)**2, axis=1) > rmax2[2]
+    dV = dx**3
     nleft = idxs.sum()
     m = cparts["gas", "particle_mass"].d[0]*np.ones(nleft)
-    fields["gas", "particle_position"] = unyt_array(posg.T[idxs, :], "kpc")
+    fields["gas", "particle_position"] = unyt_array(posg[idxs, :], "kpc")
     fields["gas", "particle_velocity"] = unyt_array(np.zeros((nleft, 3)), "kpc/Myr")
     fields["gas", "particle_mass"] = unyt_array(m, "Msun")
     fields["gas", "density"] = unyt_array(m/dV, "Msun/kpc**3")
-    fields["gas", "thermal_energy"] = unyt_array(eint, "kpc**2/Myr**2")
+    fields["gas", "thermal_energy"] = unyt_array(np.ones_like(m), "kpc**2/Myr**2")
     mylog.info("Background cell density is %g.",
                fields["gas", "density"][0].to_value("g/cm**3"))
     all_parts = cparts + ClusterParticles.from_fields(fields)
-    all_parts.write_to_gadget_file(ic_file, boxsize, overwrite=overwrite)
+    all_parts.write_to_gadget_file(ic_file, boxsize, overwrite=overwrite,
+                                   code='arepo')
 
 
 def setup_gizmo_ics(ics):

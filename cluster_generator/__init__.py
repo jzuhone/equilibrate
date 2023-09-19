@@ -29,4 +29,4 @@ from cluster_generator.relations import \
     m_bcg, m_sat, r_bcg, f_gas, \
     convert_ne_to_density
 from cluster_generator.codes import setup_gamer_ics, \
-    setup_ramses_ics
+    setup_ramses_ics, setup_arepo_ics
