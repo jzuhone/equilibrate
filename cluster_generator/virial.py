@@ -165,7 +165,7 @@ class VirialEquilibrium:
         vesc = np.sqrt(vesc)
 
         velocity_sub = generate_velocities(
-            psi, vesc, fv2esc, self.f._eval_args[0], self.f._eval_args[1],
+            psi, vesc, fv2esc, self.f.get_knots(), self.f.get_coeffs(),
             self.f._eval_args[2])
 
         if sub_sample > 1:

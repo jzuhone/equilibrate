@@ -14,7 +14,7 @@ Cythonized utilities for equilibrium models
 import numpy as np
 cimport numpy as np
 cimport cython
-from scipy.interpolate import _fitpack
+from scipy.interpolate import dfitpack
 from tqdm.auto import tqdm
 
 cdef extern from "math.h":
@@ -45,6 +45,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
     cdef long int seedval
     cdef np.ndarray[np.float64_t, ndim=1] velocity, e
     e = np.zeros(1)
+    f = np.zeros(1)
     seedval = -100
     srand48(seedval)
     der = 0
@@ -59,7 +60,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
             v2 = drand48()*vesc[i]
             v2 *= v2
             e[0] = psi[i]-0.5*v2
-            f = _fitpack._spl_(e, der, t, c, k, ext)[0]
+            f = dfitpack.splev(t, c, k, e, ext)[0]
             not_done = f*v2 < drand48()*fv2esc[i]
         velocity[i] = sqrt(v2)
         pbar.update()
