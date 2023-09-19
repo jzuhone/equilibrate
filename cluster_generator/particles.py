@@ -420,7 +420,8 @@ class ClusterParticles:
                     h5_group.create_dataset(field, data=data)
 
     def write_to_gadget_file(self, ic_filename, box_size,
-                             dtype='float32', overwrite=False):
+                             dtype='float32', overwrite=False,
+                             code=None):
         """
         Write the particles to a file in the HDF5 Gadget format
         which can be used as initial conditions for a simulation.
@@ -437,6 +438,10 @@ class ClusterParticles:
             'float64'. Default: 'float32'
         overwrite : boolean, optional
             Whether to overwrite an existing file. Default: False
+        code : string, optional
+            If specified, additional information will be written to 
+            the file so that it can be identified by yt as belonging
+            to a specific frontend. Default: None
         """
         if Path(ic_filename).exists() and not overwrite:
             raise IOError(f"Cannot create {ic_filename}. It exists and "
@@ -481,6 +486,9 @@ class ClusterParticles:
         hg.attrs["Flag_Feedback"] = 0
         hg.attrs["Flag_DoublePrecision"] = 0
         hg.attrs["Flag_IC_Info"] = 0
+        if code == "arepo":
+            cg = f.create_group("Config")
+            cg.attrs["VORONOI"] = 1
         f.flush()
         f.close()
 
