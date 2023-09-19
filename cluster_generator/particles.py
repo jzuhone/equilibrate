@@ -16,7 +16,8 @@ gadget_fields = {"dm": ["Coordinates", "Velocities", "Masses",
                  "star": ["Coordinates", "Velocities", "Masses",
                           "ParticleIDs", "Potential"],
                  "black_hole": ["Coordinates", "Velocities", "Masses",
-                                "ParticleIDs"]}
+                                "ParticleIDs"],
+                 "tracer": ["Coordinates"]}
 
 gadget_field_map = {"Coordinates": "particle_position",
                     "Velocities": "particle_velocity",
@@ -37,6 +38,7 @@ gadget_field_units = {"Coordinates": "kpc",
 
 ptype_map = OrderedDict([("PartType0", "gas"),
                          ("PartType1", "dm"),
+                         ("PartType2", "tracer"),
                          ("PartType4", "star"),
                          ("PartType5", "black_hole")])
 
@@ -164,16 +166,16 @@ class ClusterParticles:
                 raise KeyError("('dm', 'potential_energy') is not available!")
             idx = np.argmin(self.fields["dm", "potential_energy"])
             pos = unyt_array(self.fields["dm", "particle_position"][idx]
-                             ).reshape(1,3)
+                             ).reshape(1, 3)
             vel = unyt_array(self.fields["dm", "particle_velocity"][idx]
-                             ).reshape(1,3)
+                             ).reshape(1, 3)
         else:
             if pos is None:
                 pos = unyt_array(np.zeros((1, 3)), "kpc")
             if vel is None:
                 vel = unyt_array(np.zeros((1, 3)), "kpc/Myr")
-            pos = ensure_ytarray(pos, "kpc").reshape(1,3)
-            vel = ensure_ytarray(vel, "kpc/Myr").reshape(1,3)
+            pos = ensure_ytarray(pos, "kpc").reshape(1, 3)
+            vel = ensure_ytarray(vel, "kpc/Myr").reshape(1, 3)
         if "black_hole" not in self.particle_types:
             self.particle_types.append("black_hole")
             self.fields["black_hole", "particle_position"] = pos
@@ -464,7 +466,7 @@ class ClusterParticles:
         hg.attrs["HubbleParam"] = 1.0
         hg.attrs["NumPart_ThisFile"] = np.array([num_particles.get("gas", 0),
                                                  num_particles.get("dm", 0),
-                                                 0, 0,
+                                                 num_particles.get("tracer", 0), 0,
                                                  num_particles.get("star", 0),
                                                  num_particles.get("black_hole", 0)],
                                                 dtype='uint32')

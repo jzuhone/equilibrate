@@ -518,9 +518,31 @@ class ClusterModel:
 
     def generate_tracer_particles(self, num_particles, r_max=None, sub_sample=1,
                                   prng=None):
+        """
+        Generate a set of tracer particles based on the gas distribution.
+
+        Parameters
+        ----------
+        num_particles : integer
+            The number of particles to generate.
+        r_max : float, optional
+            The maximum radius in kpc within which to generate 
+            particle positions. If not supplied, it will generate
+            positions out to the maximum radius available. Default: None
+        sub_sample : integer, optional
+            This option allows one to generate a sub-sample of unique
+            particle radii, densities, and energies which will then be
+            repeated to fill the required number of particles. Default: 1,
+            which means no sub-sampling.
+        prng : :class:`~numpy.random.RandomState` object, integer, or None
+            A pseudo-random number generator. Typically will only 
+            be specified if you have a reason to generate the same 
+            set of random numbers, such as for a test. Default is None, 
+            which sets the seed based on the system time.
+        """
         from cluster_generator.utils import parse_prng
         prng = parse_prng(prng)
-        mylog.info("We will be assigning %d particles." % num_particles)
+        mylog.info("We will be assigning %d tracer particles.", num_particles)
         mylog.info("Compute particle positions.")
 
         num_particles_sub = num_particles // sub_sample
@@ -583,7 +605,7 @@ class ClusterModel:
         """
         from cluster_generator.utils import parse_prng
         prng = parse_prng(prng)
-        mylog.info("We will be assigning %d particles." % num_particles)
+        mylog.info("We will be assigning %d gas particles.", num_particles)
         mylog.info("Compute particle positions.")
 
         num_particles_sub = num_particles // sub_sample
@@ -764,6 +786,7 @@ class ClusterModel:
             if f"{mtype}_mass" in self.fields:
                 masses[mtype] = self.fields[f"{mtype}_mass"][r < radius][-1]
         return masses
+
 
 # This is only for backwards-compatibility
 class HydrostaticEquilibrium(ClusterModel):

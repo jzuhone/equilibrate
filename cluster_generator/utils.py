@@ -73,10 +73,13 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     return radius, mtot
 
 
-def ensure_ytquantity(x, units):
-    if not isinstance(x, unyt_quantity):
-        x = unyt_quantity(x, units)
-    return x.to(units)
+def ensure_ytquantity(x, default_units):
+    if isinstance(x, unyt_quantity):
+        return unyt_quantity(x.v, x.units).in_units(default_units)
+    elif isinstance(x, tuple):
+        return unyt_quantity(x[0], x[1]).in_units(default_units)
+    else:
+        return unyt_quantity(x, default_units)
 
 
 def ensure_ytarray(arr, units):
@@ -94,4 +97,3 @@ def parse_prng(prng):
 
 def ensure_list(x):
     return list(always_iterable(x))
-

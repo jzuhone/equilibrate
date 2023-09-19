@@ -11,6 +11,7 @@ from cluster_generator.particles import \
 import os
 import numpy as np
 from ruamel.yaml import YAML
+from numbers import Number
 
 
 def compute_centers_for_binary(center, d, b, a=0.0):
@@ -53,8 +54,8 @@ def compute_centers_for_binary(center, d, b, a=0.0):
 
 class ClusterICs:
     def __init__(self, basename, num_halos, profiles, center,
-                 velocity, num_particles=None, mag_file=None, 
-                 particle_files=None, r_max=20000.0):
+                 velocity, num_particles=None, mag_file=None,
+                 particle_files=None, r_max=20000.0, r_max_tracer=None):
         self.basename = basename
         self.num_halos = num_halos
         self.profiles = ensure_list(profiles)
@@ -64,9 +65,16 @@ class ClusterICs:
             self.center = self.center.reshape(1, 3)
             self.velocity = self.velocity.reshape(1, 3)
         self.mag_file = mag_file
-        self.r_max = r_max
+        if isinstance(r_max, Number):
+            r_max = [r_max]*num_halos
+        self.r_max = np.array(r_max)
+        if r_max_tracer is None:
+            r_max_tracer = r_max
+        if isinstance(r_max_tracer, Number):
+            r_max_tracer = [r_max_tracer]*num_halos
+        self.r_max_tracer = np.array(r_max_tracer)
         if num_particles is None:
-            self.tot_np = {"dm": 0, "gas": 0, "star": 0}
+            self.tot_np = {"dm": 0, "gas": 0, "star": 0, "tracer": 0}
         else:
             self.tot_np = num_particles
         self._determine_num_particles()
@@ -79,9 +87,10 @@ class ClusterICs:
         dm_masses = []
         gas_masses = []
         star_masses = []
-        for pf in self.profiles:
+        tracer_masses = []
+        for i, pf in enumerate(self.profiles):
             p = ClusterModel.from_h5_file(pf)
-            idxs = p["radius"] < self.r_max
+            idxs = p["radius"] < self.r_max[i]
             dm_masses.append(p["dark_matter_mass"][idxs][-1].value)
             if "gas_mass" in p:
                 gmass = p["gas_mass"][idxs][-1].value
@@ -93,9 +102,16 @@ class ClusterICs:
             else:
                 smass = 0.0
             star_masses.append(smass)
+            if self.tot_np.get("tracer", 0) > 0:
+                idxst = p["radius"] < self.r_max_tracer[i]
+                tmass = p["gas_mass"][idxst][-1].value
+            else:
+                tmass = 0.0
+            tracer_masses.append(tmass)
         tot_dm_mass = np.sum(dm_masses)
         tot_gas_mass = np.sum(gas_masses)
         tot_star_mass = np.sum(star_masses)
+        tot_tracer_mass = np.sum(tracer_masses)
         self.num_particles = defaultdict(list)
         for i in range(self.num_halos):
             if self.tot_np.get("dm", 0) > 0:
@@ -116,6 +132,12 @@ class ClusterICs:
             else:
                 nsp = 0
             self.num_particles["star"].append(nsp)
+            if self.tot_np.get("tracer", 0) > 0:
+                ntp = np.rint(
+                    self.tot_np["tracer"]*tracer_masses[i]/tot_tracer_mass).astype("int")
+            else:
+                ntp = 0
+            self.num_particles["tracer"].append(ntp)
 
     def _generate_particles(self, regenerate_particles=False, prng=None):
         prng = parse_prng(prng)
@@ -124,17 +146,24 @@ class ClusterICs:
             if regenerate_particles or self.particle_files[i] is None:
                 m = ClusterModel.from_h5_file(pf)
                 p = m.generate_dm_particles(
-                    self.num_particles["dm"][i], r_max=self.r_max, prng=prng)
+                    self.num_particles["dm"][i], r_max=self.r_max[i], prng=prng)
                 if self.num_particles["star"][i] > 0:
                     sp = m.generate_star_particles(
-                        self.num_particles["star"][i], r_max=self.r_max,
+                        self.num_particles["star"][i], r_max=self.r_max[i],
                         prng=prng)
                     p = p + sp
                 if self.num_particles["gas"][i] > 0:
                     gp = m.generate_gas_particles(
-                        self.num_particles["gas"][i], r_max=self.r_max,
-                        prng=prng)
+                        self.num_particles["gas"][i], r_max=self.r_max[i],
+                        prng=prng
+                    )
                     p = p + gp
+                if self.num_particles["tracer"][i] > 0:
+                    tp = m.generate_tracer_particles(
+                        self.num_particles["tracer"][i], r_max=self.r_max_tracer[i],
+                        prng=prng
+                    )
+                    p = p + tp
                 parts.append(p)
                 outfile = f"{self.basename}_{i}_particles.h5"
                 p.write_particles(outfile, overwrite=True)
@@ -207,11 +236,18 @@ class ClusterICs:
             out["num_star_particles"] = self.tot_np["star"]
             out.yaml_add_eol_comment("number of star particles", 
                                      key='num_star_particles')
+        if self.tot_np.get("tracer", 0) > 0:
+            out["num_tracer_particles"] = self.tot_np["tracer"]
+            out.yaml_add_eol_comment("number of tracer particles",
+                                     key='num_tracer_particles')
         if self.mag_file is not None:
             out["mag_file"] = self.mag_file
             out.yaml_add_eol_comment("3D magnetic field file", key='mag_file')
-        out["r_max"] = self.r_max
-        out.yaml_add_eol_comment("Maximum radius of particles", key='r_max')
+        out["r_max"] = self.r_max.tolist()
+        out.yaml_add_eol_comment("Maximum radii of particles", key='r_max')
+        if self.tot_np.get("tracer", 0) > 0:
+            out["r_max_tracer"] = self.r_max_tracer.tolist()
+            out.yaml_add_eol_comment("Maximum radii of tracer particles", key='r_max')
         yaml = YAML()
         with open(filename, "w") as f:
             yaml.dump(out, f)
@@ -238,9 +274,11 @@ class ClusterICs:
         particle_files = [params.get(f"particle_file{i}", None)
                           for i in range(1, num_halos+1)]
         r_max = params.get("r_max", 20000.0)
+        r_max_tracer = params.get("r_max_tracer", r_max)
         return cls(basename, num_halos, profiles, center, velocity,
                    num_particles=num_particles, mag_file=mag_file,
-                   particle_files=particle_files, r_max=r_max)
+                   particle_files=particle_files, r_max=r_max,
+                   r_max_tracer=r_max_tracer)
 
     def setup_particle_ics(self, regenerate_particles=False, prng=None):
         r"""
@@ -298,14 +336,14 @@ class ClusterICs:
             new_parts = resample_two_clusters(parts, profiles[0], profiles[1],
                                               self.center[0], self.center[1],
                                               self.velocity[0], self.velocity[1],
-                                              [self.r_max]*2,
+                                              self.r_max,
                                               passive_scalars=passive_scalars)
         else:
             new_parts = resample_three_clusters(parts, profiles[0], profiles[1], 
                                                 profiles[2], self.center[0], 
                                                 self.center[1], self.center[2], 
                                                 self.velocity[0], self.velocity[1], 
-                                                self.velocity[2], [self.r_max]*3, 
+                                                self.velocity[2], self.r_max, 
                                                 passive_scalars=passive_scalars)
         return new_parts
 
