@@ -241,12 +241,14 @@ def setup_arepo_ics(ics, boxsize, nx, ic_file, overwrite=False,
         idxs |= np.sum((posg-ics.center[2].v)**2, axis=1) > rmax2[2]
     dV = dx**3
     nleft = idxs.sum()
-    m = cparts["gas", "particle_mass"].d[0]*np.ones(nleft)
+    idens = np.argmin(cparts["gas", "density"].d)
+    dens = cparts["gas", "density"].d[idens]*np.ones(nleft)
+    eint = cparts["gas", "thermal_energy"].d[idens]*np.ones(nleft)
     fields["gas", "particle_position"] = unyt_array(posg[idxs, :], "kpc")
     fields["gas", "particle_velocity"] = unyt_array(np.zeros((nleft, 3)), "kpc/Myr")
-    fields["gas", "particle_mass"] = unyt_array(m, "Msun")
-    fields["gas", "density"] = unyt_array(m/dV, "Msun/kpc**3")
-    fields["gas", "thermal_energy"] = unyt_array(np.ones_like(m), "kpc**2/Myr**2")
+    fields["gas", "particle_mass"] = unyt_array(dens*dV, "Msun")
+    fields["gas", "density"] = unyt_array(dens, "Msun/kpc**3")
+    fields["gas", "thermal_energy"] = unyt_array(eint, "kpc**2/Myr**2")
     mylog.info("Background cell density is %g.",
                fields["gas", "density"][0].to_value("g/cm**3"))
     all_parts = cparts + ClusterParticles.from_fields(fields)
