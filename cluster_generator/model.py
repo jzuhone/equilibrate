@@ -772,8 +772,8 @@ class ClusterModel:
             fig = plt.figure(figsize=(10,10))
         if ax is None:
             ax = fig.add_subplot(111)
-        ax.loglog(self["radius"], self[field], lw=lw, **kwargs)
-        ax.set_xlim(rmin, rmax)
+        ax.loglog(self["radius"], self[field], **kwargs)
+        ax.set_xlim(r_min, r_max)
         ax.set_xlabel("Radius (kpc)")
         ax.tick_params(which="major", width=2, length=6)
         ax.tick_params(which="minor", width=2, length=3)
