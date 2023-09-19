@@ -198,7 +198,7 @@ class ClusterParticles:
         for key in fields:
             if key[0] not in particle_types:
                 particle_types.append(key[0])
-        cls(particle_types, fields)
+        return cls(particle_types, fields)
 
     @classmethod
     def from_file(cls, filename, ptypes=None):
