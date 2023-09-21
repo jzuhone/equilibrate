@@ -10,7 +10,7 @@ from cluster_generator.particles import \
     ClusterParticles
 from cluster_generator.virial import \
     VirialEquilibrium
-from unyt import unyt_array
+from unyt import unyt_array, unyt_quantity
 import h5py
 import os
 
@@ -786,6 +786,12 @@ class ClusterModel:
             if f"{mtype}_mass" in self.fields:
                 masses[mtype] = self.fields[f"{mtype}_mass"][r < radius][-1]
         return masses
+
+    def find_radius_for_density(self, density):
+        density = ensure_ytquantity(density, "Msun/kpc**3").value
+        r = self.fields["radius"].to_value("kpc")[::-1]
+        d = self.fields["density"].to_value("Msun/kpc**3")[::-1]
+        return unyt_quantity(np.interp(density, d, r), "kpc")
 
 
 # This is only for backwards-compatibility
