@@ -288,9 +288,8 @@ class ClusterParticles:
                 fields[my_ptype, "particle_mass"] = unyt_array(
                     [f["Header"].attrs["MassTable"][n_type]]*n_ptype,
                     units).in_base("galactic")
-        box_size = f["/Header"].attrs["BoxSize"]
         f.close()
-        return cls(particle_types, fields, box_size=box_size)
+        return cls(particle_types, fields)
 
     def write_particles(self, output_filename, overwrite=False):
         """
