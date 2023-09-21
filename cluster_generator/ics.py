@@ -336,13 +336,14 @@ class ClusterICs:
             new_parts = resample_two_clusters(parts, profiles[0], profiles[1],
                                               self.center[0], self.center[1],
                                               self.velocity[0], self.velocity[1],
+                                              self.r_max,
                                               passive_scalars=passive_scalars)
         else:
             new_parts = resample_three_clusters(parts, profiles[0], profiles[1], 
                                                 profiles[2], self.center[0], 
                                                 self.center[1], self.center[2], 
                                                 self.velocity[0], self.velocity[1], 
-                                                self.velocity[2], 
+                                                self.velocity[2], self.r_max, 
                                                 passive_scalars=passive_scalars)
         return new_parts
 
