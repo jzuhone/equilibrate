@@ -520,7 +520,6 @@ class ClusterParticles:
 
 
 def _sample_clusters(particles, hses, center, velocity,
-                     radii=None, resample=False, 
                      passive_scalars=None):
     num_halos = len(hses)
     center = [ensure_ytarray(c, "kpc") for c in center]
@@ -529,11 +528,6 @@ def _sample_clusters(particles, hses, center, velocity,
     for i, c in enumerate(center):
         r[i,:] = ((particles["gas", "particle_position"]-c)**2).sum(axis=1).d
     np.sqrt(r, r)
-    if radii is None:
-        idxs = slice(None, None, None)
-    else:
-        radii = np.array(radii)
-        idxs = np.any(r <= radii[:,np.newaxis], axis=0)
     d = np.zeros((num_halos, particles.num_particles["gas"]))
     e = np.zeros((num_halos, particles.num_particles["gas"]))
     m = np.zeros((num_halos, 3, particles.num_particles["gas"]))
@@ -560,15 +554,14 @@ def _sample_clusters(particles, hses, center, velocity,
     mom  = m.sum(axis=0)/dens
     if num_scalars > 0:
         ps = s.sum(axis=0)/dens
-    if resample:
-        vol = particles["gas", "particle_mass"]/particles["gas", "density"]
-        particles["gas", "particle_mass"][idxs] = dens[idxs]*vol[idxs]
-    particles["gas", "density"][idxs] = dens[idxs]
-    particles["gas", "thermal_energy"][idxs] = eint[idxs]
-    particles["gas", "particle_velocity"][idxs] = mom.T[idxs]
+    vol = particles["gas", "particle_mass"]/particles["gas", "density"]
+    particles["gas", "particle_mass"][:] = dens*vol.d
+    particles["gas", "density"][:] = dens
+    particles["gas", "thermal_energy"][:] = eint
+    particles["gas", "particle_velocity"][:] = mom.T
     if num_scalars > 0:
         for j, name in enumerate(passive_scalars):
-            particles["gas", name][idxs] = ps[j,idxs]
+            particles["gas", name][:] = ps[j,:]
     return particles
 
 
@@ -667,22 +660,20 @@ def resample_one_cluster(particles, hse, center, velocity):
 
 
 def resample_two_clusters(particles, hse1, hse2, center1, center2,
-                          velocity1, velocity2, radii,
+                          velocity1, velocity2,
                           passive_scalars=None):
     particles = _sample_clusters(particles, [hse1, hse2],
                                  [center1, center2],
                                  [velocity1, velocity2],
-                                 radii=radii, resample=True,
                                  passive_scalars=passive_scalars)
     return particles
 
 
 def resample_three_clusters(particles, hse1, hse2, hse3, center1,
                             center2, center3, velocity1, velocity2,
-                            velocity3, radii, passive_scalars=None):
+                            velocity3, passive_scalars=None):
     particles = _sample_clusters(particles, [hse1, hse2, hse3],
                                  [center1, center2, center3],
                                  [velocity1, velocity2, velocity3],
-                                 radii=radii, resample=True,
                                  passive_scalars=passive_scalars)
     return particles
