@@ -561,7 +561,7 @@ def _sample_clusters(particles, hses, center, velocity,
         ps = s.sum(axis=0)/dens
     if resample:
         vol = particles["gas", "particle_mass"]/particles["gas", "density"]
-        particles["gas", "particle_mass"][idxs] = dens[idxs]*vol[idxs]
+        particles["gas", "particle_mass"][idxs] = dens[idxs]*vol.d[idxs]
     particles["gas", "density"][idxs] = dens[idxs]
     particles["gas", "thermal_energy"][idxs] = eint[idxs]
     particles["gas", "particle_velocity"][idxs] = mom.T[idxs]
