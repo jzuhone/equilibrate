@@ -261,7 +261,7 @@ def setup_arepo_ics(ics, boxsize, nx, ic_file, overwrite=False,
 
 def resample_arepo_ics(ics, infile, outfile, overwrite=False):
     parts = ClusterParticles.from_gadget_file(infile)
-    new_parts = ics.resample_particles(parts)
+    new_parts = ics.resample_particle_ics(parts)
     with h5py.File(infile, "r") as f:
         boxsize = f["Header"].attrs["BoxSize"]
     new_parts.write_to_gadget_file(outfile, boxsize, verwrite=overwrite)
