@@ -4,6 +4,7 @@ from cluster_generator.utils import mylog
 from unyt import uconcatenate, unyt_array
 from pathlib import Path
 import numpy as np
+import h5py
 
 
 def write_amr_particles(particles, output_filename, ptypes,
@@ -232,7 +233,7 @@ def setup_arepo_ics(ics, boxsize, nx, ic_file, overwrite=False,
     dx = boxsize/nx
     le = 0.5*dx
     re = boxsize - 0.5*dx
-    posg = np.mgrid[le:re:nx*1j,le:re:nx*1j,le:re:nx*1j].reshape(3, ngrid).T
+    posg = np.mgrid[le:re:nx*1j, le:re:nx*1j, le:re:nx*1j].reshape(3, ngrid).T
     rmax2 = ics.r_max**2
     idxs = np.sum((posg-ics.center[0].v)**2, axis=1) > rmax2[0]
     if ics.num_halos > 1:
@@ -249,11 +250,21 @@ def setup_arepo_ics(ics, boxsize, nx, ic_file, overwrite=False,
     fields["gas", "particle_mass"] = unyt_array(dens*dV, "Msun")
     fields["gas", "density"] = unyt_array(dens, "Msun/kpc**3")
     fields["gas", "thermal_energy"] = unyt_array(eint, "kpc**2/Myr**2")
-    mylog.info("Background cell density is %g.",
+    mylog.info("Background cell density is %g g/cm**3.",
                fields["gas", "density"][0].to_value("g/cm**3"))
+    mylog.info("Background cell mass is %g Msun.",
+               fields["gas", "particle_mass"][0].to_value("Msun"))
     all_parts = cparts + ClusterParticles.from_fields(fields)
     all_parts.write_to_gadget_file(ic_file, boxsize, overwrite=overwrite,
                                    code='arepo')
+
+
+def resample_arepo_ics(ics, infile, outfile, overwrite=False):
+    parts = ClusterParticles.from_gadget_file(infile)
+    new_parts = ics.resample_particles(parts)
+    with h5py.File(infile, "r") as f:
+        boxsize = f["Header"].attrs["BoxSize"]
+    new_parts.write_to_gadget_file(outfile, boxsize, verwrite=overwrite)
 
 
 def setup_gizmo_ics(ics):
