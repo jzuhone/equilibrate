@@ -1,4 +1,5 @@
 import numpy as np
+from cluster_generator.cython_utils import divergence_clean
 from cluster_generator.utils import mylog, parse_prng
 import os
 from cluster_generator.model import ClusterModel
@@ -89,7 +90,7 @@ class ClusterField:
         self.gx = np.fft.fftn(self.gx)
         self.gy = np.fft.fftn(self.gy)
         self.gz = np.fft.fftn(self.gz)
-
+        """
         # These k's are different because we are
         # using the finite difference form of the
         # divergence operator.
@@ -113,6 +114,8 @@ class ClusterField:
         self.gz -= kzd*kb
 
         del kxd, kyd, kzd, kb
+        """
+        divergence_clean(self.gx, self.gy, self.gz, kx, ky, kz, self.deltas)
 
         self.gx = np.fft.ifftn(self.gx).real
         self.gy = np.fft.ifftn(self.gy).real
@@ -228,6 +231,7 @@ class ClusterField:
                 f.attrs["name"] = self._name
                 f.attrs["units"] = self.units
                 f.attrs["vector_potential"] = int(self.vector_potential)
+                f.attrs["divergence_clean"] = int(self.divergence_clean)
 
     def map_field_to_particles(self, cluster_particles,
                                ptype="gas", units=None):
@@ -419,7 +423,7 @@ class GaussianRandomField(ClusterField):
             self._compute_vector_potential(kx, ky, kz)
 
         mylog.info("Field generation complete.")
-
+        
 
 class RandomMagneticField(GaussianRandomField):
     _units = "gauss"
