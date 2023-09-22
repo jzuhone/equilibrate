@@ -1,9 +1,8 @@
 """
 Galaxy Cluster Models
 =====================
-Similar to the :py:class:`gravity.Potential` class, the :py:class:`model.ClusterModel` class is the ``cluster_generator`` code's
-base object for fully realized models of galaxy clusters. These objects contain fields (``ClusterModel.fields``) just as the :py:class:`gravity.Potential` objects do;
-however, :py:class:`model.ClusterModel` objects can be virialized, may have particles generated from them, and can have HSE checked.
+The :py:class:`model.ClusterModel` class is the base object for fully realized models of individual galaxy clusters.
+These objects contain fields (:py:attr:`model.ClusterModel.fields`) and :py:class:`model.ClusterModel` objects can be virialized, may have particles generated from them, and can have HSE checked.
 
 """
 import os
@@ -25,7 +24,7 @@ from cluster_generator.particles import \
 from cluster_generator.utils import \
     integrate, mylog, integrate_mass, \
     mp, generate_particle_radii, mu, mue, \
-    ensure_ytquantity, kpc_to_cm, log_string, devLogger,eprint
+    ensure_ytquantity, kpc_to_cm, log_string, devLogger,eprint, cgparams
 from cluster_generator.virial import \
     VirialEquilibrium
 
@@ -61,8 +60,7 @@ class ClusterModel:
     - ``__getitem__`` and ``__contains__`` are aliased down to ``self.fields``. There is no ``__setitem__``, so index
       / key assignment cannot be done. use ``ClusterModel.set_field()`` instead.
     """
-    #  Class Variables
-    # ----------------------------------------------------------------------------------------------------------------- #
+
     #: The default included fields that can be accessed.
     default_fields = ["density", "temperature", "pressure", "total_density",
                       "gravitational_potential", "gravitational_field",
@@ -76,16 +74,10 @@ class ClusterModel:
     _dm_virial = None
     _star_virial = None
 
-    #  Dunder Methods
-    # ----------------------------------------------------------------------------------------------------------------- #
     def __init__(self, fields, gravity="Newtonian", **kwargs):
-        #  Setting basic attributes
-        # ------------------------------------------------------------------------------------------------------------ #
-        # - Initializing base attributes - #
         #: The ``fields`` associated with the ``Potential`` object.
         self.fields = fields
 
-        # - managing gravity initialization - #
         if isinstance(gravity, str):
             # Gravity comes in as string, we try to look it up
             try:
@@ -107,8 +99,6 @@ class ClusterModel:
         else:
             raise TypeError("The entity passed as gravity is not a recognized type for this parameter.")
 
-        #  Determining derived attributes
-        # ------------------------------------------------------------------------------------------------------------ #
         #: The number of elements in each ``field`` array.
         self.num_elements = len(self.fields["radius"])
 
@@ -118,8 +108,6 @@ class ClusterModel:
         #: Additional attributes associated with the object. Derived from ``**kwargs``.
         self.attrs = kwargs
 
-        #  Managing additional parameters
-        # ----------------------------------------------------------------------------------------------------------------- #
         # - setting the require_physical kwarg
         if not "virialization_method" in self.attrs:
             mylog.info(
@@ -141,8 +129,6 @@ class ClusterModel:
     def __setitem__(self, key, value):
         self.fields[key] = value
 
-    #  Properties
-    # ----------------------------------------------------------------------------------------------------------------- #
     @property
     def pot(self):
         """The potential of the :py:class:`model.ClusterModel` object."""
@@ -173,8 +159,6 @@ class ClusterModel:
     def virialization_method(self,value):
         self.attrs["virialization_method"] = value
 
-    #  Class Methods
-    # ----------------------------------------------------------------------------------------------------------------- #
     @classmethod
     def from_arrays(cls, fields, **kwargs):
         """
@@ -225,7 +209,7 @@ class ClusterModel:
         .. image:: ../_images/model/from_arrays_plot.png
         """
 
-        if "stellar_density" in kwargs:
+        if "stellar_density" in kwargs and kwargs["stellar_density"] is not None:
             fields["stellar_density"] = kwargs["stellar_density"]
             del kwargs["stellar_density"]
 
@@ -257,15 +241,12 @@ class ClusterModel:
         from cluster_generator.virial import VirialEquilibrium
 
         mylog.info(f"Loading ClusterModel instance from {filename}.")
-        # Preloading the correct fields from the HDF5 file
-        # ------------------------------------------------------------------------------------------------------------ #
+
         with h5py.File(filename, "r") as f:
             fnames = list(f['fields'].keys())
             get_dm_virial = 'dm_df' in f
             get_star_virial = 'star_df' in f
 
-        #  Building attributes
-        # ------------------------------------------------------------------------------------------------------------ #
         _atr_path = f"{filename}.pkl"
 
         try:
@@ -275,8 +256,6 @@ class ClusterModel:
             mylog.warning(f"Failed to load attribute file {_atr_path}.")
             attrs = {}
 
-        #  Building fields
-        # ------------------------------------------------------------------------------------------------------------ #
         fields = OrderedDict()
         for field in fnames:  # -> converting fields to unyt_arrays.
             a = unyt_array.from_hdf5(filename, dataset_name=field,
@@ -296,8 +275,6 @@ class ClusterModel:
             fields[field] = fields[field][mask]
         num_elements = mask.sum()
 
-        #  Cleanup
-        # ------------------------------------------------------------------------------------------------------------ #
         if "gravity" not in attrs:
             attrs["gravity"] = "Newtonian"
         else:
@@ -334,8 +311,7 @@ class ClusterModel:
 
     @classmethod
     def _from_scratch(cls, fields, stellar_density=None, gravity="Newtonian", **kwargs):
-        #  Sanity check
-        # ------------------------------------------------------------------------------------------------------------ #
+
         devLogger.debug("Constructing ClusterModel. Method='from_scratch'.")
 
         _required_fields = ["radius", "total_density", "total_mass"]
@@ -344,12 +320,8 @@ class ClusterModel:
             if field not in fields:
                 ValueError(f"Failed to find required field {field} for generation using _from_scratch.")
 
-        #  Pulling data
-        # ------------------------------------------------------------------------------------------------------------ #
         rr = fields["radius"].d
 
-        # Standardizing Construction
-        # ------------------------------------------------------------------------------------------------------------ #
         eprint("Checking for missing mass / density fields...",2,location="from_scratch",end="")
         devLogger.debug("[[from_scratch]] Checking for missing mass / density fields.")
         # - Gas mass integration -#
@@ -368,8 +340,7 @@ class ClusterModel:
             fields["stellar_mass"] = unyt_array(
                 integrate_mass(stellar_density, rr), "Msun")
         eprint("[DONE]",0,frmt=False,location="from_scratch")
-        #  Managing the halo mass component
-        # ------------------------------------------------------------------------------------------------------------ #
+
         if "dark_matter_density" not in fields:
             devLogger.debug("[[from_scratch]] Determining the halo component.")
             eprint("Determining the halo component...",2,location="from_scratch",end="")
@@ -392,8 +363,6 @@ class ClusterModel:
                 (4.0 / 3.0) * np.pi * cumtrapz(fields["dark_matter_density"] * rr * rr,
                                                x=rr, initial=0.0) + m0, "Msun")
 
-        #  Computing subsidiary fields
-        # ------------------------------------------------------------------------------------------------------------ #
         eprint("Computing additional fields...", 2, location="from_scratch", end="")
         if "density" in fields:
             devLogger.debug("[[from_scratch]] Computing g_fraction, n_e, S.")
@@ -406,8 +375,6 @@ class ClusterModel:
         eprint("Initializing the ClusterModel...",n=2,location="from_scratch")
         obj = cls(fields, gravity=gravity, **kwargs)
 
-        #  Computing the potential
-        # ------------------------------------------------------------------------------------------------------------ #
         _ = obj.pot
         return obj
 
@@ -446,8 +413,7 @@ class ClusterModel:
         ClusterModel
 
         """
-        #  Logging and Setup
-        # ------------------------------------------------------------------------------------------------------------ #
+
         mylog.info(f"Constructing ClusterModel. Method='from_dens_and_temp', gravity={gravity}.")
         devLogger.debug(f"Constructing ClusterModel. Method='from_dens_and_temp', gravity={gravity}.")
         # -- Sanity Check: make sure gravity is real -- #
@@ -470,8 +436,6 @@ class ClusterModel:
         fields["temperature"] = unyt_array(temperature(rr), "keV")
         eprint("[DONE]",0,frmt=False,location="from_dens_and_temp")
 
-        #  Carrying out computations
-        # ------------------------------------------------------------------------------------------------------------ #
         # -- Pressure -- #
         eprint("Computing calculating the pressure...",2, end="",location="from_dens_and_temp")
         devLogger.debug("[[dens/temp]] Constructing pressure...")
@@ -576,8 +540,7 @@ class ClusterModel:
         """
         mylog.info(f"Computing the profiles from density and total density. Gravity={gravity}")
 
-        #  Pulling necessary field data to begin computations
-        # ------------------------------------------------------------------------------------------------------------ #
+
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points,
                          endpoint=True)
 
@@ -586,13 +549,11 @@ class ClusterModel:
         fields["density"] = unyt_array(density(rr), "Msun/kpc**3")
         fields["total_density"] = unyt_array(total_density(rr), "Msun/kpc**3")
 
-        # -- beginning the mass integrations -- #
         mylog.info("Integrating total mass profile.")
         fields["total_mass"] = unyt_array(integrate_mass(total_density, rr),
                                           "Msun")
         fields["gas_mass"] = unyt_array(integrate_mass(density, rr), "Msun")
 
-        # - Generating the output object - #
         obj = cls.from_arrays(fields, stellar_density=stellar_density, gravity=gravity, **kwargs)
 
         # - Getting the potential - #
@@ -657,8 +618,6 @@ class ClusterModel:
 
         return cls._from_scratch(fields, stellar_density=stellar_density, gravity=gravity, attrs=attrs, **kwargs)
 
-    #  Methods
-    # ----------------------------------------------------------------------------------------------------------------- #
     def keys(self):
         return self.fields.keys()
 
@@ -674,7 +633,7 @@ class ClusterModel:
             ``None`` if ``status=True``, otherwise returns an array of all radii at which non-physicality occurs.
         """
         with Halo(text=log_string(f"Checking physicality of {self.__repr__()}..."), spinner="dots", stream=sys.stderr,
-                  animation="marquee") as h:
+                  animation="marquee",enabled=cgparams["system"]["text"]["spinners"]) as h:
             _phys_check_fields = ["dark_matter_density", "stellar_density", "density", "total_density"]
 
             non_phys_radii = np.zeros(self["radius"].d.size)
@@ -712,6 +671,66 @@ class ClusterModel:
         num_elements = mask.sum()
         return ClusterModel(num_elements, fields, dm_virial=self.dm_virial,
                             star_virial=self.star_virial)
+
+    def create_dataset(self,domain_dimensions, box_size = None, left_edge = None,velocity=None,**kwargs):
+        """
+        .. warning::
+
+            This method can be memory intensive. We suggest being conservative in your choice of domain size to
+            begin in order to avoid OOM issues. For reference, a domain dimension of ``[500,500,500]`` will take appox.
+            3Gb / field.
+
+        Create an in-memory, uniformly gridded dataset in 3D using yt by
+        placing the cluster into a box.
+
+        Parameters
+        ----------
+        domain_dimensions : 3-tuple of ints
+            The number of cells on a side for the domain.
+        box_size : float, optional
+            The size of the box in kpc. If not specified, will default to the size of the cluster.
+        left_edge : array_like, optional
+            The minimum coordinate of the box in all three dimensions,
+            in kpc. Default: None, which means the left edge will
+            be [-r,-r,-r].
+        velocity: unyt_array, optional
+            The velocity of the cluster relative to the frame of the box. Default is 0. If specified, must be a 1X3 array.
+        """
+        from yt.loaders import load_uniform_grid
+        from cluster_generator.utils import mylog, build_yt_dataset_fields
+
+        mylog.info(f"Loading yt dataset of {self}...")
+
+        if box_size is None:
+            box_size = 2*np.amax(self["radius"].d)
+
+        # Dealing with the left edge of the domain.
+        if left_edge is None:
+            left_edge = -np.amax(box_size/2)*np.ones(3)
+        left_edge = np.array(left_edge)
+
+        # Building the boundary box
+        bbox = [
+        [left_edge[0], left_edge[0] + box_size],
+        [left_edge[1], left_edge[1] + box_size],
+        [left_edge[2], left_edge[2] + box_size]
+        ]
+
+        # Creating the underlying meshgrid
+        try:
+            x, y, z = np.mgrid[
+                      bbox[0][0]:bbox[0][1]:domain_dimensions[0] * 1j,
+                      bbox[1][0]:bbox[1][1]:domain_dimensions[1] * 1j,
+                      bbox[2][0]:bbox[2][1]:domain_dimensions[2] * 1j,
+                      ]
+        except MemoryError as err:
+            raise MemoryError(f"Failed to allocate memory for the grid. Error msg = {err.__str__()}.")
+
+        data = build_yt_dataset_fields([x, y, z], [self], domain_dimensions, unyt_array([[0,0,0]],"kpc"), velocity if velocity is not None else unyt_array([[0,0,0]],"kpc/Myr") )
+
+        return load_uniform_grid(data, domain_dimensions, length_unit="kpc",
+                                 bbox=np.array(bbox), mass_unit="Msun", time_unit="Myr",
+                                 **kwargs)
 
     def write_model_to_ascii(self, output_filename, in_cgs=False,
                              overwrite=False):
@@ -787,20 +806,15 @@ class ClusterModel:
         >>> with tempfile.TemporaryDirectory() as temp_dir:
         ...     mdl.write_model_to_h5(os.path.join(temp_dir,"model.h5"),overwrite=True)
         """
-        #  Sanity checks
-        # ------------------------------------------------------------------------------------------------------------ #
+
         if os.path.exists(output_filename) and not overwrite:
             raise IOError(f"Cannot create {output_filename}. It exists and "
                           f"overwrite=False.")
 
-        #  Building the file
-        # ------------------------------------------------------------------------------------------------------------ #
         f = h5py.File(output_filename, "w")
         f.create_dataset("num_elements", data=self.num_elements)
         f.close()
 
-        #  Writing Data
-        # ------------------------------------------------------------------------------------------------------------ #
         self._write_model_attrs(output_filename, in_cgs=in_cgs)
 
         # -- managing r_min / r_max -- #
@@ -827,8 +841,6 @@ class ClusterModel:
             fd.write_hdf5(output_filename, dataset_name=k,
                           group_name="fields")
 
-        #  Manage the virialization properties
-        # ------------------------------------------------------------------------------------------------------------ #
         if getattr(self, "_dm_virial", None):
             if self.virialization_method == "eddington":
                 df = self.dm_virial.df
@@ -989,12 +1001,10 @@ class ClusterModel:
         >>> # Checking HSE
         >>> assert_almost_equal(np.amax(mdl.check_hse().d),0,decimal=3)
         """
-        #  Sanity Check
-        # ------------------------------------------------------------------------------------------------------------ #
+
         if "pressure" not in self.fields:
             raise RuntimeError("This ClusterModel contains no gas!")
-        #  Pulling necessary fields
-        # ----------------------------------------------------------------------------------------------------------------- #
+
         rr = self.fields["radius"].v
         pressure_spline = InterpolatedUnivariateSpline(
             rr, self.fields["pressure"].v)
@@ -1028,13 +1038,11 @@ class ClusterModel:
         """
         from copy import deepcopy
         from cluster_generator.utils import truncate_spline
-        #  Making the profile corrections
-        # ------------------------------------------------------------------------------------------------------------ #
+
         with Halo(text=log_string(f"Rebuilding {self.__repr__()} for physicality..."), spinner="dots",
                   stream=sys.stderr,
                   animation="marquee") as h:
-            #  Sanity Check
-            # -------------------------------------------------------------------------------------------------------- #
+
             if self.is_physical()[0]:
                 h.succeed(f"[{self.__repr__()}] is already physical.")
                 return deepcopy(self)
@@ -1042,8 +1050,7 @@ class ClusterModel:
             # Copying fields
             #----------------------------------------------------------------------------------------------------------#
             fields = deepcopy(self.fields)
-            #  Rebuilding the constituent density arrays
-            # -------------------------------------------------------------------------------------------------------- #
+
             _required_fields_fixable = {"stellar_"    : "stellar_",
                                         "dark_matter_": "dark_matter_",
                                         ""            : "gas_"}
@@ -1054,8 +1061,7 @@ class ClusterModel:
 
             # - Fixing -#
             for fd, fm in _required_fields_fixable.items():
-                #  Attempting to fix the density
-                # ---------------------------------------------------------------------------------------------------- #
+
                 mylog.debug(f"[[rebuild-physical]]: fixing {fd}density.")
 
                 # -- SANITY CHECK -- #
@@ -1088,8 +1094,6 @@ class ClusterModel:
                 fields["total_density"] += fields[f"{fd}density"]
                 fields["total_mass"] += fields[f"{fm}mass"]
 
-        #  Recomputing temperature field from new system
-        # ------------------------------------------------------------------------------------------------------------ #
 
         # - Sanity Check - #
         if "density" not in fields:
@@ -1255,8 +1259,7 @@ class ClusterModel:
             which sets the seed based on the system time.
         """
         from cluster_generator.utils import parse_prng
-        #  Setup
-        # ------------------------------------------------------------------------------------------------------------ #
+
         prng = parse_prng(prng)
         mylog.info("We will be assigning %d particles." % num_particles)
 
@@ -1265,8 +1268,6 @@ class ClusterModel:
         # Determining the number of particles to partition into subsamples.
         num_particles_sub = num_particles // sub_sample
 
-        #  Sampling
-        # ------------------------------------------------------------------------------------------------------------ #
         # ** --------------- Radii --------------------** #
         # Inverse distribution sampling to get radii for particles and measure of total mass.
         radius_sub, mtot = generate_particle_radii(self["radius"].d,
@@ -1283,8 +1284,6 @@ class ClusterModel:
         theta = np.arccos(prng.uniform(low=-1., high=1., size=num_particles))
         phi = 2. * np.pi * prng.uniform(size=num_particles)
 
-        #  Building the fields
-        # ------------------------------------------------------------------------------------------------------------ #
         fields = OrderedDict()
 
         fields["gas", "particle_position"] = unyt_array(

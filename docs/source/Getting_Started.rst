@@ -1,4 +1,5 @@
 .. _getting_started:
+
 Quickstart Guide
 ----------------
 
@@ -47,7 +48,7 @@ below for installation from source code, from ``pip`` and from ``conda``.
 From PyPI
 +++++++++
 
-.. info::
+.. note::
 
     This feature is not yet available.
 
@@ -55,14 +56,14 @@ From PyPI
 With CONDA
 ++++++++++
 
-.. info::
+.. note::
 
     This feature is not yet available.
 
 With PIP
 ++++++++
 
-.. info::
+.. note::
 
     This feature is not yet available.
 

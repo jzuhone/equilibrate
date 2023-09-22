@@ -45,16 +45,22 @@ def rot_3d(axis, gx, gy, gz, ang):
     axis: int
         The axis to rotate about. Options are ``1,2,3``.
     gx: float
+        Vector x component.
     gy: float
+        Vector y component.
     gz: float
+        Vector z component.
     ang: float
         The angle over which to rotate.
 
     Returns
     -------
     gx: float
+        Vector x component.
     gy: float
+        Vector y component.
     gz: float
+        Vector z component.
     """
 
     c = np.cos(ang)
@@ -90,8 +96,7 @@ class ClusterField:
         vector_potential
         divergence_clean
         """
-        #  Basic Management
-        # ----------------------------------------------------------------------------------------------------------------- #
+
         # - Type conversions and setup
         ddims = np.array(ddims).astype("int")
         left_edge = parse_value(left_edge, "kpc").v

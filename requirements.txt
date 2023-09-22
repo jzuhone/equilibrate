@@ -97,3 +97,4 @@ dill
 pandas
 sphinx-design
 colossus
+sphinx-hoverxref

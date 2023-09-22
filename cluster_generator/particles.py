@@ -16,9 +16,7 @@ from cluster_generator.utils import ensure_ytarray, ensure_list, \
     mylog, truncate_spline
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Setup ============================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 # - Loading the yaml file
 with open(os.path.join(pt.Path(__file__).parents[0], "bin", "resources", "particle_fields.yaml")) as gfile:
     _gadget_setup_dict = yaml.load(gfile, yaml.FullLoader)
@@ -34,9 +32,7 @@ ptype_map = OrderedDict([("PartType0", "gas"),
 rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Classes ============================================================================================================ #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 
 class ClusterParticles:
     """
@@ -595,21 +591,16 @@ def _sample_clusters(particles, hses, center, velocity,
     -------
 
     """
-    #  Determining basic criteria for sampling
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     num_halos = len(hses)
     center = [ensure_ytarray(c, "kpc") for c in center]
     velocity = [ensure_ytarray(v, "kpc/Myr") for v in velocity]
 
-    #  Computing the correct relative locations of the different gas particles from center of each halo.
-    # ---------------------------------------------------------------------------------------------------------------- #
     r = np.zeros((num_halos, particles.num_particles["gas"]))
     for i, c in enumerate(center):
         r[i, :] = ((particles["gas", "particle_position"] - c) ** 2).sum(axis=1).d
     np.sqrt(r, r)
 
-    #  Generating the desired sampling radii
-    # ---------------------------------------------------------------------------------------------------------------- #
     if radii is None:
         # We just take all of the possible radii
         idxs = slice(None, None, None)
@@ -617,8 +608,6 @@ def _sample_clusters(particles, hses, center, velocity,
         radii = np.array(radii)
         idxs = np.any(r <= radii[:, np.newaxis], axis=0)
 
-    #  Computing the full resample
-    # ---------------------------------------------------------------------------------------------------------------- #
     d = np.zeros((num_halos, particles.num_particles["gas"]))
     e = np.zeros((num_halos, particles.num_particles["gas"]))
     m = np.zeros((num_halos, 3, particles.num_particles["gas"]))
@@ -659,8 +648,6 @@ def _sample_clusters(particles, hses, center, velocity,
     if num_scalars > 0:
         ps = s.sum(axis=0) / dens
 
-    # Recomputing
-    # ----------------------------------------------------------------------------------------------------------------- #
     if np.any(e < 0):
         print(r.shape, e.shape)
         rs = np.amax(np.sqrt(np.sum(r[np.where(e < 0)] ** 2, axis=0)))
@@ -701,14 +688,10 @@ def concat_clusters(particles, hses, centers, velocities):
     """
     mylog.info(f"Concatenating {len(particles)} clusters.")
 
-    #  Sanity Check
-    # ---------------------------------------------------------------------------------------------------------------- #
     for i, _ in enumerate(centers):
         centers[i] = ensure_ytarray(centers[i], "kpc")
         velocities[i] = ensure_ytarray(velocities[i], "kpc/Myr")
 
-    #  Adding necessary velocity and space offsets
-    # ---------------------------------------------------------------------------------------------------------------- #
     for k, particle_set in enumerate(particles):
         particle_set.add_offsets(centers[k], velocities[k])
 

@@ -205,6 +205,54 @@ Contents
    examples
    api
 
+Related Projects
+================
+
+.. grid:: 2
+    :padding: 3
+    :gutter: 5
+
+    .. grid-item-card::
+        :img-top: _images/index/PyXSIM.png
+
+        PyXSIM
+        ^^^^^^
+
+        Convert your ``cluster_generator`` systems into synthetic photon event lists for use in simulating observations using X-ray observatories using PyXSIM.
+        ``cluster_generator`` is designed to easily interface with this library to provide as much ease as possible when building simulated observations of clusters.
+
+        +++
+
+        .. button-link:: http://hea-www.cfa.harvard.edu/~jzuhone/pyxsim/
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            Documentation
+
+
+    .. grid-item-card::
+        :img-top: _images/index/SOXS.png
+
+        SOXS
+        ^^^^
+
+        Coupled with PyXSIM, SOXS is a instrument simulation tool for turning mock photon counts into realistic X-ray observations specific to the
+        behavior of specific instruments like CHANDRA, XMM-Newton, and NuSTAR.
+
+        +++
+
+        .. button-link:: https://www.lynxobservatory.com/soxs
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            Documentation
+
+
+
+
+
 Indices and tables
 ==================
 

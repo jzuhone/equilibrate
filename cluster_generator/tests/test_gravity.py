@@ -10,9 +10,7 @@ from cluster_generator.utils import G
 from numpy.testing import assert_allclose
 from cluster_generator.model import ClusterModel
 from cluster_generator.tests.utils import generate_model_dens_tdens
-# -------------------------------------------------------------------------------------------------------------------- #
-# Fixtures =========================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 @pytest.fixture
 def mdr_model():
     # This creates a model with mass-density-radius
@@ -37,9 +35,7 @@ def standard_models_dens_tdens(answer_dir, answer_store, gravity):
         m = generate_model_dens_tdens(gravityity=gravity)
         m.write_model_to_h5(f"{answer_dir}/{gravity}_model_dens_tdens.h5", overwrite=True)
     return m
-# -------------------------------------------------------------------------------------------------------------------- #
-# Asymptotic Tests =================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 @pytest.mark.usefixtures("mdr_model","answer_dir")
 class TestGravityAsymptotic():
     """
@@ -50,19 +46,14 @@ class TestGravityAsymptotic():
     def test_asymptotic_low_a0(self,mdr_model,answer_dir):
         from copy import deepcopy
         import matplotlib.pyplot as plt
-        #  Test configuration
-        # ------------------------------------------------------------------------------------------------------------ #
+
         _included_gravity_classes = [gr.NewtonianGravity,gr.AQUALGravity,gr.QUMONDGravity]
 
-        #  Setup
-        # ------------------------------------------------------------------------------------------------------------ #
         m,d,r = mdr_model
         potentials = []
         fields = {"total_mass":m,"total_density":d,"radius":r}
         accel = []
 
-        #  compute
-        # ------------------------------------------------------------------------------------------------------------ #
         for grav in _included_gravity_classes:
             potentials.append(grav.compute_potential(deepcopy(fields),attrs={"a_0":self.low_a0},spinner=False).d)
             accel.append(np.gradient(potentials[-1],fields["radius"].d))
@@ -81,6 +72,7 @@ class TestGravityAsymptotic():
         for i,ac in enumerate(accel[1:],1):
             assert_allclose(accel[0],ac,rtol=1e-2,err_msg=f"gravity classes {_included_gravity_classes[0]._classname} and {_included_gravity_classes[i]._classname} were not equal to within tolerance.")
 @pytest.mark.usefixtures("mdr_model","answer_dir")
+
 class TestNewtonianGravity():
     """
     These tests are designed to confirm that the correct results are obtained from Newtonian gravity calculations.
@@ -101,6 +93,15 @@ class TestNewtonianGravity():
 
         assert_allclose(analytic_solution(r.d),potential.d)
 
+    def test_hernquist(self):
+        rr = np.geomspace(0.1,10000,10000) # the integration domain
+        density_answer = lambda x: (1/(2*np.pi))*(500/x)*(1/(500+x)**3)
+        mass_answer = lambda x: (x/(500+x))**2
+        potential_answer = lambda x: -G/(x+500)
+
+        test_answer = gr.NewtonianGravity.compute_potential({"total_density":unyt_array(density_answer(rr),"Msun/kpc**3"),"total_mass":unyt_array(mass_answer(rr),"Msun"),"radius":unyt_array(rr,"kpc")})
+
+        np.testing.assert_allclose(test_answer.d,potential_answer(rr).d,rtol=0.1)
     def test_orbit(self,answer_dir):
         """Tests that the orbital computations are accurate. Checks for circular orbits."""
         from cluster_generator import orbits as orb
@@ -240,19 +241,15 @@ class TestEMONDGravity:
         """Tests that the EMOND corresponds to AQUAL when a_0(x) = a_0."""
         from copy import deepcopy
         import matplotlib.pyplot as plt
-        #  Test configuration
-        # ------------------------------------------------------------------------------------------------------------ #
+
         _included_gravity_classes = [gr.AQUALGravity,gr.EMONDGravity]
 
-        #  Setup
-        # ------------------------------------------------------------------------------------------------------------ #
         m,d,r = mdr_model
         potentials = []
         fields = {"total_mass":m,"total_density":d,"radius":r}
         accel = []
         att = [{},{"a_0":lambda x: (x*0)+gr.a0.to("kpc/Myr**2").d,"alpha":1}]
-        #  compute
-        # ------------------------------------------------------------------------------------------------------------ #
+
         for grav,ats in zip(_included_gravity_classes,att):
             potentials.append(grav.compute_potential(deepcopy(fields),attrs=ats,spinner=False).d)
             accel.append(np.gradient(potentials[-1],fields["radius"].d))

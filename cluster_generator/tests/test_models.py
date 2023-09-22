@@ -4,9 +4,7 @@ from cluster_generator.model import ClusterModel
 from cluster_generator.tests.utils import generate_model_dens_tdens, generate_model_dens_temp, model_answer_testing
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Fixtures =========================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 @pytest.fixture
 def standard_models_dens_temp(answer_dir, answer_store, gravity):
     import os
@@ -29,9 +27,7 @@ def standard_models_dens_tdens(answer_dir, answer_store, gravity):
     return m
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Construction Tests ================================================================================================= #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def test_model_generation_dens_tdens(answer_store, gravity, answer_dir):
     model = generate_model_dens_tdens(gravity=gravity, attrs={})
     model_answer_testing(model, f"{answer_dir}/{gravity}_model.h5", answer_store, answer_dir)
@@ -41,9 +37,7 @@ def test_model_generation_dens_temp(answer_store, gravity, answer_dir):
     model = generate_model_dens_temp(gravity=gravity, attrs={})
     model_answer_testing(model, f"{answer_dir}/{gravity}_model.h5", answer_store, answer_dir)
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Processes Tests ==================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def test_rebuild(answer_store, answer_dir,gravity):
     """Test that the rebuilding system actually works"""
     import matplotlib.pyplot as plt
@@ -88,9 +82,7 @@ def test_rebuild(answer_store, answer_dir,gravity):
                 ax.set_yscale("symlog")
     plt.savefig(f"{answer_dir}/rebuild_comp.png")
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Virialization Tests ================================================================================================ #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 @pytest.mark.skip(reason="See Issue #4 on Github. Currently fails due to non-physical profile behavior.")
 def test_eddington(answer_dir, standard_models_dens_tdens, standard_models_dens_temp):
     # - reading the model - #
@@ -128,8 +120,7 @@ def test_N_lma(answer_dir, answer_store, standard_models_dens_tdens):
     from scipy.interpolate import InterpolatedUnivariateSpline
     import yt
     import matplotlib.pyplot as plt
-    #  Creating the particle distributions
-    # ----------------------------------------------------------------------------------------------------------------- #
+
     modelN = standard_models_dens_tdens
 
     parts_eddington = modelN.dm_virial.generate_particles(num_particles=200_000)
