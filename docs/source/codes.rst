@@ -86,13 +86,32 @@ RAMSES initial conditions.
 Generating your ICs
 -------------------
 
-The first step is to generate your initial conditions. This can be done in any number of ways
+The first step is to configure your initial conditions in whichever way you please. Once you have a :py:class:`ics.ClusterICs` instance,
+you can use the :py:func:`codes.setup_ramses_ics` to generate the necessary files.
+
+.. warning::
+
+    These files are placed directly into the working directory. Please be sure to change your directory to the intended final
+    location before generating the files.
+
+You should see a ``MergerConfig.txt`` file in your directory along with a ``halo_*_parts.h5`` and ``halo_*_prof.h5`` for each
+of your halos. These contain all of the data that RAMSES needs to read the data.
 
 Configuring RAMSES
 ------------------
 
+.. note::
+
+    The RAMSES patch discussed in this section is currently unavailable.
+
+Once you have obtained the ``cluster_merger`` patch for RAMSES, the installation process should be the same as any other installation
+of RAMSES, except that the ``patch`` line in the ``Makefile`` must be provided with the correct file path of the ``cluster_merger`` patch.
+
+Once installed, RAMSES should be fully functional; however, some changes to the standard namelist are required before simulations can be performed.
+
 Running the Simulation
 ----------------------
+
 
 
 .. _athena:

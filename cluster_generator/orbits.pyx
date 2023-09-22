@@ -22,9 +22,7 @@ cdef extern from "stdlib.h":
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Gravity Orbit Solvers ============================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 # Each of these functions contains a modified Euler's method procedure for estimating the trajectory of the systems
 # in the user's initial conditions as point particles.
 #
@@ -48,9 +46,6 @@ def aqual_orbits(
     DTYPE_t rmax,
     ):
 
-
-    #  Instantiating the necessary arrays / setup procedures
-    # ---------------------------------------------------------------------------------------------------------------- #
     cdef long int n # the iteration
     cdef int exit_code
     cdef np.ndarray[DTYPE_t, ndim=3] x
@@ -106,8 +101,6 @@ def aqual_orbits(
             else:
                 mask[k,:,l,:] = 0
 
-    #  Main loop run
-    # ---------------------------------------------------------------------------------------------------------------- #
     pbar = tqdm(leave=True, total=Nmax,
                 desc="Performing orbital computations")
     while n<Nmax and t[n]<tmax:
@@ -170,9 +163,6 @@ def newtonian_orbits(
     DTYPE_t rmax,
     ):
 
-
-    #  Instantiating the necessary arrays / setup procedures
-    # ---------------------------------------------------------------------------------------------------------------- #
     cdef long int n # the iteration
     cdef int exit_code
     cdef np.ndarray[DTYPE_t, ndim=3] x
@@ -227,8 +217,6 @@ def newtonian_orbits(
             else:
                 mask[k,:,l,:] = 0
 
-    #  Main loop run
-    # ---------------------------------------------------------------------------------------------------------------- #
     pbar = tqdm(leave=True, total=Nmax,
                 desc="Performing orbital computations")
     while n<Nmax and t[n]<tmax:

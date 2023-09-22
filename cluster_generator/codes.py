@@ -12,8 +12,9 @@ from pathlib import Path
 
 import numpy as np
 from unyt import uconcatenate, unyt_array
-from cluster_generator.particles import ClusterParticles
+
 from cluster_generator.model import ClusterModel
+from cluster_generator.particles import ClusterParticles
 from cluster_generator.utils import mylog
 
 
@@ -244,25 +245,25 @@ def setup_arepo_ics(ics, boxsize, nx, ic_file, overwrite=False,
     fields = {}
     cparts = ics.setup_particle_ics(regenerate_particles=regenerate_particles,
                                     prng=prng)
-    ngrid = nx**3
-    dx = 1.0/nx
-    posg = np.mgrid[0.5*dx:1.0-0.5*dx:nx*1j,
-                    0.5*dx:1.0-0.5*dx:nx*1j,
-                    0.5*dx:1.0-0.5*dx:nx*1j].reshape(3, ngrid)*boxsize
-    rmax2 = ics.r_max**2
-    idxs = np.sum((posg-ics.center[0])**2, axis=1) < rmax2
+    ngrid = nx ** 3
+    dx = 1.0 / nx
+    posg = np.mgrid[0.5 * dx:1.0 - 0.5 * dx:nx * 1j,
+           0.5 * dx:1.0 - 0.5 * dx:nx * 1j,
+           0.5 * dx:1.0 - 0.5 * dx:nx * 1j].reshape(3, ngrid) * boxsize
+    rmax2 = ics.r_max ** 2
+    idxs = np.sum((posg - ics.center[0]) ** 2, axis=1) < rmax2
     if ics.num_halos > 1:
-        idxs |= np.sum((posg-ics.center[1])**2, axis=1) < rmax2
+        idxs |= np.sum((posg - ics.center[1]) ** 2, axis=1) < rmax2
     if ics.num_halos > 2:
-        idxs |= np.sum((posg-ics.center[2])**2, axis=1) < rmax2
-    dV = (dx*boxsize)**3
+        idxs |= np.sum((posg - ics.center[2]) ** 2, axis=1) < rmax2
+    dV = (dx * boxsize) ** 3
     nleft = idxs.sum()
-    m = cparts["gas", "particle_mass"].d[0]*np.ones(nleft)
+    m = cparts["gas", "particle_mass"].d[0] * np.ones(nleft)
     fields["gas", "particle_position"] = unyt_array(posg.T[idxs, :], "kpc")
     fields["gas", "particle_velocity"] = unyt_array(np.zeros((nleft, 3)), "kpc/Myr")
     fields["gas", "particle_mass"] = unyt_array(m, "Msun")
-    fields["gas", "density"] = unyt_array(m/dV, "Msun/kpc**3")
-    #fields["gas", "thermal_energy"] = unyt_array(eint, "kpc**2/Myr**2") TODO: fix this
+    fields["gas", "density"] = unyt_array(m / dV, "Msun/kpc**3")
+    # fields["gas", "thermal_energy"] = unyt_array(eint, "kpc**2/Myr**2") TODO: fix this
     mylog.info("Background cell density is %g.",
                fields["gas", "density"][0].to_value("g/cm**3"))
     all_parts = cparts + ClusterParticles.from_fields(fields)
@@ -278,6 +279,6 @@ def setup_gizmo_ics(ics):
     """
     pass
 
+
 def setup_art_ics(ics):
     pass
-

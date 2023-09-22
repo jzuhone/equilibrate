@@ -85,9 +85,7 @@ def generate_mdr_potential():
     return unyt_array(m(r), "Msun"), unyt_array(rhot(r), "Msun/kpc**3"), unyt_array(r, "kpc")
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-#  Answering Protocols =============================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def model_answer_testing(model, filename, answer_store, answer_dir):
     p = Path(answer_dir) / filename
     import matplotlib.pyplot as plt

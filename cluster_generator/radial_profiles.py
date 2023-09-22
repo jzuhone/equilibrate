@@ -891,8 +891,7 @@ def ad07_density_profile(T0,t,a,alpha,f,n=4,mu=0.6,omega_b=0.048,omega_dm=0.262)
     """
     from unyt import unyt_quantity
     from unyt import physical_constants as const
-    #  Computing the normalization
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     #- computing the mass norm -#
     M = unyt_quantity(a,"kpc")*(n+1)*unyt_quantity(T0,"keV")/(mu*const.mp*const.G)
     M = M.to("Msun")
@@ -901,8 +900,6 @@ def ad07_density_profile(T0,t,a,alpha,f,n=4,mu=0.6,omega_b=0.048,omega_dm=0.262)
     rho0 = f*(omega_b/omega_dm)*(M/(2*np.pi*unyt_quantity(a,"kpc")**3))
     rho0 = rho0.to("Msun/kpc**3")
 
-    #  Producting the profile
-    # ---------------------------------------------------------------------------------------------------------------- #
     function = lambda r,A=a,T=t,ALPHA=alpha,N=4,RHO=rho0.d: RHO*((1+(r/A))/(T*ALPHA + (r/A)))**(1+((ALPHA-T*ALPHA)*(1-T*ALPHA))*(N+1)) * (ALPHA+(r/A))/((1+(r/A))**(N+1))
     return RadialProfile(function,name=inspect.stack()[0][3])
 

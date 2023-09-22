@@ -40,7 +40,8 @@ extensions = [
     "sphinxcontrib.blockdiag",
     "sphinxcontrib.mermaid",
     "nbsphinx",
-    "sphinx_design"
+    "sphinx_design",
+    "hoverxref.extension"
 ]
 
 # Add any paths that contain templates here, relative to this directory.

@@ -9,10 +9,9 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from cluster_generator.radial_profiles import *
+from cluster_generator.utils import integrate_mass
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Input Data ========================================================================================================= #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 _params = {  # Stores all of the parameters for the generation of each of the test cases.
     "constant_profile"               : [1],
     "power_law_profile"              : [1, 1000, -2],
@@ -65,7 +64,16 @@ class TestProfiles:
         fig.savefig(f"{answer_dir}/profile_trunc_test.png")
 
 
+class TestUtilities:
+    """This class is used to stress test the numerical nethods used here."""
+    def test_integrate_mass(self):
+        rr = np.geomspace(0.1,10000,1000) # the integration domain
+        profile = lambda x: (1/(2*np.pi))*(500/x)*(1/(500+x)**3)
+        answer_profile = lambda x: (x/(500+x))**2
 
+        int = integrate_mass(profile,rr)
+
+        np.testing.assert_allclose(int,answer_profile(rr))
 
 @pytest.mark.filterwarnings("ignore:Casting")
 def test_profiles(answer_dir, answer_store):

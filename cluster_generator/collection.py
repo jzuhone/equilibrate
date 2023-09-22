@@ -11,9 +11,7 @@ import cluster_generator.radial_profiles as rprofs
 from cluster_generator.model import ClusterModel
 from cluster_generator.utils import mylog
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Setup ============================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 
 # -- finding the base storage directory -- #
 collections_directory = os.path.join(pt.Path(__file__).parents[0], "bin", "collections")
@@ -26,8 +24,6 @@ class ClusterCollection:
     """
     _required_global_attributes = ["name", "description", "load_method"]
 
-    #  Dunder Methods
-    # ---------------------------------------------------------------------------------------------------------------- #
     def __init__(self, path):
         """
         Initializes the :py:class:`collection.ClusterCollection` instance.
@@ -46,8 +42,7 @@ class ClusterCollection:
         CollectionsError
             Raised if there are missing parts of the collection data structure.
         """
-        #  Setup
-        # ------------------------------------------------------------------------------------------------------------ #
+
         _fail_with_alert = False  # Tells the loader if something went wrong to alert or not.
         #: The path to the underlying ``.yaml`` file.
         self.path = path
@@ -58,8 +53,6 @@ class ClusterCollection:
         #: The method used to load the clusters. Obtained from the data file.
         self.load_method = None
 
-        #  Loading the YAML file
-        # ------------------------------------------------------------------------------------------------------------ #
         try:
             with open(path, "r+") as yf:
                 _col_data = yaml.load(yf, yaml.FullLoader)
@@ -69,8 +62,6 @@ class ClusterCollection:
             raise yaml.YAMLError(
                 f"The yaml file at {os.path.join(os.getcwd(), path)} failed to load. message = {yex.__repr__()}")
 
-        #  Managing global / meta data
-        # ------------------------------------------------------------------------------------------------------------ #
         if "global" not in _col_data:
             raise CollectionsError(f"Failed to locate the 'global' key in {path}.", section="global")
         for attr in self._required_global_attributes:
@@ -79,8 +70,7 @@ class ClusterCollection:
             except KeyError:
                 raise CollectionsError(f"Failed to locate `{attr}` key in globals for {path}.",
                                        section=f"global.{attr}")
-        #  Managing profiles
-        # ------------------------------------------------------------------------------------------------------------ #
+
         # -- making sure they exist -- #
         if "profiles" not in _col_data["global"]:
             raise CollectionsError(f"Failed to find profiles in {path}", section=f"global.profiles")
@@ -125,8 +115,6 @@ class ClusterCollection:
                         continue
                     self.parameters[profile] = data["parameters"]
 
-        #  Loading the actual datasets
-        # -------------------------------------------------------------------------------------------------------- #
         self.objs = {}
         if "uses" in _col_data["objects"]:
             # -- We are going to be loading via external approach -- #
@@ -184,8 +172,6 @@ class ClusterCollection:
     def __setitem__(self, key, value):
         self.objs[key] = value
 
-    #  Properties
-    # ---------------------------------------------------------------------------------------------------------------- #
     @property
     def profiles(self):
         """
@@ -208,8 +194,6 @@ class ClusterCollection:
         """
         return list(self.objs.keys())
 
-    #  Methods
-    # ----------------------------------------------------------------------------------------------------------------- #
     def load_model(self, model_name, r_min, r_max, num_points=1000, gravity="Newtonian", **kwargs):
         """
         Generates a :py:class:`model.ClusterModel` instance representation of one of the galaxy clusters in the dataset specified
@@ -235,14 +219,11 @@ class ClusterCollection:
         :py:class:`~model.ClusterModel`
             The finished cluster model.
         """
-        #  Sanity Check
-        # ------------------------------------------------------------------------------------------------------------ #
+
         if model_name not in self:
             raise ValueError(
                 f"The model {model_name} does not correspond to any of the data entries.\n  Options are: {self.names}")
 
-        #  Cleanup
-        # ------------------------------------------------------------------------------------------------------------ #
         # - grabbing the profiles - #
         _profiles_out = {}
         for _k, _v in self.profiles.items():
@@ -283,15 +264,12 @@ class ClusterCollection:
         -------
         None
         """
-        #  Setting up the arrays
-        # ------------------------------------------------------------------------------------------------------------ #
+
         import matplotlib.pyplot as plt
         import numpy as np
 
         x = np.geomspace(rmin,rmax,npoints)
 
-        #  Setting up the figure.
-        # ------------------------------------------------------------------------------------------------------------ #
         n_axes = len(self.profiles)
         _factors = []
         for i in range(1,n_axes+1):
@@ -301,8 +279,6 @@ class ClusterCollection:
         nr,nc = _factors[len(_factors)//2],_factors[len(_factors)//2 - 1]
         fig,axes = plt.subplots(nr,nc,figsize=(5*nc,5.4*nr),sharex=True)
 
-        #  Plotting
-        # ------------------------------------------------------------------------------------------------------------ #
 
         for a,p in zip(axes.ravel(),self.profiles.items()):
             a.set_title(p[0])
@@ -324,8 +300,6 @@ class Vikhlinin06(ClusterCollection):
     :py:class:`collection.ClusterCollection` instance representing the dataset from `Vikhlinin, A. et. al. 2006ApJ...640..691V <https://ui.adsabs.harvard.edu/abs/2006ApJ...640..691V/abstract>`_.
     """
 
-    #  Dunder methods
-    # ---------------------------------------------------------------------------------------------------------------- #
     def __init__(self):
         """
         Initializes the instance.
@@ -339,8 +313,6 @@ class Vikhlinin06(ClusterCollection):
         """
         return Vikhlinin06()
 
-    #  Methods
-    # ---------------------------------------------------------------------------------------------------------------- #
     def load_model(self, model_name, r_min=None, r_max=None, num_points=1000, gravity="Newtonian", **kwargs):
         """
         Loads the model with name ``model_name``.
@@ -365,8 +337,7 @@ class Vikhlinin06(ClusterCollection):
         ClusterModel
             The finished cluster model.
         """
-        #  Sanity Check
-        # ------------------------------------------------------------------------------------------------------------ #
+
         if not r_min:
             r_min = self.objs[model_name]["r_min"]
 
@@ -380,8 +351,6 @@ class Ascasibar07(ClusterCollection):
     :py:class:`collection.ClusterCollection` instance representing the dataset from `Ascasibar & Diego 2008MNRAS.383..369A <https://ui.adsabs.harvard.edu/abs/2008MNRAS.383..369A/abstract>`_.
     """
 
-    #  Dunder methods
-    # ---------------------------------------------------------------------------------------------------------------- #
     def __init__(self):
         """
         Initializes the instance.
@@ -395,8 +364,6 @@ class Ascasibar07(ClusterCollection):
         """
         return Ascasibar07()
 
-    #  Methods
-    # ---------------------------------------------------------------------------------------------------------------- #
     def load_model(self, model_name, r_min=None, r_max=None, num_points=1000, gravity="Newtonian", **kwargs):
         """
         Loads the model with name ``model_name``.
@@ -421,8 +388,7 @@ class Ascasibar07(ClusterCollection):
         ClusterModel
             The finished cluster model.
         """
-        #  Sanity Check
-        # ------------------------------------------------------------------------------------------------------------ #
+
         if not r_min:
             r_min = self.objs[model_name]["r_min"]
 
@@ -435,8 +401,7 @@ class Sanderson10(ClusterCollection):
     """
     :py:class:`collection.ClusterCollection` instance representing the dataset from `A.J.R.Sanderson and T.J.Ponman 2010MNRAS.402...65S <https://ui.adsabs.harvard.edu/abs/2010MNRAS.402...65S/abstract>`_.
     """
-    #  Dunder methods
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     def __init__(self):
         """
         Initializes the instance.
@@ -461,9 +426,7 @@ class CollectionsError(Exception):
         super().__init__(self.message)
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-#  Functions ========================================================================================================= #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def get_collections():
     """
     Returns the set of all of the available :py:class:`collection.ClusterCollection` objects saved to default.

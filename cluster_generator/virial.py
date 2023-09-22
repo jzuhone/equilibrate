@@ -110,11 +110,8 @@ class VirialEquilibrium:
 
     """
 
-    #  Dunder Methods
-    # ----------------------------------------------------------------------------------------------------------------- #
     def __init__(self, model, ptype='dark_matter', df=None, sigma2=None, type="eddington"):
-        #  Assigning basic attributes
-        # ------------------------------------------------------------------------------------------------------------ #
+
         #: The number of elements in the model's field samples. (Inherited)
         self.num_elements = model.num_elements
         #: the particle type (``dark_matter`` or ``stellar``).
@@ -144,8 +141,6 @@ class VirialEquilibrium:
         else:
             raise ValueError(f"The equilibrium type {self.type} is not valid.")
 
-    # Properties
-    # ----------------------------------------------------------------------------------------------------------------- #
     @property
     def df(self):
         if self.type == "eddington":
@@ -201,8 +196,6 @@ class VirialEquilibrium:
         """Reverse direction of ``self.df`` as a numpy array. """
         return self._df.d[::-1]
 
-    #  Private Functions
-    # ----------------------------------------------------------------------------------------------------------------- #
     def _generate_df(self):
         """
         Generates the distribution function :math:`DF(\textbf{x},\textbf{v}` for the given cluster.
@@ -211,13 +204,11 @@ class VirialEquilibrium:
         -------
 
         """
-        #  Sanity Check
-        # ------------------------------------------------------------------------------------------------------------ #
+
         if self.type != "eddington":
             raise ValueError(
                 f"The method _generate_df is not available to VirialEquilibrium models with type {self.type}")
-        #  Pulling necessary field data out of the model.
-        # ------------------------------------------------------------------------------------------------------------ #
+
         # --- Particle density --- #
         # ? Grabs the particle densities and then constructs a density spline as a function of the
         # ? relative potential (self.ee)
@@ -248,8 +239,7 @@ class VirialEquilibrium:
         Returns
         ------
         """
-        #  Sanity Check
-        # ------------------------------------------------------------------------------------------------------------ #
+
         # - Checking type - #
         if self.type != "lma":
             raise ValueError(
@@ -259,8 +249,6 @@ class VirialEquilibrium:
         if self.model["gravitational_potential"] is None:
             _ = self.model.pot  # Generates the potential from the inherited model.
 
-        #  Constructing splines for estimation
-        # ------------------------------------------------------------------------------------------------------------ #
         # ! DENSITY SPLINE: truncation approach to force asymptotic behavior at large radii.
         #
         # - Generating the cutoff radius - #
@@ -287,8 +275,6 @@ class VirialEquilibrium:
         integrand = lambda x: density_spline(x) * potential_spline(x, 1)
         inf_integrand = lambda x: _density_spline(x) * _dp_func(x)
 
-        #  Performing the integration
-        # ------------------------------------------------------------------------------------------------------------ #
         sig = np.zeros(self.num_elements)
         pbar = tqdm(leave=True, total=self.num_elements,
                     desc="Computing particle dispersions (LMA) ")
@@ -360,8 +346,7 @@ class VirialEquilibrium:
             [1] Binney, J., & Tremaine, S. (2011). Galactic dynamics (Vol. 20). Princeton university press.
         """
         with Halo(log_string("Checking virialization..."),stream=sys.stdout) as halo:
-            #  Preparing arrays and pulling data
-            # -------------------------------------------------------------------------------------------------------- #
+
             if self.type != "eddington":
                 halo.warn("Invalid virialization type.")
                 raise ValueError("The model does not use a form of virialization that can use this function.")
@@ -425,8 +410,7 @@ class VirialEquilibrium:
         particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of dark matter or star particles.
         """
-        #  Setup
-        # ----------------------------------------------------------------------------------------------------------------- #
+
         from cluster_generator.utils import parse_prng
 
         num_particles_sub = num_particles // sub_sample  # number of particles for which to generate.
@@ -436,8 +420,6 @@ class VirialEquilibrium:
         density = f"{self.ptype}_density"
         mass = f"{self.ptype}_mass"
 
-        #  Constructing the particle positions
-        # ----------------------------------------------------------------------------------------------------------------- #
         prng = parse_prng(prng)
 
         mylog.info("We will be assigning %s %s particles.",
@@ -467,13 +449,9 @@ class VirialEquilibrium:
             [radius * np.sin(theta) * np.cos(phi), radius * np.sin(theta) * np.sin(phi),
              radius * np.cos(theta)], "kpc").T
 
-        # Computing necessary velocities
-        # ------------------------------------------------------------------------------------------------------------ #
         if self.type == "eddington":
             mylog.info(f"Computing {self.ptype} velocities using {self.type} method.")
 
-            #  Solving Via the Eddington Formula
-            # -------------------------------------------------------------------------------------------------------- #
 
             # --- Pulling the necessary fields --- #
             energy_spline = InterpolatedUnivariateSpline(self.model["radius"].d,
@@ -492,8 +470,6 @@ class VirialEquilibrium:
         elif self.type == "lma":
             mylog.info(f"Computing {self.ptype} velocities using {self.type} method.")
 
-            #  Solving via the local maxwellian approximation
-            # -------------------------------------------------------------------------------------------------------- #
 
             # --- Generating the dispersion spline --- #
             dispersion_spline = InterpolatedUnivariateSpline(self.model["radius"], self.sigma)
@@ -525,8 +501,6 @@ class VirialEquilibrium:
         else:
             raise ValueError(f"The virialization method {self.type} was not recognized.")
 
-        #  Cleanup
-        # ------------------------------------------------------------------------------------------------------------ #
 
         if sub_sample > 1:
             velocity = np.tile(velocity_sub, sub_sample)[:num_particles]

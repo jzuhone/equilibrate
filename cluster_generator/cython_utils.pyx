@@ -30,9 +30,7 @@ cdef extern from "stdlib.h":
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Eddington Formula + Von Neumann Sampling =========================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -43,8 +41,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
                         np.ndarray[DTYPE_t, ndim=1] c,
                         int k):
     # Generates the velocities associated with the particle family #
-    #  Allocating variable namespace / types
-    # ----------------------------------------------------------------------------------------------------------------- #
+
     cdef DTYPE_t v2, f
     cdef np.uint8_t not_done
     cdef unsigned int i
@@ -62,8 +59,6 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
     num_particles = psi.shape[0]
     velocity = np.zeros(num_particles, dtype='float64')
 
-    #  Executing
-    # ----------------------------------------------------------------------------------------------------------------- #
     pbar = tqdm(leave=True, total=num_particles,
                 desc="Generating particle velocities [Eddington]")
     for i in range(num_particles):
@@ -78,9 +73,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
         pbar.update()
     pbar.close()
     return velocity
-# -------------------------------------------------------------------------------------------------------------------- #
-# Local Maxwellian Approximation ===================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -115,8 +108,7 @@ def generate_lma_velocities(np.ndarray[DTYPE_t, ndim=1] disp,
     velocity: np.ndarray
         The velocity (speed) array for the particles.
     """
-    #  Declaring locals and setting base values
-    # ----------------------------------------------------------------------------------------------------------------- #
+
     cdef DTYPE_t v2, f
     cdef np.uint8_t not_done
     cdef unsigned int i
@@ -130,8 +122,7 @@ def generate_lma_velocities(np.ndarray[DTYPE_t, ndim=1] disp,
     ext = 0  # The out of bounds behavior of the spline.
     num_particles = disp.shape[0]
     velocity = np.zeros(num_particles, dtype='float64')
-    #  Computing values
-    # ----------------------------------------------------------------------------------------------------------------- #
+
 
     pbar = tqdm(leave=True, total=num_particles,
                 desc="Generating particle velocities [LMA]")

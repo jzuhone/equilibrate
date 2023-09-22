@@ -10,9 +10,7 @@ from cluster_generator.tests.utils import particle_answer_testing, \
 from cluster_generator.utils import mylog
 import numpy as np
 prng = RandomState(25)
-# -------------------------------------------------------------------------------------------------------------------- #
-# Utility Functions ================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def plot_particles(answer_dir,parts,boxsize,name):
     """ plots the particles """
     import yt
@@ -47,9 +45,7 @@ def plot_particle_energy(answer_dir,parts,boxsize,name):
     p = yt.ParticlePlot(ds,("gas","particle_position_x"),("gas","particle_position_y"),("gas","thermal_energy"),weight_field=("gas","particle_mass"))
     p.set_cmap(("gas","thermal_energy"),"octarine")
     p.save(f"{answer_dir}/{name}.png")
-# -------------------------------------------------------------------------------------------------------------------- #
-# Pytest Fixtures ==================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 @pytest.fixture
 def particles(answer_store,answer_dir,gravity):
     import os
@@ -63,31 +59,22 @@ def particles(answer_store,answer_dir,gravity):
         parts = hp + dp + sp
         parts.write_particles_to_h5(f"{answer_dir}/particles_{gravity}.h5",overwrite=True)
         return parts
-# -------------------------------------------------------------------------------------------------------------------- #
-# Construction Tests ================================================================================================= #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def test_particle_construction(answer_store, answer_dir, gravity):
     """Generates particles for the given inputs and checks against previous case."""
-    #  Constructing the model object
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     from copy import deepcopy
     m = generate_model(gravity)
 
-    #  Loading particles
-    # ---------------------------------------------------------------------------------------------------------------- #
     dp = m.generate_dm_particles(100000, prng=prng)
     sp = m.generate_star_particles(100000, prng=prng)
     hp = m.generate_gas_particles(100000, prng=prng)
 
-    #  Checking the file.
-    # ---------------------------------------------------------------------------------------------------------------- #
     parts = hp + dp + sp
     particle_answer_testing(parts, f"particles_{gravity}.h5", answer_store, answer_dir)
     plot_particles(answer_dir,deepcopy(parts),14000,f"particle_construction_{gravity}")
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Methods Tests ====================================================================================================== #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def test_drop_ptype(answer_dir,answer_store,particles):
     """ testing a variety of methods regarding the particle objects."""
     from copy import deepcopy
@@ -121,9 +108,7 @@ def test_black_hole(answer_dir,answer_store,particles):
 
     assert "black_hole" in parts.particle_types
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Concatenation Tests ================================================================================================ #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def test_concat(answer_dir,answer_store,particles,gravity):
     """tests the concatenation of particles"""
     from copy import deepcopy

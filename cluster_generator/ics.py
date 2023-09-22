@@ -1,6 +1,8 @@
-import os
-
+"""
+Initial Conditions management for simulation setups.
+"""
 import numpy as np
+import unyt.exceptions
 from ruamel.yaml import YAML
 from unyt import unyt_array, Unit
 
@@ -8,7 +10,7 @@ from cluster_generator.model import ClusterModel
 from cluster_generator.particles import \
     ClusterParticles, concat_clusters, resample_clusters
 from cluster_generator.utils import ensure_ytarray, ensure_list, \
-    parse_prng, mylog, devLogger
+    parse_prng, mylog
 
 
 def compute_centers_for_binary(center, d, b, a=0.0):
@@ -79,8 +81,7 @@ class ClusterICs:
     def __init__(self, basename, num_halos, profiles, center,
                  velocity, num_particles=None, mag_file=None,
                  particle_files=None, r_max=20000.0):
-        #  Managing parameters
-        # ------------------------------------------------------------------------------------------------------------ #
+
         #: The name of the cluster initial conditions
         self.basename = basename
         #: the number of halos included.
@@ -107,25 +108,26 @@ class ClusterICs:
         else:
             self.tot_np = num_particles
 
-        #  Checking for pre-provided particle files
-        # ------------------------------------------------------------------------------------------------------------ #
         self.gravity = None
         self._determine_num_particles()
         self.particle_files = [None] * 3
         if particle_files is not None:
             self.particle_files[:num_halos] = particle_files[:]
 
+    def __repr__(self):
+        return f"<ClusterIC - {self.basename}>"
+    def __str__(self):
+        return f"<ClusterIC - {self.basename} | {self.num_halos} halos>"
+
     def _determine_num_particles(self):
         """
         Computes the number of particles and their allocations.
         """
         from collections import defaultdict
-        # - Pre-allocation of arrays -------------------------------#
         dm_masses = []
         gas_masses = []
         star_masses = []
 
-        # - Analyzing models ---------------------------------------#
         for pf in self.profiles:
             # Loading the cluster model object #
             p = ClusterModel.from_h5_file(pf)
@@ -153,8 +155,7 @@ class ClusterICs:
         tot_gas_mass = np.sum(gas_masses)
         tot_star_mass = np.sum(star_masses)
 
-        # Determining the necessary particles / halo distribution.
-        # ----------------------------------------------------------------------------------------------------------------- #
+
         self.num_particles = defaultdict(list)
         for i in range(self.num_halos):
             for ptype, pmasses, ptmass in zip(["dm", "gas", "star"],
@@ -168,7 +169,7 @@ class ClusterICs:
 
     def _generate_particles(self, regenerate_particles=False, prng=None):
         """
-        Generates the particles for the ``ClusterIC`` object.
+        Generates the particles for the :py:class:`ics.ClusterICs` object.
         Parameters
         ----------
         regenerate_particles: bool
@@ -179,8 +180,6 @@ class ClusterICs:
         ClusterParticles
             The returned set of particles after sampling.
         """
-        #  Setup
-        # ------------------------------------------------------------------------------------------------------------ #
         prng = parse_prng(prng)
         parts = []
 
@@ -238,13 +237,11 @@ class ClusterICs:
             "r_max"             : (self.r_max, "Maximal Radius", True)
         }
 
-        #  Existence Check
-        # ------------------------------------------------------------------------------------------------------------ #
+
         if os.path.exists(filename) and not overwrite:
             raise RuntimeError(f"{filename} exists and overwrite=False!")
 
-        #  Setup
-        # ------------------------------------------------------------------------------------------------------------ #
+
         out = CommentedMap()
 
         # -- Writing basic data -- #
@@ -267,8 +264,7 @@ class ClusterICs:
                 out.yaml_add_eol_comment(f"particle file for cluster {i}",
 
                                          key=f'particle_file{i}')
-        #  Writing to file
-        # ------------------------------------------------------------------------------------------------------------ #
+
         yaml = YAML()
         with open(filename, "w") as f:
             yaml.dump(out, f)
@@ -344,12 +340,14 @@ class ClusterICs:
         """
         .. warning::
 
-            This function is currently non-functional. We are working on fixing the issue.
+            This method can be memory intensive. We suggest being conservative in your choice of domain size to
+            begin in order to avoid OOM issues. For reference, a domain dimension of ``[500,500,500]`` will take appox.
+            3Gb / field.
 
         Create an in-memory, uniformly gridded dataset in 3D using yt by
         placing the clusters into a box. When adding multiple clusters,
         per-volume quantities from each cluster such as density and
-        pressure are added, whereas per-mass quantites such as temperature
+        pressure are added, whereas per-mass quantities such as temperature
         and velocity are mass-weighted.
 
         Parameters
@@ -365,11 +363,10 @@ class ClusterICs:
         """
         from yt.loaders import load_uniform_grid
         from scipy.interpolate import InterpolatedUnivariateSpline
-        from cluster_generator.utils import mylog
+        from cluster_generator.utils import mylog, build_yt_dataset_fields
 
         mylog.info(f"Loading yt dataset of {self}...")
-        #  Managing Domain configuration issues
-        # ------------------------------------------------------------------------------------------------------------ #
+
         # Dealing with the left edge of the domain.
         if left_edge is None:
             left_edge = np.zeros(3)
@@ -385,84 +382,20 @@ class ClusterICs:
         # Creating the underlying meshgrid
         try:
             x, y, z = np.mgrid[
-                  bbox[0][0]:bbox[0][1]:domain_dimensions[0] * 1j,
-                  bbox[1][0]:bbox[1][1]:domain_dimensions[1] * 1j,
-                  bbox[2][0]:bbox[2][1]:domain_dimensions[2] * 1j,
-                  ]
+                      bbox[0][0]:bbox[0][1]:domain_dimensions[0] * 1j,
+                      bbox[1][0]:bbox[1][1]:domain_dimensions[1] * 1j,
+                      bbox[2][0]:bbox[2][1]:domain_dimensions[2] * 1j,
+                      ]
         except MemoryError as err:
             raise MemoryError(f"Failed to allocate memory for the grid. Error msg = {err.__str__()}.")
 
-
-        #  Building the fields
-        # ------------------------------------------------------------------------------------------------------------ #
-        # -- Segmenting the fields by type -- #
-        fields1 = ["density", "pressure", "dark_matter_density"
-                                          "stellar_density", "gravitational_potential"]
-        fields2 = ["temperature"]
-        fields3 = ["velocity_x", "velocity_y", "velocity_z"]
-        units = {
-            "density"                : "Msun/kpc**3",
-            "pressure"               : "Msun/kpc/Myr**2",
-            "dark_matter_density"    : "Msun/kpc**3",
-            "stellar_density"        : "Msun/kpc**3",
-            "temperature"            : "K",
-            "gravitational_potential": "kpc**2/Myr**2",
-            "velocity_x"             : "kpc/Myr",
-            "velocity_y"             : "kpc/Myr",
-            "velocity_z"             : "kpc/Myr",
-            "magnetic_field_strength": "G"
-        }
-
-        # -- Building the fields for each of the profiles -- #
-        fields = fields1 + fields2
-        data = {}
-        for i, profile in enumerate(self.profiles):
-            # -- Loading the profile, pulling density and positions -- #
-            p = ClusterModel.from_h5_file(profile)
-            xx = x - self.center.d[i][0]
-            yy = y - self.center.d[i][1]
-            zz = z - self.center.d[i][2]
-            rr = np.sqrt(xx * xx + yy * yy + zz * zz)
-            fd = InterpolatedUnivariateSpline(p["radius"].d,
-                                              p["density"].d)
-
-            # -- Managing constituent fields -- #
-            for field in fields:
-                if field not in p: # We don't have this data, don't do anything.
-                    continue
-                if field not in data: # This data needs to be initialized in the data object.
-                    data[field] = unyt_array(
-                        np.zeros(domain_dimensions), units[field]
-                    )
-
-                #-- creating interpolation of the data to sample --#
-                f = InterpolatedUnivariateSpline(p["radius"].d,
-                                                 p[field].d)
-
-                if field in fields1:
-                    data[field] += unyt_array(f(rr), units[field]) # Just add the values
-                elif field in fields2:
-                    data[field] += unyt_array(f(rr) * fd(rr), Unit(units[field])) # Density weighted values
-
-            # -- Managing Velocities -- #
-            for j,field in enumerate(fields3):
-                if field not in data:
-                    data[field] = unyt_array(
-                        np.zeros(domain_dimensions), units[field]
-                    )
-
-                # We do need to add it #
-                data[field] += unyt_array(self.velocity.d[i][j] * fd(rr), Unit(units[field]))
-
-        if "density" in data:
-            for field in fields2 + fields3:
-                data[field] /= data["density"].d
+        data = build_yt_dataset_fields([x,y,z],self.profiles,domain_dimensions,self.center,self.velocity)
 
         return load_uniform_grid(data, domain_dimensions, length_unit="kpc",
                                  bbox=np.array(bbox), mass_unit="Msun", time_unit="Myr",
                                  **kwargs)
 
-    def compute_orbits(self,t_max,max_step=1,dx_max=1,n_iter=10000,softening_length=0.1,collision_distance=100):
+    def compute_orbits(self, t_max, max_step=1, dx_max=1, n_iter=10000, softening_length=0.1, collision_distance=100):
         """
         Computes the point-mass orbital behavior of the systems to give an approximate idea of the
         resulting dynamics when simulated.
@@ -514,15 +447,14 @@ class ClusterICs:
             errs: list
                 A list of any exceptions or warnings called during the execution.
         """
-        #  Setup
-        # ------------------------------------------------------------------------------------------------------------ #
+
         mylog.info(f"Preparing to computing point-mass orbits for {self}...")
 
         # -- Loading the halo's -- #
         xs = np.array(self.center.to("kpc").d).transpose()
         dxs = np.array(self.velocity.to("kpc/Myr").d).transpose()
         masses = []
-        for k,model_path in enumerate(self.profiles):
+        for k, model_path in enumerate(self.profiles):
             m = ClusterModel.from_h5_file(model_path)
 
             assert m.gravity._classname == self.gravity, f"Model {m} and {self} have inconsistent gravity theories."
@@ -532,42 +464,39 @@ class ClusterICs:
 
         mylog.info(f"Successfully loaded {len(masses)} halos for orbit analysis. Dispatching...")
 
-        #  Beginning Computations 
-        # ------------------------------------------------------------------------------------------------------------ #
         import cluster_generator.orbits as orbs
         import warnings
         from types import SimpleNamespace
 
-        if hasattr(orbs,f"{self.gravity}_orbits".lower()):
-            mylog.info("Dispatch complete. Computing orbits using cluster_generator.orbits.%s."%(f"{self.gravity}_orbits".lower()))
+        if hasattr(orbs, f"{self.gravity}_orbits".lower()):
+            mylog.info("Dispatch complete. Computing orbits using cluster_generator.orbits.%s." % (
+                f"{self.gravity}_orbits".lower()))
 
-            #  Calling the orbit
-            # -------------------------------------------------------------------------------------------------------- #
             # CALL SIGNATURE: x0, dx0, masses, nhalos, tmax, dtmax, lmax, Nmax, epsilon, additional arguments.
             #
             #
             with warnings.catch_warnings(record=True) as w:
-                _out = getattr(orbs,f"{self.gravity}_orbits".lower())(xs,dxs,np.array(masses,dtype="float64"),len(masses),t_max,max_step,dx_max,n_iter,softening_length,collision_distance)
+                _out = getattr(orbs, f"{self.gravity}_orbits".lower())(xs, dxs, np.array(masses, dtype="float64"),
+                                                                       len(masses), t_max, max_step, dx_max, n_iter,
+                                                                       softening_length, collision_distance)
 
                 errs = w
         else:
             raise ValueError(f"The gravity {self.gravity} doesn't have an orbit computation.")
 
-        #  Building the output object
-        # ------------------------------------------------------------------------------------------------------------ #
         output = SimpleNamespace(
-            t = _out[0],
-            x = _out[1][0,:,:],
-            y = _out[1][1,:,:],
-            z = _out[1][2,:,:],
-            dx = _out[2][0,:,:],
-            dy = _out[2][1,:,:],
-            dz = _out[2][2,:,:],
-            ddx = _out[3][0,:,:],
-            ddy = _out[3][1,:,:],
-            ddz = _out[3][2,:,:],
-            return_code = _out[4],
-            errs = errs
+            t=_out[0],
+            x=_out[1][0, :, :],
+            y=_out[1][1, :, :],
+            z=_out[1][2, :, :],
+            dx=_out[2][0, :, :],
+            dy=_out[2][1, :, :],
+            dz=_out[2][2, :, :],
+            ddx=_out[3][0, :, :],
+            ddy=_out[3][1, :, :],
+            ddz=_out[3][2, :, :],
+            return_code=_out[4],
+            errs=errs
         )
 
         return output

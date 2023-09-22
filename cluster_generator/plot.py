@@ -7,9 +7,7 @@ import numpy as np
 from cluster_generator.utils import mylog, cgparams
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Decorators ========================================================================================================= #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 def _enforce_style(func):
     """enforces the mpl style."""
 
@@ -27,9 +25,7 @@ def _enforce_style(func):
     return wrapper
 
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# Core Plotting Functions ============================================================================================ #
-# -------------------------------------------------------------------------------------------------------------------- #
+
 @_enforce_style
 def plot_orbit(orbit, fig=None, title=None, view=None, boxsize=5000, **kwargs):
     """
@@ -56,12 +52,10 @@ def plot_orbit(orbit, fig=None, title=None, view=None, boxsize=5000, **kwargs):
         The output figure.
 
     """
-    #  Setup
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     n_halos = orbit.x.shape[0]
     mylog.info(f"Plotting orbit data for {n_halos} halos.")
-    #  Figure / Axes Configuration
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     if fig is None:
         fig = plt.figure(figsize=(10, 7))
     else:
@@ -82,8 +76,7 @@ def plot_orbit(orbit, fig=None, title=None, view=None, boxsize=5000, **kwargs):
         axis.set_title("Orbit Solutions")
     else:
         axis.set_title(title)
-    # Configuring kwargs
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     if "markers" not in kwargs:
         markers = ["+", "s", "o"]
     else:
@@ -95,8 +88,7 @@ def plot_orbit(orbit, fig=None, title=None, view=None, boxsize=5000, **kwargs):
             kwargs[_k] = list(islice(cycle(_v), n_halos))
         else:
             kwargs[_k] = list(islice(cycle([_v]), n_halos))
-    #  plotting
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     for h in range(n_halos):
         axes["main"].plot(orbit.x[h, :], orbit.y[h, :], orbit.z[h, :], **{k: v[h] for k, v in kwargs.items()})
 
@@ -106,8 +98,6 @@ def plot_orbit(orbit, fig=None, title=None, view=None, boxsize=5000, **kwargs):
                 axes[f"{j}x"].semilogy(orbit.t[::1000], getattr(orbit, f"{j}{i}")[h, :][::1000], ls="",
                                        marker=markers[k], **{k: v[h] for k, v in kwargs.items() if k != "ls"})
 
-    #  Managing Axes
-    # ---------------------------------------------------------------------------------------------------------------- #
     # - scaling - #
     axes["x"].set_yscale("symlog")
     axes["dx"].set_yscale("symlog")
@@ -142,6 +132,5 @@ def plot_orbit(orbit, fig=None, title=None, view=None, boxsize=5000, **kwargs):
 
     if view is not None:
         axes["main"].view_init(**view)
-    #  returning
-    # ---------------------------------------------------------------------------------------------------------------- #
+
     return fig
