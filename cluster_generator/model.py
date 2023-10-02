@@ -1136,7 +1136,6 @@ class ClusterModel:
 
         h.succeed()
         return self.__class__._from_scratch(deepcopy(obj.fields),
-                                            stellar_density=None,
                                             gravity=obj.gravity,
                                             **obj.attrs)
 
@@ -1487,6 +1486,16 @@ if __name__ == '__main__':
     # Printing available models
     print(v_models.names)
     # Creating the relevant model
-
+    import matplotlib.pyplot as plt
+    f = plt.figure()
+    a = f.add_subplot(111)
     m_m =  v_models.load_model(
         "A133", 0.01, 5000, num_points=2000, gravity="Newtonian")
+    b = m_m.is_physical()
+    m_m.plot("total_density",fig=f,ax=a)
+    print(b[0])
+    m_m = m_m.rebuild_physical()
+    b = m_m.is_physical()
+    print(b[0])
+    m_m.plot("total_density",fig=f,ax=a)
+    plt.show()
