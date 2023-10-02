@@ -10,7 +10,7 @@ from scipy.optimize import fsolve
 from unyt import unyt_array
 
 from cluster_generator.utils import \
-    integrate, G, log_string, cgparams, devLogger, time_limit, TimeoutException, eprint, ensure_ytquantity
+    integrate, G, log_string, cgparams, devLogger, time_limit, TimeoutException, eprint, ensure_ytquantity, mylog
 
 #: The MOND gravitational acceleration constant.
 a0 = cgparams["gravity"]["general"]["mond"]["a0"]
@@ -1112,32 +1112,4 @@ available_gravities = {
     "QUMOND"   : QUMONDGravity
 }
 
-if __name__ == '__main__':
-    from cluster_generator.radial_profiles import find_overdensity_radius, snfw_mass_profile, snfw_total_mass, \
-        snfw_density_profile
-    from cluster_generator.utils import cgparams, mylog
 
-    cgparams["system"]["text"]["spinners"] = False
-    z = 0.1
-    M200 = 1.5e15
-    conc = 4.0
-    r200 = find_overdensity_radius(M200, 200.0, z=z)
-    a = r200 / conc
-    M = snfw_total_mass(M200, r200, a)
-    rhot = snfw_density_profile(M, a)
-    m = snfw_mass_profile(M, a)
-
-    rmin, rmax = 0.1, 2 * r200
-    r = np.geomspace(rmin, rmax, 1000)
-    m, d, r = unyt_array(m(r), "Msun"), unyt_array(rhot(r), "Msun/kpc**3"), unyt_array(r, "kpc")
-
-    pot = QUMONDGravity.compute_potential({"total_mass": m, "total_density": d, "radius": r})
-    gf = np.gradient(pot.d, r.d)
-
-    pot2 =QUMONDGravity.compute_potential({"radius": r, "gravitational_field": unyt_array(gf, "kpc/Myr**2")})
-
-    import matplotlib.pyplot as plt
-
-    plt.loglog(r, -pot)
-    plt.loglog(r, -pot2)
-    plt.show()
