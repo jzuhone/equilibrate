@@ -2,7 +2,7 @@
 Utility functions for basic functionality of the py:module:`cluster_generator` package.
 """
 import logging
-import time
+import multiprocessing
 import sys
 import warnings
 
@@ -16,6 +16,8 @@ from unyt import unyt_array, unyt_quantity, kpc, Unit, exceptions
 import yaml
 import os
 import pathlib as pt
+import time
+
 
 # -- configuration directory -- #
 _config_directory = os.path.join(pt.Path(__file__).parents[0],"bin","config.yaml")
@@ -50,8 +52,11 @@ except yaml.YAMLError as er:
 
 
 # warnings.filterwarnings("ignore")
+stream = (sys.stdout if cgparams["system"]["logging"]["stream"] in ["STDOUT","stdout"] else sys.stderr)
 cgLogger = logging.getLogger("cluster_generator")
-cg_sh = logging.StreamHandler()
+
+cg_sh = logging.StreamHandler(stream=stream)
+
 # create formatter and add it to the handlers
 formatter = logging.Formatter(cgparams["system"]["logging"]["ufstring"])
 cg_sh.setFormatter(formatter)
@@ -88,15 +93,15 @@ else:
 
 
 def log_string(message):
-    return cgparams["system"]["logging"]["ufstring"] % {"name": "cluster_generator", "asctime": time.asctime(), "message": message, "levelname": "INFO"}
+    return cgparams["system"]["logging"]["ufstring"] % {"name": "cluster_generator", "asctime": time.strftime("%Y-%d-%b %H:%M:%S", time.localtime()), "message": message, "levelname": "INFO"}
 
 def eprint(message,n,location=None,frmt=True,**kwargs):
     if cgparams["system"]["logging"]["level"] in ["INFO","WARNING","ERROR","CRITICAL"]:
         if frmt:
-            print("%(tabs)s[%(location)s]: %(asctime)s %(message)s"%{"location": (location if location is not None else "-"), "asctime": time.asctime(), "message": message, "tabs": "\t"*n},
-              file=sys.stderr,**kwargs)
+            print("%(tabs)s[%(location)s]: %(asctime)s %(message)s"%{"location": (location if location is not None else "-"), "asctime": time.strftime("%Y-%d-%b %H:%M:%S", time.localtime()), "message": message, "tabs": "\t"*n},
+              file=stream,**kwargs)
         else:
-            print(message,file=sys.stderr,**kwargs)
+            print(message,file=stream,**kwargs)
 
 
 #: Proton Mass in ``Msun``.
@@ -117,6 +122,64 @@ mue = 1.0 / (X_H + 0.5 * (1.0 - X_H))
 
 # -- Utility functions -- #
 _truncator_function = lambda a, r, x: 1 / (1 + (x / r) ** a)
+
+class TimeoutException(Exception):
+    def __init__(self, msg='',func=None,max_time=None):
+        self.msg = f"{msg} -- {str(func)} -- max_time={max_time} s"
+
+def _daemon_process_runner(*args,**kwargs):
+    # Runs the function specified in the kwargs in a daemon process #
+
+    send_end = kwargs.pop("__send_end")
+    function = kwargs.pop("__function")
+
+    try:
+        result = function(*args,**kwargs)
+    except Exception as e:
+        send_end.send(e)
+        return
+
+    send_end.send(result)
+
+def time_limit(function,max_execution_time,*args,**kwargs):
+    import time
+    from tqdm import tqdm
+
+    recv_end, send_end = multiprocessing.Pipe(False)
+    kwargs["__send_end"] = send_end
+    kwargs["__function"] = function
+
+    tqdm_kwargs = {}
+    for key in ["desc"]:
+        if key in kwargs:
+            tqdm_kwargs[key] = kwargs.pop(key)
+
+    N = 1000
+
+    p = multiprocessing.Process(target=_daemon_process_runner,args=args,kwargs=kwargs)
+    p.start()
+
+    for n in tqdm(range(N),**tqdm_kwargs,bar_format='{desc}: {percentage:3.0f}%|{bar}| [{elapsed}<{remaining} - {postfix}]',colour="green",leave=False):
+        time.sleep(max_execution_time/1000)
+
+        if not p.is_alive():
+            p.join()
+            result = recv_end.recv()
+            break
+
+    if p.is_alive():
+        p.terminate()
+        p.join()
+        raise TimeoutException("Failed to complete process within time limit.",func=function,max_time=max_execution_time)
+    else:
+        p.join()
+        result = recv_end.recv()
+
+
+    if isinstance(result,Exception):
+        raise result
+    else:
+        return result
 
 
 
@@ -440,7 +503,10 @@ def build_yt_dataset_fields(grid,models,domain_dimensions,centers,velocities):
     return data
 
 if __name__ == '__main__':
-    print(cgparams["gravity"]["AQUAL"]["interpolation_function"](3))
-    mylog.warning("sdfds")
-    print(devLogger)
-    devLogger.warning("SDfdsdfsdfSDFDFSDF")
+    import time
+
+    def waiter(sec):
+        time.sleep(sec)
+        return 1
+
+    time_limit(waiter,5,1000,desc="Execution Time")

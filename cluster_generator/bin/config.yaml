@@ -13,6 +13,7 @@ system:
     # -- Settings regarding message logging -- #
     ufstring: "%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s" # Logger's string format for output
     level: "INFO" # The logging level to display
+    stream: "STDERR" # The stream to log to. Must be STDERR or STDOUT. To disable, change level to CRITICAL
 
     developer_log:
       # -- These settings can be used to control the output of the development logger (no output to terminal) -- #
@@ -55,8 +56,10 @@ numerical:
   # -- These are settings regarding the numerical methods implemented in the code -- #
   implicit:
     # -- These are settings for implicit function solutions in alternative gravity theories -- #
-    check_tolerance: !!float 1e-10 # The tolerance below which we skip optimization because the guess is sufficiently good.
+    check_tolerance: !!float 1e-7 # The tolerance below which we skip optimization because the guess is sufficiently good.
     solve_tolerance: !!float 1e-7 # The tolerance required once the code actually reaches the implicit solver.
+    max_calls: !!int 100 # The maximum number of function calls to the Gauss-Newton solver.
+    max_runtime: !!int 120 # The maximum allowed runtime for the implicit solver (s).
 
 #======================================================================================================================#
 plotting:

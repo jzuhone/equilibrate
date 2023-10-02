@@ -138,10 +138,20 @@ Python packages:
 These will be installed automatically if you use ``pip`` or ``conda`` as detailed below.
 
 
-Though not required, it may be useful to install `yt <https://yt-project.org>`_
-for creation of in-memory datasets from ``cluster_generator`` and/or analysis of
-simulations which are created using initial conditions from
-``cluster_generator``.
+.. note::
+    There are a variety of additional libraries which provide very useful interfacing utilities for the CGP. Though not required,
+    we do recommend installing the following libraries to maximize the utility of the package:
+
+    - [`yt project  <https://yt-project.org>`_]: Used to generate in-memory, 3D-grid datasets for the models and ICs generated in
+      cluster generator. This can be used to generate plots, measure profiles and complete other useful pre-simulation tasks.
+    - [`PyXSIM <http://hea-www.cfa.harvard.edu/~jzuhone/pyxsim/index.html>`_]: PyXSIM can be used to generate simulated photon lists
+      from yt datasets which can then be analyzed to get spectra and which can be passed to an instrumentation simulator for mock observation.
+    - [`SOXS <https://www.lynxobservatory.com/soxs>`_]: Complementing PyXSIM, SOXS is an instrument simulator which allows users to convert photon lists from PyXSIM into
+      mock observations to be studied.
+
+.. raw:: html
+
+   <hr style="height:10px;background-color:black">
 
 Getting Started
 ===============
