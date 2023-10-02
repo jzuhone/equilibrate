@@ -698,6 +698,7 @@ class ClusterModel:
         """
         from yt.loaders import load_uniform_grid
         from cluster_generator.utils import mylog, build_yt_dataset_fields
+        import gc
 
         mylog.info(f"Loading yt dataset of {self}...")
 
@@ -726,8 +727,11 @@ class ClusterModel:
         except MemoryError as err:
             raise MemoryError(f"Failed to allocate memory for the grid. Error msg = {err.__str__()}.")
 
+        gc.collect()
+
         data = build_yt_dataset_fields([x, y, z], [self], domain_dimensions, unyt_array([[0,0,0]],"kpc"), velocity if velocity is not None else unyt_array([[0,0,0]],"kpc/Myr") )
 
+        gc.collect()
         return load_uniform_grid(data, domain_dimensions, length_unit="kpc",
                                  bbox=np.array(bbox), mass_unit="Msun", time_unit="Myr",
                                  **kwargs)
@@ -1041,7 +1045,8 @@ class ClusterModel:
 
         with Halo(text=log_string(f"Rebuilding {self.__repr__()} for physicality..."), spinner="dots",
                   stream=sys.stderr,
-                  animation="marquee") as h:
+                  animation="marquee",
+                  enabled=(cgparams["system"]["text"]["spinners"])) as h:
 
             if self.is_physical()[0]:
                 h.succeed(f"[{self.__repr__()}] is already physical.")
@@ -1465,10 +1470,23 @@ class HydrostaticEquilibrium(ClusterModel):
 
 
 if __name__ == '__main__':
-    from cluster_generator.tests.utils import generate_model_dens_temp
-    import matplotlib.pyplot as plt
+    import yt
+    import pyxsim
+    import soxs
+    import cluster_generator as cg
+    from cluster_generator.utils import cgparams
+    import cluster_generator.collection as col
+    from unyt import unyt_array
+    import gc
 
-    # for logger in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
-    #    logger.setLevel("DEBUG")
+    cgparams["system"]["text"]["spinners"] = False
 
-    model = generate_model_dens_temp(gravity="QUMOND")
+    # Loading the Vikhlinin group
+    v_models = col.Vikhlinin06()
+
+    # Printing available models
+    print(v_models.names)
+    # Creating the relevant model
+
+    m_m =  v_models.load_model(
+        "A133", 0.01, 5000, num_points=2000, gravity="Newtonian")

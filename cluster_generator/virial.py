@@ -13,7 +13,7 @@ from cluster_generator.cython_utils import generate_velocities, generate_lma_vel
 from cluster_generator.particles import \
     ClusterParticles
 from cluster_generator.utils import \
-    quad, generate_particle_radii, mylog, log_string
+    quad, generate_particle_radii, mylog, log_string, cgparams
 import sys
 
 
@@ -345,7 +345,7 @@ class VirialEquilibrium:
         ----------
             [1] Binney, J., & Tremaine, S. (2011). Galactic dynamics (Vol. 20). Princeton university press.
         """
-        with Halo(log_string("Checking virialization..."),stream=sys.stdout) as halo:
+        with Halo(log_string("Checking virialization..."),stream=sys.stdout,enabled=(cgparams["system"]["text"]["spinners"])) as halo:
 
             if self.type != "eddington":
                 halo.warn("Invalid virialization type.")
