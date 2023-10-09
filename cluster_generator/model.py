@@ -1468,34 +1468,43 @@ class HydrostaticEquilibrium(ClusterModel):
     pass
 
 
-if __name__ == '__main__':
-    import yt
-    import pyxsim
-    import soxs
-    import cluster_generator as cg
-    from cluster_generator.utils import cgparams
-    import cluster_generator.collection as col
-    from unyt import unyt_array
-    import gc
+def _find_holes(x,y,monotonicity="increasing"):
+    """This function locates holes in the dataset"""
+    if monotonicity == "increasing": # Flip array direction if needed.
+        _x,_y = x,y
+    else:
+        _x,_y = x[::-1],y[::-1]
 
-    cgparams["system"]["text"]["spinners"] = False
+    _yy = np.maximum.accumulate(_y)
+    holes = np.zeros(_x.size)
+    holes[np.where(_yy!=_y)] = 1
 
-    # Loading the Vikhlinin group
-    v_models = col.Vikhlinin06()
+    #finding special cases
+    lh,rh = np.concatenate([[holes[0]],holes[:-1]]),np.concatenate([holes[1:],[holes[-1]]])
 
-    # Printing available models
-    print(v_models.names)
-    # Creating the relevant model
-    import matplotlib.pyplot as plt
-    f = plt.figure()
-    a = f.add_subplot(111)
-    m_m =  v_models.load_model(
-        "A133", 0.01, 5000, num_points=2000, gravity="Newtonian")
-    b = m_m.is_physical()
-    m_m.plot("total_density",fig=f,ax=a)
-    print(b[0])
-    m_m = m_m.rebuild_physical()
-    b = m_m.is_physical()
-    print(b[0])
-    m_m.plot("total_density",fig=f,ax=a)
-    plt.show()
+    v = lh+holes+rh
+
+    # checking edge cases
+    if v[0] == 3:
+        v[0] = 2
+    if v[-1] == 3:
+        v[-1] = 2
+
+    ids = np.indices(_x.shape)[0,:]
+
+    if monotonicity == "increasing":
+        hx,hy = _x[np.where(v==2)],_y[np.where(v==2)]
+        hi = ids[np.where(v==2)]
+    else:
+        hx, hy = _x[np.where(v == 2)][::-1], _y[np.where(v == 2)][::-1]
+        hi = ids[::-1][np.where(v==2)]
+
+    return hx.reshape(len(hx)//2,2),hy.reshape(len(hy)//2,2),hi.reshape(len(hx)//2,2)
+
+
+
+
+
+
+
+

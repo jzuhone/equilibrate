@@ -3,56 +3,56 @@ Utility functions for basic functionality of the py:module:`cluster_generator` p
 """
 import logging
 import multiprocessing
+import os
+import pathlib as pt
 import sys
+import time
 import warnings
 
-import numpy as np
+import yaml
 from more_itertools import always_iterable
 from numpy.random import RandomState
 from scipy.integrate import quad
 from scipy.interpolate import InterpolatedUnivariateSpline
 from unyt import physical_constants as pc
 from unyt import unyt_array, unyt_quantity, kpc, Unit, exceptions
-import yaml
-import os
-import pathlib as pt
-import time
-
 
 # -- configuration directory -- #
-_config_directory = os.path.join(pt.Path(__file__).parents[0],"bin","config.yaml")
+_config_directory = os.path.join(pt.Path(__file__).parents[0], "bin", "config.yaml")
 
 
 # defining the custom yaml loader for unit-ed objects
-def _yaml_unit_constructor(loader:yaml.FullLoader,node:yaml.nodes.MappingNode):
+def _yaml_unit_constructor(loader: yaml.FullLoader, node: yaml.nodes.MappingNode):
     kw = loader.construct_mapping(node)
     i_s = kw["input_scalar"]
     del kw["input_scalar"]
-    return unyt_array(i_s,**kw)
+    return unyt_array(i_s, **kw)
 
-def _yaml_lambda_loader(loader:yaml.FullLoader,node:yaml.nodes.ScalarNode):
+
+def _yaml_lambda_loader(loader: yaml.FullLoader, node: yaml.nodes.ScalarNode):
     return eval(loader.construct_scalar(node))
+
 
 def _get_loader():
     loader = yaml.FullLoader
-    loader.add_constructor("!unyt",_yaml_unit_constructor)
-    loader.add_constructor("!lambda",_yaml_lambda_loader)
+    loader.add_constructor("!unyt", _yaml_unit_constructor)
+    loader.add_constructor("!lambda", _yaml_lambda_loader)
     return loader
 
 
 # -- loading the yaml configuration file -- #
 try:
-    with open(_config_directory,"r+") as config_file:
-        cgparams = yaml.load(config_file,_get_loader())
+    with open(_config_directory, "r+") as config_file:
+        cgparams = yaml.load(config_file, _get_loader())
 
 except FileNotFoundError as er:
-    raise FileNotFoundError(f"Couldn't find the configuration file! Is it at {_config_directory}? Error = {er.__repr__()}")
+    raise FileNotFoundError(
+        f"Couldn't find the configuration file! Is it at {_config_directory}? Error = {er.__repr__()}")
 except yaml.YAMLError as er:
     raise yaml.YAMLError(f"The configuration file is corrupted! Error = {er.__repr__()}")
 
-
 # warnings.filterwarnings("ignore")
-stream = (sys.stdout if cgparams["system"]["logging"]["stream"] in ["STDOUT","stdout"] else sys.stderr)
+stream = (sys.stdout if cgparams["system"]["logging"]["stream"] in ["STDOUT", "stdout"] else sys.stderr)
 cgLogger = logging.getLogger("cluster_generator")
 
 cg_sh = logging.StreamHandler(stream=stream)
@@ -67,15 +67,16 @@ cgLogger.propagate = False
 
 mylog = cgLogger
 
-
 # -- Setting up the developer debugger -- #
 devLogger = logging.getLogger("development_logger")
 
-if cgparams["system"]["logging"]["developer_log"]["is_enabled"]: # --> We do want to use the development logger.
+if cgparams["system"]["logging"]["developer_log"]["is_enabled"]:  # --> We do want to use the development logger.
     # -- checking if the user has specified a directory -- #
     if cgparams["system"]["logging"]["developer_log"]["output_directory"] is not None:
         from datetime import datetime
-        dv_fh = logging.FileHandler(os.path.join(cgparams["system"]["logging"]["developer_log"]["output_directory"],f"{datetime.now().strftime('%m-%d-%y_%H-%M-%S')}.log"))
+
+        dv_fh = logging.FileHandler(os.path.join(cgparams["system"]["logging"]["developer_log"]["output_directory"],
+                                                 f"{datetime.now().strftime('%m-%d-%y_%H-%M-%S')}.log"))
 
         # adding the formatter
         dv_formatter = logging.Formatter(cgparams["system"]["logging"]["developer_log"]["format"])
@@ -86,22 +87,28 @@ if cgparams["system"]["logging"]["developer_log"]["is_enabled"]: # --> We do wan
         devLogger.propagate = False
 
     else:
-        mylog.warning("User enabled development logger but did not specify output directory. Dev logger will not be used.")
+        mylog.warning(
+            "User enabled development logger but did not specify output directory. Dev logger will not be used.")
 else:
     devLogger.propagate = False
     devLogger.disabled = True
 
 
 def log_string(message):
-    return cgparams["system"]["logging"]["ufstring"] % {"name": "cluster_generator", "asctime": time.strftime("%Y-%d-%b %H:%M:%S", time.localtime()), "message": message, "levelname": "INFO"}
+    return cgparams["system"]["logging"]["ufstring"] % {"name"   : "cluster_generator",
+                                                        "asctime": time.strftime("%Y-%d-%b %H:%M:%S", time.localtime()),
+                                                        "message": message, "levelname": "INFO"}
 
-def eprint(message,n,location=None,frmt=True,**kwargs):
-    if cgparams["system"]["logging"]["level"] in ["INFO","WARNING","ERROR","CRITICAL"]:
+
+def eprint(message, n, location=None, frmt=True, **kwargs):
+    if cgparams["system"]["logging"]["level"] in ["INFO", "WARNING", "ERROR", "CRITICAL"]:
         if frmt:
-            print("%(tabs)s[%(location)s]: %(asctime)s %(message)s"%{"location": (location if location is not None else "-"), "asctime": time.strftime("%Y-%d-%b %H:%M:%S", time.localtime()), "message": message, "tabs": "\t"*n},
-              file=stream,**kwargs)
+            print("%(tabs)s[%(location)s]: %(asctime)s %(message)s" % {
+                "location": (location if location is not None else "-"),
+                "asctime" : time.strftime("%Y-%d-%b %H:%M:%S", time.localtime()), "message": message, "tabs": "\t" * n},
+                  file=stream, **kwargs)
         else:
-            print(message,file=stream,**kwargs)
+            print(message, file=stream, **kwargs)
 
 
 #: Proton Mass in ``Msun``.
@@ -123,25 +130,28 @@ mue = 1.0 / (X_H + 0.5 * (1.0 - X_H))
 # -- Utility functions -- #
 _truncator_function = lambda a, r, x: 1 / (1 + (x / r) ** a)
 
+
 class TimeoutException(Exception):
-    def __init__(self, msg='',func=None,max_time=None):
+    def __init__(self, msg='', func=None, max_time=None):
         self.msg = f"{msg} -- {str(func)} -- max_time={max_time} s"
 
-def _daemon_process_runner(*args,**kwargs):
+
+def _daemon_process_runner(*args, **kwargs):
     # Runs the function specified in the kwargs in a daemon process #
 
     send_end = kwargs.pop("__send_end")
     function = kwargs.pop("__function")
 
     try:
-        result = function(*args,**kwargs)
+        result = function(*args, **kwargs)
     except Exception as e:
         send_end.send(e)
         return
 
     send_end.send(result)
 
-def time_limit(function,max_execution_time,*args,**kwargs):
+
+def time_limit(function, max_execution_time, *args, **kwargs):
     import time
     from tqdm import tqdm
 
@@ -156,11 +166,13 @@ def time_limit(function,max_execution_time,*args,**kwargs):
 
     N = 1000
 
-    p = multiprocessing.Process(target=_daemon_process_runner,args=args,kwargs=kwargs)
+    p = multiprocessing.Process(target=_daemon_process_runner, args=args, kwargs=kwargs)
     p.start()
 
-    for n in tqdm(range(N),**tqdm_kwargs,bar_format='{desc}: {percentage:3.0f}%|{bar}| [{elapsed}<{remaining} - {postfix}]',colour="green",leave=False):
-        time.sleep(max_execution_time/1000)
+    for n in tqdm(range(N), **tqdm_kwargs,
+                  bar_format='{desc}: {percentage:3.0f}%|{bar}| [{elapsed}<{remaining} - {postfix}]', colour="green",
+                  leave=False):
+        time.sleep(max_execution_time / 1000)
 
         if not p.is_alive():
             p.join()
@@ -170,17 +182,16 @@ def time_limit(function,max_execution_time,*args,**kwargs):
     if p.is_alive():
         p.terminate()
         p.join()
-        raise TimeoutException("Failed to complete process within time limit.",func=function,max_time=max_execution_time)
+        raise TimeoutException("Failed to complete process within time limit.", func=function,
+                               max_time=max_execution_time)
     else:
         p.join()
         result = recv_end.recv()
 
-
-    if isinstance(result,Exception):
+    if isinstance(result, Exception):
         raise result
     else:
         return result
-
 
 
 def ensure_ytquantity(x, units):
@@ -251,9 +262,7 @@ def truncate_spline(f, r_t, a):
     """
     _gamma = r_t * f(r_t, 1) / f(r_t)  # This is the slope.
     return lambda x, g=_gamma, a=a, r=r_t: f(x) * _truncator_function(a, r, x) + (1 - _truncator_function(a, r, x)) * (
-                f(r) * _truncator_function(-g, r, x))
-
-
+            f(r) * _truncator_function(-g, r, x))
 
 def integrate_mass(profile, rr):
     """
@@ -412,7 +421,8 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     radius = np.interp(u, P_r, r, left=0.0, right=1.0)
     return radius, mtot
 
-def build_yt_dataset_fields(grid,models,domain_dimensions,centers,velocities):
+
+def build_yt_dataset_fields(grid, models, domain_dimensions, centers, velocities):
     from cluster_generator.model import ClusterModel
 
     # -- Segmenting the fields by type -- #
@@ -436,17 +446,16 @@ def build_yt_dataset_fields(grid,models,domain_dimensions,centers,velocities):
     # -- Sanity Checks -- #
     models = ensure_list(models)
 
-    for mid,model in enumerate(models):
-        if isinstance(model,str):
+    for mid, model in enumerate(models):
+        if isinstance(model, str):
             models[mid] = ClusterModel.from_h5_file(model)
 
-    centers = ensure_ytarray(centers,"kpc")
-    velocities = ensure_ytarray(velocities,"kpc/Myr")
-
+    centers = ensure_ytarray(centers, "kpc")
+    velocities = ensure_ytarray(velocities, "kpc/Myr")
 
     mylog.info("Building yt dataset structure...")
 
-    x,y,z = grid
+    x, y, z = grid
     fields = _added_fields + _mass_weighted_fields
     data = {}
     for i, p in enumerate(models):
@@ -502,11 +511,108 @@ def build_yt_dataset_fields(grid,models,domain_dimensions,centers,velocities):
 
     return data
 
+def _find_holes(x,y,rtol=1e-3,dy=None):
+    """
+    locates holes in the domain of y on which the function is non-monotone.
+    Parameters
+    ----------
+    x
+    y
+
+    Returns
+    -------
+
+    """
+    _x,_y = x[:],y[:]
+    if dy is None:
+        secants = np.gradient(_y,_x)
+    else:
+        secants = dy(_x)
+
+    holes = np.zeros(_x.size)
+    ymax = np.maximum.accumulate(_y)
+    holes[~np.isclose(_y,ymax,rtol=rtol)] = 1
+    holes[secants<=-1e-8] = 1
+
+    # construct boundaries of holes
+    _hb = (np.concatenate([[holes[0]],holes])[:-1] +holes+ np.concatenate([holes,[holes[-1]]])[1:])
+    ind = np.indices(_x.shape).reshape((_x.size,))
+
+    hx,hy,hi = _x[np.where(_hb==1)],_y[np.where(_hb==1)],ind[np.where(_hb==1)]
+
+    if holes[0] == 1:
+        hx,hy,hi = np.concatenate([[_x[0]],hx]),np.concatenate([[hy[0]],hy]),np.concatenate([[0],hi])
+    if holes[-1] == 1:
+        hx,hy,hi = np.concatenate([hx,[_x[-1]]]),np.concatenate([hy,[hy[-1]]]),np.concatenate([hi,[ind[-1]]])
+
+    plt.plot(_x,holes)
+    plt.show()
+    return len(hx)//2,np.array([hx.reshape(len(hx)//2,2),hy.reshape(len(hy)//2,2),hi.reshape(len(hi)//2,2)])
+
+def monotone_interpolation(x,y,buffer=10,rtol=1e-3):
+    from scipy.interpolate import CubicHermiteSpline
+    if y[-1]>y[0]:
+        monotonicity = 0
+        _x,_y = x[:],y[:]
+    elif y[0]>y[-1]:
+        monotonicity = 1
+        _x,_y = x[:],y[::-1]
+    else:
+        mylog.warning("Attempted to find holes in profile with no distinct monotonicity.")
+        return None
+
+    nholes,holes = _find_holes(_x,_y,rtol=rtol)
+    derivatives = np.gradient(_y,_x,edge_order=2)
+    plt.plot(_x,_y)
+    plt.show()
+    while nholes > 0:
+        print(nholes)
+        # carry out the interpolation over the hole.
+        hxx,hyy,hii = holes[:,0,:]
+
+        # building the interpolant information
+        hii[1] = hii[1] + np.min(np.concatenate([[buffer,len(_x)-1-hii[1]],(holes[2,1:,0]-hii[1]).ravel()]))
+        hii = np.array(hii,dtype="int")
+        hyy = [_y[hii[0]],np.amax([_y[hii[1]],_y[hii[0]]])]
+        hxx = [_x[hii[0]],_x[hii[1]]]
+
+        if hii[1] == len(_x)-1:
+            print(np.amax(_y))
+            _y[hii[0]:hii[1]+1] = _y[hii[0]]
+            print(_y[-10:],hxx,hyy,hii)
+            input()
+        else:
+            xb,yb = hxx[1] - (hyy[1]-hyy[0])/(2*derivatives[hii[1]]), (1/2)*(hyy[0]+hyy[-1])
+            s = [(yb-hyy[0])/(xb-hxx[0]),(hyy[1]-yb)/(hxx[1]-xb)]
+            p = (s[0]*(hxx[1]-xb)+(s[1]*(xb-hxx[0])))/(hxx[1]-hxx[0])
+            xs = [hxx[0],xb,_x[hii[-1]]]
+            ys = [hyy[0],yb,_y[hii[-1]]]
+            dys = [0.0,np.amin([2*s[0],2*s[1],p]),derivatives[hii[1]]]
+
+            cinterp = CubicHermiteSpline(xs,ys,dys)
+            _y[hii[0]:hii[1]] = cinterp(_x[hii[0]:hii[1]])
+
+        plt.plot(_x,_y)
+        plt.show()
+        nholes, holes = _find_holes(_x, _y, rtol=rtol)
+
+    if monotonicity == 1:
+        _x,_y = _x[:],_y[::-1]
+
+    return _x,_y
+
+
+
+
 if __name__ == '__main__':
-    import time
+    import matplotlib.pyplot as plt
+    import numpy as np
 
-    def waiter(sec):
-        time.sleep(sec)
-        return 1
-
-    time_limit(waiter,5,1000,desc="Execution Time")
+    x = np.linspace(1, 10, 1000)
+    y = 2 * np.cos(3 * x) - 2 * x
+    dy = 2 - 6 * np.sin(3 * x)
+    plt.plot(x,y)
+    plt.show()
+    nx,ny = monotone_interpolation(x,y)
+    plt.plot(nx,ny)
+    plt.show()
