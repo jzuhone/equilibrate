@@ -12,10 +12,13 @@ Cythonized utilities for equilibrium models
 #-----------------------------------------------------------------------------
 
 import numpy as np
-cimport numpy as np
+
 cimport cython
+cimport numpy as np
+
 from scipy.interpolate import dfitpack
 from tqdm.auto import tqdm
+
 
 cdef extern from "math.h":
     double sqrt(double x) nogil
@@ -86,7 +89,7 @@ def divergence_clean(np.ndarray[CTYPE_t, ndim=3] gx,
     cdef DTYPE_t kxd, kyd, kzd, kkd
     cdef CTYPE_t ggx, ggy, ggz, kg
 
-    nx = gx.shape[0] 
+    nx = gx.shape[0]
     ny = gx.shape[1]
     nz = gx.shape[2]
 

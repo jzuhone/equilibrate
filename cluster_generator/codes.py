@@ -1,15 +1,26 @@
+"""
+Code-specific utilities for the ``cluster_generator`` library.
+"""
+from pathlib import Path
+
+import h5py
+import numpy as np
+from unyt import uconcatenate, unyt_array
+
 from cluster_generator.model import ClusterModel
 from cluster_generator.particles import ClusterParticles
 from cluster_generator.utils import mylog
-from unyt import uconcatenate, unyt_array
-from pathlib import Path
-import numpy as np
-import h5py
 
 
-def write_amr_particles(particles, output_filename, ptypes,
-                        ptype_num, overwrite=True, in_cgs=False,
-                        format="hdf5"):
+def write_amr_particles(
+    particles,
+    output_filename,
+    ptypes,
+    ptype_num,
+    overwrite=True,
+    in_cgs=False,
+    format="hdf5",
+):
     """
     Write the particles to an HDF5 file to be read in by the GAMER,
     FLASH, or RAMSES codes.
@@ -27,8 +38,9 @@ def write_amr_particles(particles, output_filename, ptypes,
     from scipy.io import FortranFile
 
     if Path(output_filename).exists() and not overwrite:
-        raise IOError(f"Cannot create {output_filename}. "
-                      f"It exists and overwrite=False.")
+        raise IOError(
+            f"Cannot create {output_filename}. " f"It exists and overwrite=False."
+        )
     nparts = [particles.num_particles[ptype] for ptype in ptypes]
     if format == "hdf5":
         write_class = h5py.File
@@ -37,10 +49,8 @@ def write_amr_particles(particles, output_filename, ptypes,
     num_particles = 0
     with write_class(output_filename, "w") as f:
         pdata = []
-        for field in ["particle_position", "particle_velocity",
-                      "particle_mass"]:
-            fd = uconcatenate(
-                [particles[ptype, field] for ptype in ptypes], axis=0)
+        for field in ["particle_position", "particle_velocity", "particle_mass"]:
+            fd = uconcatenate([particles[ptype, field] for ptype in ptypes], axis=0)
             if hasattr(fd, "units") and in_cgs:
                 fd.convert_to_cgs()
             if format == "hdf5":
@@ -50,8 +60,12 @@ def write_amr_particles(particles, output_filename, ptypes,
                     num_particles = fd.size
                 pdata.append(np.asarray(fd).astype("float64").T)
         if format == "hdf5":
-            fd = np.concatenate([ptype_num[ptype] * np.ones(nparts[i])
-                                 for i, ptype in enumerate(ptypes)])
+            fd = np.concatenate(
+                [
+                    ptype_num[ptype] * np.ones(nparts[i])
+                    for i, ptype in enumerate(ptypes)
+                ]
+            )
             f.create_dataset("particle_type", data=fd)
         else:
             f.write_record(num_particles)
@@ -63,8 +77,8 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
 
     Generate the "Input_TestProb" lines needed for use
     with the ClusterMerger setup in GAMER. If the particles
-    (dark matter and potentially star) have not been 
-    created yet, they will be created at this step. New profile 
+    (dark matter and potentially star) have not been
+    created yet, they will be created at this step. New profile
     files will also be created which have all fields in CGS units
     for reading into GAMER. If a magnetic field file is present
     in the ICs, a note will be given about how it should be named
@@ -86,22 +100,21 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
         gamer_ptypes.insert(0, "tracer")
     gamer_ptype_num = {"tracer": 0, "dm": 2, "star": 3}
     hses = [ClusterModel.from_h5_file(hf) for hf in ics.profiles]
-    parts = ics._generate_particles(
-        regenerate_particles=regenerate_particles)
-    outlines = [
-        f"Merger_Coll_NumHalos\t\t{ics.num_halos}\t# number of halos"
-    ]
+    parts = ics._generate_particles(regenerate_particles=regenerate_particles)
+    outlines = [f"Merger_Coll_NumHalos\t\t{ics.num_halos}\t# number of halos"]
     for i in range(ics.num_halos):
         particle_file = f"{ics.basename}_gamerp_{i+1}.h5"
         if ics.num_particles["star"][i] == 0:
             ptypes = gamer_ptypes[:-1]
         else:
             ptypes = gamer_ptypes
-        write_amr_particles(parts[i], particle_file, ptypes, gamer_ptype_num,
-                            in_cgs=True, format="hdf5")
+        write_amr_particles(
+            parts[i], particle_file, ptypes, gamer_ptype_num, in_cgs=True, format="hdf5"
+        )
         hse_file_gamer = ics.profiles[i].replace(".h5", "_gamer.h5")
-        hses[i].write_model_to_h5(hse_file_gamer, overwrite=True,
-                                  in_cgs=True, r_max=ics.r_max)
+        hses[i].write_model_to_h5(
+            hse_file_gamer, overwrite=True, in_cgs=True, r_max=ics.r_max
+        )
         vel = ics.velocity[i].to_value("km/s")
         outlines += [
             f"Merger_File_Prof{i+1}\t\t{hse_file_gamer}\t# profile table of cluster {i+1}",
@@ -109,17 +122,19 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
             f"Merger_Coll_PosX{i+1}\t\t{ics.center[i][0].v}\t# X-center of cluster {i+1} in kpc",
             f"Merger_Coll_PosY{i+1}\t\t{ics.center[i][1].v}\t# Y-center of cluster {i+1} in kpc",
             f"Merger_Coll_VelX{i+1}\t\t{vel[0]}\t# X-velocity of cluster {i+1} in km/s",
-            f"Merger_Coll_VelY{i+1}\t\t{vel[1]}\t# Y-velocity of cluster {i+1} in km/s"
+            f"Merger_Coll_VelY{i+1}\t\t{vel[1]}\t# Y-velocity of cluster {i+1} in km/s",
         ]
     mylog.info("Write the following lines to Input__TestProblem: ")
     for line in outlines:
         print(line)
-    num_particles = sum([ics.tot_np[key] for key in ics.tot_np])
+    # num_particles = sum([ics.tot_np[key] for key in ics.tot_np])
     if ics.mag_file is not None:
-        mylog.info(f"Rename the file '{ics.mag_file}' to 'B_IC' "
-                   f"and place it in the same directory as the "
-                   f"Input__* files, and set OPT__INIT_BFIELD_BYFILE "
-                   f"to 1 in Input__Parameter")
+        mylog.info(
+            f"Rename the file '{ics.mag_file}' to 'B_IC' "
+            f"and place it in the same directory as the "
+            f"Input__* files, and set OPT__INIT_BFIELD_BYFILE "
+            f"to 1 in Input__Parameter"
+        )
 
 
 def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
@@ -127,8 +142,8 @@ def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
 
     Generate the "flash.par" lines needed for use
     with the GalaxyClusterMerger setup in FLASH. If the particles
-    (dark matter and potentially star) have not been 
-    created yet, they will be created at this step. 
+    (dark matter and potentially star) have not been
+    created yet, they will be created at this step.
 
     Parameters
     ----------
@@ -142,11 +157,8 @@ def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
         will be re-created. Default: False
     """
     if use_particles:
-        ics._generate_particles(
-            regenerate_particles=regenerate_particles)
-    outlines = [
-        f"testSingleCluster\t=\t{ics.num_halos} # number of halos"
-    ]
+        ics._generate_particles(regenerate_particles=regenerate_particles)
+    outlines = [f"testSingleCluster\t=\t{ics.num_halos} # number of halos"]
     for i in range(ics.num_halos):
         vel = ics.velocity[i].to("km/s")
         outlines += [
@@ -199,15 +211,19 @@ def setup_ramses_ics(ics, regenerate_particles=False):
     names = ["Main", "Sub", "Third"]
     config_lines = ["# Merger Dynamics Setting, do not change the general format"]
     hses = [ClusterModel.from_h5_file(hf) for hf in ics.profiles]
-    parts = ics._generate_particles(
-        regenerate_particles=regenerate_particles)
+    parts = ics._generate_particles(regenerate_particles=regenerate_particles)
     fields_to_write = ["radius", "density", "pressure"]
     for i in range(ics.num_halos):
         if i > 0:
             config_lines.append("#")
         config_lines += [f"# {names[i]}", "#", "#", f"Halo {i+1}"]
-        hses[i].write_model_to_binary(f"halo{i+1}_prof.dat", overwrite=True, in_cgs=True,
-                                      r_max=ics.r_max, fields_to_write=fields_to_write)
+        hses[i].write_model_to_binary(
+            f"halo{i+1}_prof.dat",
+            overwrite=True,
+            in_cgs=True,
+            r_max=ics.r_max,
+            fields_to_write=fields_to_write,
+        )
         vel = ics.velocity[i].to_value("km/s")
         pos = ics.center[i].to_value("kpc")
         config_lines += [
@@ -216,47 +232,62 @@ def setup_ramses_ics(ics, regenerate_particles=False):
             f"z_cen[kpc]     ={pos[2]:16.6e}",
             f"vx_cen[kms]    ={vel[0]:16.6e}",
             f"vy_cen[kms]    ={vel[1]:16.6e}",
-            f"vz_cen[kms]    ={vel[2]:16.6e}"
+            f"vz_cen[kms]    ={vel[2]:16.6e}",
         ]
-        write_amr_particles(parts[i], f"halo{i+1}_part.dat", ["dm"], {"dm": 1},
-                            format="fortran", in_cgs=True)
-    mylog.info(f"Simulation setups saved to Merger_Config.txt.")
+        write_amr_particles(
+            parts[i],
+            f"halo{i+1}_part.dat",
+            ["dm"],
+            {"dm": 1},
+            format="fortran",
+            in_cgs=True,
+        )
+    mylog.info("Simulation setups saved to Merger_Config.txt.")
     np.savetxt("Merger_Config.txt", config_lines, fmt="%s")
 
 
-def setup_arepo_ics(ics, boxsize, nx, ic_file, overwrite=False,
-                    regenerate_particles=False, prng=None):
+def setup_arepo_ics(
+    ics, boxsize, nx, ic_file, overwrite=False, regenerate_particles=False, prng=None
+):
     fields = {}
-    cparts = ics.setup_particle_ics(regenerate_particles=regenerate_particles,
-                                    prng=prng)
+    cparts = ics.setup_particle_ics(
+        regenerate_particles=regenerate_particles, prng=prng
+    )
     ngrid = nx**3
-    dx = boxsize/nx
-    le = 0.5*dx
-    re = boxsize - 0.5*dx
-    posg = np.mgrid[le:re:nx*1j, le:re:nx*1j, le:re:nx*1j].reshape(3, ngrid).T
+    dx = boxsize / nx
+    le = 0.5 * dx
+    re = boxsize - 0.5 * dx
+    posg = (
+        np.mgrid[le : re : nx * 1j, le : re : nx * 1j, le : re : nx * 1j]
+        .reshape(3, ngrid)
+        .T
+    )
     rmax2 = ics.r_max**2
-    idxs = np.sum((posg-ics.center[0].v)**2, axis=1) > rmax2[0]
+    idxs = np.sum((posg - ics.center[0].v) ** 2, axis=1) > rmax2[0]
     if ics.num_halos > 1:
-        idxs |= np.sum((posg-ics.center[1].v)**2, axis=1) > rmax2[1]
+        idxs |= np.sum((posg - ics.center[1].v) ** 2, axis=1) > rmax2[1]
     if ics.num_halos > 2:
-        idxs |= np.sum((posg-ics.center[2].v)**2, axis=1) > rmax2[2]
+        idxs |= np.sum((posg - ics.center[2].v) ** 2, axis=1) > rmax2[2]
     dV = dx**3
     nleft = idxs.sum()
     idens = np.argmin(cparts["gas", "density"].d)
-    dens = cparts["gas", "density"].d[idens]*np.ones(nleft)
-    eint = cparts["gas", "thermal_energy"].d[idens]*np.ones(nleft)
+    dens = cparts["gas", "density"].d[idens] * np.ones(nleft)
+    eint = cparts["gas", "thermal_energy"].d[idens] * np.ones(nleft)
     fields["gas", "particle_position"] = unyt_array(posg[idxs, :], "kpc")
     fields["gas", "particle_velocity"] = unyt_array(np.zeros((nleft, 3)), "kpc/Myr")
-    fields["gas", "particle_mass"] = unyt_array(dens*dV, "Msun")
+    fields["gas", "particle_mass"] = unyt_array(dens * dV, "Msun")
     fields["gas", "density"] = unyt_array(dens, "Msun/kpc**3")
     fields["gas", "thermal_energy"] = unyt_array(eint, "kpc**2/Myr**2")
-    mylog.info("Background cell density is %g g/cm**3.",
-               fields["gas", "density"][0].to_value("g/cm**3"))
-    mylog.info("Background cell mass is %g Msun.",
-               fields["gas", "particle_mass"][0].to_value("Msun"))
+    mylog.info(
+        "Background cell density is %g g/cm**3.",
+        fields["gas", "density"][0].to_value("g/cm**3"),
+    )
+    mylog.info(
+        "Background cell mass is %g Msun.",
+        fields["gas", "particle_mass"][0].to_value("Msun"),
+    )
     all_parts = cparts + ClusterParticles.from_fields(fields)
-    all_parts.write_to_gadget_file(ic_file, boxsize, overwrite=overwrite,
-                                   code='arepo')
+    all_parts.write_to_gadget_file(ic_file, boxsize, overwrite=overwrite, code="arepo")
 
 
 def resample_arepo_ics(ics, infile, outfile, overwrite=False):
