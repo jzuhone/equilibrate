@@ -50,9 +50,14 @@ class ClusterModel:
 
     _keep_units = ["entropy", "electron_number_density", "magnetic_field_strength"]
 
-    def __init__(self, num_elements, fields):
+    def __init__(self, num_elements, fields, properties=None):
         self.num_elements = num_elements
         self.fields = fields
+
+        if not properties:
+            self.properties = {}
+        else:
+            self.properties = properties
 
     _dm_virial = None
     _star_virial = None
