@@ -59,5 +59,11 @@ def answer_dir(request):
 
 
 @pytest.fixture()
+def force_new(request):
+    """Forces every structure to be constructed from scratch."""
+    return request.config.getoption("--force_new")
+
+
+@pytest.fixture()
 def gravity(request):
     return request.config.getoption("--gravity")

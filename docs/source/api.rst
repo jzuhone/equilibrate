@@ -18,3 +18,4 @@ API Reference for the CGP
     virial
     correction
     codes
+    numalgs

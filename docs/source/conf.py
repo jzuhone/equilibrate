@@ -34,16 +34,21 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.todo",
     "sphinx.ext.napoleon",
+    "sphinx.ext.inheritance_diagram",
+    "sphinx.ext.graphviz",
     "myst_parser",
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
     "sphinxcontrib.blockdiag",
     "sphinxcontrib.mermaid",
+    "sphinx.ext.intersphinx",
     "nbsphinx",
     "sphinx_design",
     "hoverxref.extension",
 ]
 
+graphviz_output_format = "svg"
+inheritance_graph_attrs = dict(rankdir="TB", size='""')
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["../_templates"]
 
@@ -68,11 +73,12 @@ html_static_path = ["_static"]
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    "https://docs.python.org/3/": None,
-    "https://numpy.org/doc/stable/": None,
-    "https://matplotlib.org/stable/": None,
-    "https://yt-project.org/doc/": None,
-    "https://docs.astropy.org/en/stable": None,
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "yt": ("https://yt-project.org/doc/", None),
+    "astropy": ("https://docs.astropy.org/en/stable", None),
+    "unyt": ("https://unyt.readthedocs.io/en/stable/", None),
 }
 
 napoleon_use_param = True

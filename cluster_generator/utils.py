@@ -1,12 +1,14 @@
 """
 Utility functions for basic functionality of the py:module:`cluster_generator` package.
 """
+import functools
 import logging
 import multiprocessing
 import os
 import pathlib as pt
 import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 from more_itertools import always_iterable
@@ -107,6 +109,37 @@ if cgparams["system"]["logging"]["developer"][
 else:
     devLogger.propagate = False
     devLogger.disabled = True
+
+
+class LogMute:
+    def __init__(self, logger):
+        self.logger = logger
+
+    def __enter__(self):
+        self.logger.disabled = True
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.logger.disabled = False
+
+
+def _enforce_style(func):
+    """enforces the mpl style."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        _rcp_copy = plt.rcParams.copy()
+
+        for _k, _v in cgparams["plotting"]["defaults"].items():
+            plt.rcParams[_k] = _v
+
+        out = func(*args, **kwargs)
+
+        plt.rcParams = _rcp_copy
+        del _rcp_copy
+
+        return out
+
+    return wrapper
 
 
 mp = (pc.mp).to("Msun")
