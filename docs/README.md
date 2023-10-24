@@ -39,44 +39,7 @@ ______________________________________________________________________
 ## Getting the Package
 
 <style>
-body {font-family: Arial;}
 
-/* Style the tab */
-.tab {
-  overflow: hidden;
-  border: 1px solid #ccc;
-  background-color: #f1f1f1;
-}
-
-/* Style the buttons inside the tab */
-.tab button {
-  background-color: inherit;
-  float: left;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 14px 16px;
-  transition: 0.3s;
-  font-size: 17px;
-}
-
-/* Change background color of buttons on hover */
-.tab button:hover {
-  background-color: #ddd;
-}
-
-/* Create an active/current tablink class */
-.tab button.active {
-  background-color: #ccc;
-}
-
-/* Style the tab content */
-.tabcontent {
-  display: none;
-  padding: 6px 12px;
-  border: 1px solid #ccc;
-  border-top: none;
-}
 .alert {
   position: relative;
   top: 10;
@@ -149,41 +112,41 @@ body {font-family: Arial;}
 }
 </style>
 
-<div class="tab">
-  <button class="tablinks" onclick="openCity(event, 'PyPi')">From PyPi</button>
-  <button class="tablinks" onclick="openCity(event, 'PIP')">PIP</button>
-  <button class="tablinks" onclick="openCity(event, 'Conda')">Conda</button>
-  <button class="tablinks" onclick="openCity(event, 'Source')">From Source</button>
-</div>
+<details >
+  <summary style="font-size: 18px;font-weight: bolder">Installing CGP from PyPi</summary>
+<div style="border: #00B0F0 solid 3px;border-radius: 10px">
+  <div class="alert error">
+    <span class="alertClose">X</span>
+    <span class="alertText">Uh Oh! We haven't implemented this option yet.
+    <br class="clear"/></span>
+  </div>
+  </div>
+</details>
 
-<div id="PyPi" class="tabcontent">
-  <h3>Installing CGP from PyPi</h3>
+<details >
+  <summary style="font-size: 18px;font-weight: bolder">Installing CGP from PyPi</summary>
+<div style="border: #00B0F0 solid 3px;border-radius: 10px">
+  <div class="alert error">
+    <span class="alertClose">X</span>
+    <span class="alertText">Uh Oh! We haven't implemented this option yet.
+    <br class="clear"/></span>
+  </div>
+  </div>
+</details>
+
+<details >
+  <summary style="font-size: 18px;font-weight: bolder">Installing CGP from PyPi</summary>
+<div style="border: #00B0F0 solid 3px;border-radius: 10px">
   <div class="alert error">
     <span class="alertClose">X</span>
     <span class="alertText">Uh Oh! We haven't implemented this option yet.
     <br class="clear"/></span>
   </div>
 </div>
-
-<div id="PIP" class="tabcontent">
-  <h3>Installing CGP from PIP</h3>
-  <div class="alert error">
-    <span class="alertClose">X</span>
-    <span class="alertText">Uh Oh! We haven't implemented this option yet.
-    <br class="clear"/></span>
-  </div>
-</div>
-
-<div id="Conda" class="tabcontent">
-  <h3>Installing CGP from Conda</h3>
-  <div class="alert error">
-    <span class="alertClose">X</span>
-    <span class="alertText">Uh Oh! We haven't implemented this option yet.
-    <br class="clear"/></span>
-  </div>
-</div>
-<div id="Source" class="tabcontent" style="display: block">
-  <h3>Installing CGP from Source</h3>
+</details>
+<details>
+  <summary style="font-size: 18px;font-weight: bolder">Installing CGP from Source</summary>
+<div style="border: #00B0F0 solid 3px;border-radius: 10px">
   <p>To install the CGP from source, you'll first need to clone the directory directly from this github page. To do so, simply</p>
   <code>
         >>> pip install git+https://www.github.com/jzuhone/cluster_generator
@@ -200,22 +163,7 @@ import cluster_generator as cgp
     <br class="clear"/></span>
   </div>
 </div>
-
-<script>
-function openCity(evt, cityName) {
-  var i, tabcontent, tablinks;
-  tabcontent = document.getElementsByClassName("tabcontent");
-  for (i = 0; i < tabcontent.length; i++) {
-    tabcontent[i].style.display = "none";
-  }
-  tablinks = document.getElementsByClassName("tablinks");
-  for (i = 0; i < tablinks.length; i++) {
-    tablinks[i].className = tablinks[i].className.replace(" active", "");
-  }
-  document.getElementById(cityName).style.display = "block";
-  evt.currentTarget.className += " active";
-}
-</script>
+</details>
 
 ### Dependencies
 
