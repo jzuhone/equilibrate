@@ -100,6 +100,7 @@ class NonPhysicalRegion:
         Returns
         -------
         bool
+
         """
         if isinstance(other, self.__class__):
             if self.type != other.type:
@@ -136,6 +137,7 @@ class NonPhysicalRegion:
     def message(self, func=print):
         """
         Passes the NPR's message to output.
+
         Parameters
         ----------
         func: callable, optional
@@ -144,6 +146,7 @@ class NonPhysicalRegion:
         Returns
         -------
         None
+
         """
         func(
             f"""# ---- {self} ---- #
@@ -168,6 +171,7 @@ class NonPhysicalRegion:
         -------
         list
             A list of instances of NPR objects indicating non-physical regimes of the cluster.
+
         """
         mylog.info(f"Seeking NPRs [scope={cls._scope}]...")
         nprs = []  # The NPRs being returned
@@ -218,6 +222,7 @@ class NonPhysicalRegion:
         ------
         CorrectionFailure
             If one of the non-physicalities is of an uncorrectable type.
+
         """
         mylog.info(f"Correcting non-physical behaviours in {model}.")
         with LogMute(mylog):
@@ -291,6 +296,7 @@ class Type0NPR(NonPhysicalRegion):
 
     .. inheritance-diagram:: cluster_generator.correction
         :parts: 1
+
     """
 
     _methods = []
@@ -334,7 +340,7 @@ class Type0NPR(NonPhysicalRegion):
 
 
 class Type0aNPR(Type0NPR):
-    """
+    r"""
     Non-Physical Region marker class (Subclass of :py:class:`correction.Type0NPR`) which indicates NPRs of type 0a.
 
     .. note::
@@ -352,10 +358,12 @@ class Type0aNPR(Type0NPR):
     | Correctable? | False                       |
     +--------------+-----------------------------+
 
+
     **Class Diagram**
 
     .. inheritance-diagram:: cluster_generator.correction
         :parts: 1
+
     """
 
     _methods = ["from_dens_and_temp"]
@@ -529,6 +537,7 @@ class Type1aNPR(Type1NPR):
         This method relies only on field values and does not consider the profiles available even if they exist.
 
     """
+
     _methods = ["from_dens_and_temp"]
     _message = """
     NPR of type 1a: Inconsistent temperature / density slopes.
@@ -610,4 +619,6 @@ class Type1aNPR(Type1NPR):
 
 
 class CorrectionFailure(Exception):
+    """Correction Failure raised when non-physicalities cannot be resolved."""
+
     pass

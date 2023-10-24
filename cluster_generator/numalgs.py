@@ -23,7 +23,8 @@ def identify_domain_borders(array, domain=None):
     Returns
     -------
     list
-        List of 2-tuples containing the boundary indices (if ``domain==None``) or the boundary positions if domain is specfied.
+        List of 2-tuples containing the boundary indices (if ``domain==None``) or the boundary positions if domain is specified.
+
     """
     boundaries = (
         np.concatenate([[-1], array[:-1]]) + array + np.concatenate([array[1:], [-1]])
@@ -75,6 +76,7 @@ def find_holes(x, y, rtol=1e-3, dy=None):
         - hx: Array of size ``(n,2)`` with the minimum and maximum ``x`` for each hole respectively.
         - hy: Array of size ``(n,2)`` with the left and right ``y`` value on each side of every hole.
         - hi: Array of size ``(n,2)`` with the left and right indices of the hole.
+
     """
     _x, _y = x[:], y[:]
 

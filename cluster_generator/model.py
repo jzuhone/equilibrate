@@ -54,12 +54,14 @@ class ClusterModel:
         The virialization class to use for dark matter virialization. By default, it is None and will be set when necessary.
     star_virial: VirialEquilibrium, optional
         The virialization class to use for stellar matter virialization. By default, it is None and will be set when necessary.
+
     Notes
     -----
-
     - ``__getitem__`` and ``__contains__`` are aliased down to ``self.fields``. There is no ``__setitem__``, so index
       / key assignment cannot be done. use ``ClusterModel.set_field()`` instead.
+
     """
+
     #: The default included fields that can be accessed.
     default_fields = [
         "density",
@@ -79,6 +81,7 @@ class ClusterModel:
     _keep_units = ["entropy", "electron_number_density", "magnetic_field_strength"]
 
     def __init__(self, fields, properties=None, dm_virial=None, star_virial=None):
+        """Initialize the :py:class:`model.ClusterModel` instance."""
         #: The ``fields`` associated with the ``Potential`` object.
         self.fields = fields
         #: The number of elements in each ``field`` array.
@@ -104,12 +107,15 @@ class ClusterModel:
         self.fields[key] = value
 
     def keys(self):
+        """Equivalent to ``self.fields.keys()``"""
         return self.fields.keys()
 
     def items(self):
+        """Equivalent to ``self.fields.items()``"""
         return self.fields.items()
 
     def values(self):
+        """Equivalent to ``self.fields.values()``"""
         return self.fields.values()
 
     @property
@@ -149,6 +155,7 @@ class ClusterModel:
         In addition to the user specified properties, additional properties may be found in the ``'meth'`` key of the attribute.
         These are specified behind the scenes and dictate the behavior of certain backend behaviors. It is ill-advised to alter
         these properties without a thorough understanding of what they do.
+
         """
         return self._properties
 
@@ -178,7 +185,6 @@ class ClusterModel:
 
         See Also
         --------
-
         :py:meth:`~model.ClusterModel.from_dens_and_tden`,:py:meth:`~model.ClusterModel.from_dens_and_temp`,:py:meth:`~model.ClusterModel.from_dens_and_entr`,:py:meth:`~model.ClusterModel.from_h5_file`
 
         """
@@ -196,7 +202,7 @@ class ClusterModel:
     @classmethod
     def from_h5_file(cls, filename, r_min=None, r_max=None):
         r"""
-        Initializes a :py:class:`model.ClusterModel` instance from HDF5 file.
+        Initialize a :py:class:`model.ClusterModel` instance from HDF5 file.
 
         Parameters
         ----------
@@ -215,8 +221,10 @@ class ClusterModel:
             the later cannot be found, the :py:class:`model.ClusterModel` will lose its attributes and issue a warning.
 
         Examples
+        --------
         >>> from cluster_generator import ClusterModel
         >>> hse_model = ClusterModel.from_h5_file("hse_model.h5")
+
         """
         import dill as pickle
 
@@ -271,8 +279,7 @@ class ClusterModel:
 
     @classmethod
     def _from_scratch(cls, fields, stellar_density=None, **kwargs):
-        """Loads the cluster instance from total density, total mass, and radius."""
-
+        """Load the cluster instance from total density, total mass, and radius."""
         rr = fields["radius"].d
         mylog.info("Integrating gravitational potential profile.")
         tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
@@ -327,7 +334,8 @@ class ClusterModel:
 
     def set_rmax(self, r_max):
         """
-        Truncates the model at a specified maximal radius.
+        Truncate the model at a specified maximal radius.
+
         Parameters
         ----------
         r_max: float
@@ -337,6 +345,7 @@ class ClusterModel:
         -------
         ClusterModel
             A new :py:class:`model.ClusterModel` instance with a truncated maximal radius.
+
         """
         mask = self.fields["radius"].d <= r_max
         fields = {}
@@ -361,6 +370,7 @@ class ClusterModel:
             Whether to convert the units to cgs before writing. Default: False.
         overwrite : bool, optional
             Overwrite an existing file with the same name. Default: False.
+
         """
         from astropy.table import QTable
 
@@ -398,6 +408,7 @@ class ClusterModel:
             The minimum radius to write too.
         r_max: float, optional
             The maximum radius to write too.
+
         """
         if os.path.exists(output_filename) and not overwrite:
             raise IOError(
@@ -437,7 +448,7 @@ class ClusterModel:
             fd.write_hdf5(output_filename, dataset_name="star_df")
 
     def _write_model_attrs(self, output_filename):
-        """writes the model attributes to file."""
+        """Write the model attributes to file."""
         import dill as pickle
 
         with open(f"{output_filename}.properties", "wb") as atf:
@@ -453,11 +464,11 @@ class ClusterModel:
         overwrite=False,
     ):
         """
-        writes the model to unformatted Fortran binary.
+        Write the model to unformatted Fortran binary.
 
         .. attention::
 
-            But why would you want Fortan binary??
+            But why would you want Fortran binary??
 
         .. warning::
 
@@ -483,6 +494,7 @@ class ClusterModel:
         Returns
         -------
         None
+
         """
         if fields_to_write is None:
             fields_to_write = list(self.fields.keys())
@@ -561,6 +573,7 @@ class ClusterModel:
             A radial profile describing the stellar mass density, if desired.
         num_points : integer, optional
             The number of points the profiles are evaluated at.
+
         """
         kwargs = _force_method(kwargs, "from_dens_and_temp")
         kwargs["meth"]["profiles"] = {
@@ -671,6 +684,7 @@ class ClusterModel:
             A radial profile describing the stellar mass density, if desired.
         num_points : integer, optional
             The number of points the profiles are evaluated at.
+
         """
         kwargs = _force_method(kwargs, "from_dens_and_tden")
         kwargs["meth"]["profiles"] = {
@@ -708,6 +722,29 @@ class ClusterModel:
     def no_gas(
         cls, rmin, rmax, total_density, stellar_density=None, num_points=1000, **kwargs
     ):
+        """
+        Initialize a :py:class:`model.ClusterModel` which is composed only of collisionless species.
+
+        Parameters
+        ----------
+        rmin : float
+            Minimum radius of profiles in kpc.
+        rmax : float
+            Maximum radius of profiles in kpc.
+        total_density : :class:`~cluster_generator.radial_profiles.RadialProfile`
+            A radial profile describing the total mass density.
+        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+            A radial profile describing the stellar mass density, if desired.
+        num_points : integer, optional
+            The number of points the profiles are evaluated at.
+        kwargs:
+            Additional keywords to pass to the properties of the resulting instance.
+
+        Returns
+        -------
+        :py:class:`model.ClusterModel`
+
+        """
         kwargs = _force_method(kwargs, "no_gas")
         kwargs["meth"]["profiles"] = {
             "total_density": total_density,
@@ -742,6 +779,7 @@ class ClusterModel:
         chk : NumPy array
             An array containing the relative deviation from hydrostatic
             equilibrium as a function of radius.
+
         """
         if "pressure" not in self.fields:
             raise RuntimeError("This ClusterModel contains no gas!")
@@ -759,9 +797,11 @@ class ClusterModel:
         return chk
 
     def check_dm_virial(self):
+        """Equivalent to ``self.dm_virial.check_virial``"""
         return self.dm_virial.check_virial()
 
     def check_star_virial(self):
+        """Equivalent to ``self.star_virial.check_virial``"""
         if self._star_virial is None:
             raise RuntimeError(
                 "Cannot check the virial equilibrium of "
@@ -786,6 +826,7 @@ class ClusterModel:
             Set the field in Gaussian units such that
             p_B = B^2/(8*pi), otherwise p_B = B^2/2.
             Default: True
+
         """
         B = np.sqrt(2.0 * self["pressure"] / beta)
         if gaussian:
@@ -811,6 +852,7 @@ class ClusterModel:
             Set the field in Gaussian units such that
             p_B = B^2/(8*pi), otherwise p_B = B^2/2.
             Default: True
+
         """
         B0 = ensure_ytquantity(B0, "gauss")
         B = B0 * (self["density"] / self["density"][0]) ** eta
@@ -842,6 +884,7 @@ class ClusterModel:
             be specified if you have a reason to generate the same
             set of random numbers, such as for a test. Default is None,
             which sets the seed based on the system time.
+
         """
         from cluster_generator.utils import parse_prng
 
@@ -918,6 +961,7 @@ class ClusterModel:
             be specified if you have a reason to generate the same
             set of random numbers, such as for a test. Default is None,
             which sets the seed based on the system time.
+
         """
         from cluster_generator.utils import parse_prng
 
@@ -1034,6 +1078,7 @@ class ClusterModel:
         -------
         particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of dark matter particles.
+
         """
         return self.dm_virial.generate_particles(
             num_particles,
@@ -1080,6 +1125,7 @@ class ClusterModel:
         -------
         particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of star particles.
+
         """
         return self.star_virial.generate_particles(
             num_particles,
@@ -1111,6 +1157,7 @@ class ClusterModel:
         Returns
         -------
         The Figure, Axes tuple used for the plot.
+
         """
         import matplotlib.pyplot as plt
 
@@ -1140,7 +1187,7 @@ class ClusterModel:
         **kwargs,
     ):
         """
-        Plots all of the selected fields in a grid of axes. Useful for checking for non-physical issues and getting
+        Plot all of the selected fields in a grid of axes. Useful for checking for non-physical issues and getting
         a general impression of the generated model.
 
         Parameters
@@ -1184,6 +1231,7 @@ class ClusterModel:
             The figure corresponding to the plot.
         :py:class:`~matplotlib.axes.Axes`
             The axes dictionary corresponding to the plot
+
         """
         import pathlib as pt
         from itertools import product
@@ -1280,6 +1328,7 @@ class ClusterModel:
         return fig, axes
 
     def mass_in_radius(self, radius):
+        """Determine the mass within a given radius."""
         masses = {}
         r = self.fields["radius"].to_value("kpc")
         for mtype in ["total", "gas", "dark_matter", "stellar"]:
@@ -1288,6 +1337,7 @@ class ClusterModel:
         return masses
 
     def find_radius_for_density(self, density):
+        """Determine the radius at which the model reaches the specified density"""
         density = ensure_ytquantity(density, "Msun/kpc**3").value
         r = self.fields["radius"].to_value("kpc")[::-1]
         d = self.fields["density"].to_value("Msun/kpc**3")[::-1]
@@ -1318,6 +1368,7 @@ class ClusterModel:
             be [-r,-r,-r].
         velocity: unyt_array, optional
             The velocity of the cluster relative to the frame of the box. Default is 0. If specified, must be a 1X3 array.
+
         """
         import gc
 
@@ -1378,6 +1429,8 @@ class ClusterModel:
 
 # This is only for backwards-compatibility
 class HydrostaticEquilibrium(ClusterModel):
+    """Equivalent to :py:class:`ClusterModel`"""
+
     pass
 
 

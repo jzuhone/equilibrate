@@ -33,6 +33,21 @@ def write_amr_particles(
         The file to write the particles to.
     overwrite : boolean, optional
         Overwrite an existing file with the same name. Default: False.
+    ptypes:
+        TODO
+    ptype_num:
+        TODO
+    overwrite:
+        TODO
+    in_cgs:
+        TODO
+    format:
+        TODO
+
+    Returns
+    -------
+    TODO
+
     """
     import h5py
     from scipy.io import FortranFile
@@ -94,6 +109,7 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
         re-created. Default: False
     use_tracers : boolean
         Set to True to add tracer particles. Default: False
+
     """
     gamer_ptypes = ["dm", "star"]
     if use_tracers:
@@ -155,6 +171,7 @@ def setup_flash_ics(ics, use_particles=True, regenerate_particles=False):
         If particle files have already been created, particles
         are being used, and this flag is set to True, the particles
         will be re-created. Default: False
+
     """
     if use_particles:
         ics._generate_particles(regenerate_particles=regenerate_particles)
@@ -249,6 +266,7 @@ def setup_ramses_ics(ics, regenerate_particles=False):
 def setup_arepo_ics(
     ics, boxsize, nx, ic_file, overwrite=False, regenerate_particles=False, prng=None
 ):
+    """Setup Arepo ICs"""
     fields = {}
     cparts = ics.setup_particle_ics(
         regenerate_particles=regenerate_particles, prng=prng
@@ -291,6 +309,7 @@ def setup_arepo_ics(
 
 
 def resample_arepo_ics(ics, infile, outfile, overwrite=False):
+    """Resample Arepo ICs"""
     parts = ClusterParticles.from_gadget_file(infile)
     new_parts = ics.resample_particle_ics(parts)
     with h5py.File(infile, "r") as f:
@@ -309,4 +328,5 @@ def setup_gizmo_ics(ics):
 
 
 def setup_art_ics(ics):
+    """Setup Art ICs"""
     pass

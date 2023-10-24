@@ -38,7 +38,7 @@ in hydrostatic and virial equilibrium for input into simulations. There is also
 the ability to create magnetic or velocity fields in three dimensions based on
 the properties of the cluster(s) which are modeled. Finally, ``cluster_generator``
 can be used to set up initial conditions for single-cluster or merger simulations
-for a number of N-body/hydrodynamic codes used in the astrophysics commmunity.
+for a number of N-body/hydrodynamic codes used in the astrophysics community.
 
 .. _installation:
 

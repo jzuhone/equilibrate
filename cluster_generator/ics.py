@@ -1,3 +1,4 @@
+"""User facing initial conditions structures for interfacing with simulation softwares."""
 import os
 from numbers import Number
 
@@ -46,6 +47,7 @@ def compute_centers_for_binary(center, d, b, a=0.0):
     a : float, optional
         The impact parameter in the z-direction, in kpc.
         Default: 0.0
+
     """
     d = np.sqrt(d * d - b * b - a * a)
     diff = np.array([d, b, a])
@@ -55,6 +57,10 @@ def compute_centers_for_binary(center, d, b, a=0.0):
 
 
 class ClusterICs:
+    """
+    TODO: docstring
+    """
+
     def __init__(
         self,
         basename,
@@ -68,6 +74,34 @@ class ClusterICs:
         r_max=20000.0,
         r_max_tracer=None,
     ):
+        """
+        Initialize the :py:class:`ics.ClusterICs` instance from a set of models.
+
+        Parameters
+        ----------
+        basename: str
+            The name used in reference to output files from this instance.
+        num_halos: int
+            The number of halos to be included in the initial conditions system.
+        profiles: list of :py:class:`model.ClusterModel`
+            The cluster models to initialize as part of the simulation ICs.
+        center: :py:class:`unyt.array.unyt_array`
+            The centers of the profiles.
+        velocity: :py:class:`unyt.array.unyt_array`
+            The velocities of the clusters in the ICs.
+        num_particles: dict of str: int, optional
+            The number of particles to include for each species. Should be a dictionary with keys ``stars`` and ``dm`` (and ``gas`` if running an SPH code) followed
+            by values corresponding to the number of particles to initialize in each case.
+        mag_file: str, optional
+            The path to a file containing the magnetic field.
+        particle_files: str, optional
+            The path to any files containing pre-generated particle data.
+        r_max: float or int or :py:class:`unyt.array.quantity`, optional
+            The maximal radius at which to truncate the entire simulation domain.
+        r_max_tracer: float or int or :py:class:`unyt.array.quantity`, optional
+            The maximal tracer radius.
+
+        """
         self.basename = basename
         self.num_halos = num_halos
         self.profiles = ensure_list(profiles)
@@ -201,6 +235,7 @@ class ClusterICs:
             The file to write the initial conditions information to.
         overwrite : boolean, optional
             If True, overwrite a file with the same name. Default: False
+
         """
         if os.path.exists(filename) and not overwrite:
             raise RuntimeError(f"{filename} exists and overwrite=False!")
@@ -326,6 +361,11 @@ class ClusterICs:
 
         Parameters
         ----------
+        regenerate_particles: bool
+            True to regenerate the particles
+        prng:
+            Random number initializer.
+
         """
         profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
         parts = self._generate_particles(
@@ -372,8 +412,11 @@ class ClusterICs:
 
         Parameters
         ----------
-        filename : string
-            The name of file to output the resampled ICs to.
+        parts:
+            TODO:
+        passive_scalars:
+            TODO:
+
         """
         profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
         if self.num_halos == 1:
@@ -427,6 +470,7 @@ class ClusterICs:
             The minimum coordinate of the box in all three dimensions,
             in kpc. Default: None, which means the left edge will
             be [0, 0, 0].
+
         """
         from scipy.interpolate import InterpolatedUnivariateSpline
         from yt.loaders import load_uniform_grid

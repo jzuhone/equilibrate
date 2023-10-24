@@ -1,3 +1,4 @@
+"""Pytest configuration file"""
 import os
 
 import pytest

@@ -19,7 +19,9 @@ class RadialProfile:
     profile: :py:class:`radial_profiles.RadialProfile` or callable
         The radial profile to attribute to the object. The radial profile must be callable (i.e. ``lambda`` function) or
         another instance of :py:class:`radial_profiles.RadialProfile`.
+
     """
+
     #: The built-in options for :py:class:`~radial_profiles.RadialProfile` objects.
     builtin = [
         "constant_profile",
@@ -95,7 +97,7 @@ class RadialProfile:
 
     def add_core(self, r_core, alpha):
         r"""
-        Adds a core to the pre-existing profile.
+        Add a core to the pre-existing profile.
 
         Parameters
         ----------
@@ -114,6 +116,7 @@ class RadialProfile:
 
         This will cause any cuspy profile (i.e. one for which :math:`\left.\frac{d}{dr} f(r)\right|_{r=0} > 0` and which grows
         faster than the exponential term added to instead contain a core and go to 0 in its limit.
+
         """
 
         def _core(r):
@@ -125,7 +128,7 @@ class RadialProfile:
 
     def cutoff(self, r_cut, k=5):
         r"""
-        Generates a truncated form of the profile.
+        Generate a truncated form of the profile.
 
         Parameters
         ----------
@@ -146,6 +149,7 @@ class RadialProfile:
         .. math::
 
             1-\frac{1}{1+\exp\left(-2k\left(\frac{r}{r_{cut}}\right)\right)}.
+
         """
 
         def _cutoff(r):
@@ -178,6 +182,7 @@ class RadialProfile:
         -----
         This function uses ``scipy.interpolate.UnivariateSpline`` to generate a continuous spectrum. May lead to problematic behavior
         beyond the intended radii.
+
         """
         from scipy.interpolate import UnivariateSpline
 
@@ -186,7 +191,7 @@ class RadialProfile:
 
     @classmethod
     def built_in(cls, name, *args):
-        """Initializes a :py:class:`~radial_profiles.RadialProfile` from the specified name and given args."""
+        """Initialize a :py:class:`~radial_profiles.RadialProfile` from the specified name and given args."""
         if name in cls.builtin:
             return globals()[name](*args)
         else:
@@ -195,7 +200,7 @@ class RadialProfile:
     @classmethod
     def from_binary(cls, f):
         """
-        Loads a specific instance of a :py:class:`~radial_profiles.RadialProfile` object from the serialized version of the instance saved to disk.
+        Load a specific instance of a :py:class:`~radial_profiles.RadialProfile` object from the serialized version of the instance saved to disk.
 
         Parameters
         ----------
@@ -206,6 +211,7 @@ class RadialProfile:
         -------
         RadialProfile
             The :py:class:`~radial_profiles.RadialProfile` object on disk.
+
         """
         import dill as pickle
 
@@ -214,7 +220,7 @@ class RadialProfile:
 
     def to_binary(self, f):
         """
-        Sends the :py:class:`~radial_profiles.RadialProfile` instance to a serialized binary file.
+        Send the :py:class:`~radial_profiles.RadialProfile` instance to a serialized binary file.
 
         Parameters
         ----------
@@ -231,7 +237,7 @@ class RadialProfile:
         with open(f, "wb") as bf:
             pickle.dump(self, bf)
 
-    def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None, lw=2, **kwargs):
+    def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None, **kwargs):
         """
         Make a quick plot of a profile using Matplotlib.
 
@@ -250,6 +256,7 @@ class RadialProfile:
         ax : :class:`~matplotlib.axes.Axes`, optional
             An Axes instance to plot in. Default: None, one will be
             created if not provided.
+
         """
         import matplotlib.pyplot as plt
 
@@ -260,7 +267,7 @@ class RadialProfile:
         if ax is None:
             ax = fig.add_subplot(111)
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
-        ax.loglog(rr, self(rr), lw=lw, **kwargs)
+        ax.loglog(rr, self(rr), **kwargs)
         ax.set_xlabel("Radius (kpc)")
         ax.tick_params(which="major", width=2, length=6)
         ax.tick_params(which="minor", width=2, length=3)
@@ -269,12 +276,13 @@ class RadialProfile:
 
 def constant_profile(const):
     """
-    A constant profile.
+    Provide constant profile.
 
     Parameters
     ----------
     const : float
         The value of the constant.
+
     """
     p = lambda r: const
     return RadialProfile(p, name=inspect.stack()[0][3])
@@ -296,6 +304,7 @@ def power_law_profile(A, r_s, alpha):
         Scale radius in kpc.
     alpha : float
         Power-law index of the profile.
+
     """
     p = lambda r: A * (r / r_s) ** alpha
     return RadialProfile(p, name=inspect.stack()[0][3])
@@ -322,6 +331,7 @@ def beta_model_profile(rho_c, r_c, beta):
     References
     ----------
     .. [CaFu76] (Cavaliere A.,Fusco-Femiano R., 1976, A&A, 49, 137).
+
     """
     p = lambda r: rho_c * ((1 + (r / r_c) ** 2) ** (-1.5 * beta))
     return RadialProfile(p, name=inspect.stack()[0][3])
@@ -346,6 +356,7 @@ def hernquist_density_profile(M_0, a):
     References
     ----------
     .. [Hern90] (Hernquist, L. 1990, ApJ, 356, 359).
+
     """
     p = lambda r: M_0 / (2.0 * np.pi * a**3) / ((r / a) * (1.0 + r / a) ** 3)
     return RadialProfile(p, name=inspect.stack()[0][3])
@@ -363,10 +374,12 @@ def cored_hernquist_density_profile(M_0, a, b):
         The scale radius in kpc.
     b : float
         The core radius in kpc.
+
     Returns
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     p = (
         lambda r: M_0
@@ -392,6 +405,7 @@ def hernquist_mass_profile(M_0, a):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     p = lambda r: M_0 * r**2 / (r + a) ** 2
     return RadialProfile(p, name=inspect.stack()[0][3])
@@ -421,6 +435,7 @@ def convert_nfw_to_hernquist(M_200, r_200, conc):
     References
     ----------
     .. [NaFrW90] (Navarro, Julio F.; Frenk, Carlos S.; White, Simon D. M.; 1997ApJ...490..493N)
+
     """
     a = r_200 / (np.sqrt(0.5 * conc * conc * _nfw_factor(conc)) - 1.0)
     M0 = M_200 * (r_200 + a) ** 2 / r_200**2
@@ -442,6 +457,7 @@ def nfw_density_profile(rho_s, r_s):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     p = lambda r: rho_s / ((r / r_s) * (1.0 + r / r_s) ** 2)
     return RadialProfile(p, name=inspect.stack()[0][3])
@@ -462,6 +478,7 @@ def nfw_mass_profile(rho_s, r_s):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
 
     def _nfw(r):
@@ -497,6 +514,7 @@ def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     from yt.utilities.cosmology import Cosmology
 
@@ -528,6 +546,7 @@ def tnfw_density_profile(rho_s, r_s, r_t):
     References
     ----------
     .. [BaMaO09]  (Baltz, E.A.,Marshall, P., & Oguri, M. 2009, JCAP, 2009, 015)
+
     """
 
     def _tnfw(r):
@@ -555,6 +574,7 @@ def tnfw_mass_profile(rho_s, r_s, r_t):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     from sympy import Symbol, integrate, lambdify
 
@@ -591,6 +611,7 @@ def snfw_density_profile(M, a):
     References
     ----------
     .. [LiWyS18] (Lilley, E. J., Wyn Evans, N., & Sanders, J.L. 2018, MNRAS)
+
     """
 
     def _snfw(r):
@@ -615,6 +636,7 @@ def snfw_mass_profile(M, a):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
 
     def _snfw(r):
@@ -643,6 +665,7 @@ def snfw_total_mass(mass, radius, a):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     mp = snfw_mass_profile(1.0, a)
     return mass / mp(radius)
@@ -665,6 +688,7 @@ def cored_snfw_density_profile(M, a, r_c):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     b = a / r_c
 
@@ -694,6 +718,7 @@ def cored_snfw_mass_profile(M, a, r_c):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     b = a / r_c
 
@@ -725,6 +750,7 @@ def snfw_conc(conc_nfw):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     return 0.76 * conc_nfw + 1.36
 
@@ -750,6 +776,7 @@ def cored_snfw_total_mass(mass, radius, a, r_c):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     mp = cored_snfw_mass_profile(1.0, a, r_c)
     return mass / mp(radius)
@@ -782,6 +809,7 @@ def einasto_density_profile(M, r_s, n):
     ----------
     .. [Eina65] J. Einasto (1965), Kinematics and dynamics of stellar systems, Trudy Inst. Astrofiz. Alma-Ata 5, 87
     .. [RvGB12] (Retana-Montenegro, E; et. al. 2012A&A...540A..70R)
+
     """
     from scipy.special import gamma
 
@@ -815,6 +843,7 @@ def einasto_mass_profile(M, r_s, n):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     from scipy.special import gammaincc
 
@@ -844,6 +873,7 @@ def am06_density_profile(rho_0, a, a_c, c, n):
     c : float
         The scale of the temperature drop of the cool core.
     n : float
+        The integer scaling on alpha and beta.
 
     Returns
     -------
@@ -853,6 +883,7 @@ def am06_density_profile(rho_0, a, a_c, c, n):
     References
     ----------
     .. [AsMa06] Ascasibar, Y., & Markevitch, M. 2006, ApJ, 650, 102.
+
     """
     alpha = -1.0 - n * (c - 1.0) / (c - a / a_c)
     beta = 1.0 - n * (1.0 - a / a_c) / (c - a / a_c)
@@ -899,6 +930,7 @@ def ad07_density_profile(
     References
     ----------
     .. [AsDi08] Ascasibar & Diego, 2008MNRAS.383..369A
+
     """
     from unyt import physical_constants as const
     from unyt import unyt_quantity
@@ -953,6 +985,7 @@ def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta, epsilon, gamma=None)
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     if gamma is None:
         gamma = 3.0
@@ -984,6 +1017,7 @@ def ad07_temperature_profile(T0, t, a, alpha):
     -------
     :py:class:`radial_profiles.RadialProfile`
         The corresponding radial profile.
+
     """
     function = lambda r, A=a, ALPHA=alpha, T=t, TEMP0=T0: (TEMP0 / (1 + (r / A))) * (
         (T + (r / (ALPHA * A))) / (1 + (r / (ALPHA * A)))
@@ -1023,6 +1057,7 @@ def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min, r_cool, a_cool):
     References
     ----------
     .. [ViKrF06] Vikhlinin, A., Kravtsov, A., Forman, W., et al. 2006, ApJ, 640, 691.
+
     """
 
     def _temp(r):
@@ -1053,6 +1088,7 @@ def am06_temperature_profile(T_0, a, a_c, c):
     -------
     RadialProfile
         The corresponding radial profile object.
+
     """
     p = lambda r: T_0 / (1.0 + r / a) * (c + r / a_c) / (1.0 + r / a_c)
     return RadialProfile(p, name=inspect.stack()[0][3])
@@ -1081,12 +1117,15 @@ def baseline_entropy_profile(K_0, K_200, r_200, alpha):
     References
     ----------
     .. [VoKB05] (Voit, G.M.,Kay, S.T., & Bryan, G.L. 2005, MNRAS, 364, 909).
+
     """
     p = lambda r: K_0 + K_200 * (r / r_200) ** alpha
     return RadialProfile(p, name=inspect.stack()[0][3])
 
 
 def broken_entropy_profile(r_s, K_scale, alpha, K_0=0.0):
+    """Generate a broken entropy profile"""
+
     def _entr(r):
         x = r / r_s
         ret = (x**alpha) * (1.0 + x**5) ** (0.2 * (1.1 - alpha))
@@ -1096,6 +1135,8 @@ def broken_entropy_profile(r_s, K_scale, alpha, K_0=0.0):
 
 
 def walker_entropy_profile(r_200, A, B, K_scale, alpha=1.1):
+    """Generate a walker entropy profile."""
+
     def _entr(r):
         x = r / r_200
         return K_scale * (A * x**alpha) * np.exp(-((x / B) ** 2))
@@ -1142,6 +1183,7 @@ def find_overdensity_radius(m, delta, z=0.0, cosmo=None):
         The cosmology to be used when computing the critical
         density. If not supplied, a default one from yt will
         be used.
+
     """
     from yt.utilities.cosmology import Cosmology
 
@@ -1168,6 +1210,7 @@ def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
         The cosmology to be used when computing the critical
         density. If not supplied, a default one from yt will
         be used.
+
     """
     from scipy.optimize import bisect
     from yt.utilities.cosmology import Cosmology
@@ -1178,8 +1221,3 @@ def find_radius_mass(m_r, delta, z=0.0, cosmo=None):
     f = lambda r: 3.0 * m_r(r) / (4.0 * np.pi * r**3) - delta * rho_crit
     r_delta = bisect(f, 0.01, 10000.0)
     return r_delta, m_r(r_delta)
-
-
-if __name__ == "__main__":
-    p = constant_profile(10)
-    print(p(6))

@@ -1,3 +1,4 @@
+"""Initializer for the public package"""
 from cluster_generator.codes import (
     resample_arepo_ics,
     setup_arepo_ics,

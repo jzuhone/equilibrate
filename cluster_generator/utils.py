@@ -112,6 +112,8 @@ else:
 
 
 class LogMute:
+    """Context manager for muting logging output."""
+
     def __init__(self, logger):
         self.logger = logger
 
@@ -123,7 +125,7 @@ class LogMute:
 
 
 def _enforce_style(func):
-    """enforces the mpl style."""
+    """Enforces the mpl style."""
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -156,6 +158,8 @@ _truncator_function = lambda a, r, x: 1 / (1 + (x / r) ** a)
 
 
 class TimeoutException(Exception):
+    """Exception raised when function runs out of runtime allocaiton."""
+
     def __init__(self, msg="", func=None, max_time=None):
         self.msg = f"{msg} -- {str(func)} -- max_time={max_time} s"
 
@@ -176,6 +180,7 @@ def _daemon_process_runner(*args, **kwargs):
 
 
 def time_limit(function, max_execution_time, *args, **kwargs):
+    """Run the function under a time limit."""
     import time
 
     from tqdm import tqdm
@@ -229,9 +234,12 @@ def time_limit(function, max_execution_time, *args, **kwargs):
 def truncate_spline(f, r_t, a):
     r"""
     Takes the function ``f`` and returns a truncated equivalent of it, which becomes
+
     .. math::
     f'(x) = f(r_t) \left(\frac{x}{r_t}\right)**(r_t*df/dx(r_t)/f(r_t))
+
     This preserves the slope and continuity of the function be yields a monotonic power law at large :math:`r`.
+
     Parameters
     ----------
     f: InterpolatedUnivariateSpline
@@ -240,10 +248,12 @@ def truncate_spline(f, r_t, a):
         The scale radius
     a: float
         Truncation rate. Higher values cause transition more quickly about :math:`r_t`.
+
     Returns
     -------
     callable
         The new function.
+
     """
     _gamma = r_t * f(r_t, 1) / f(r_t)  # This is the slope.
     return lambda x, g=_gamma, a=a, r=r_t: f(x) * _truncator_function(a, r, x) + (
@@ -252,6 +262,7 @@ def truncate_spline(f, r_t, a):
 
 
 def integrate_mass(profile, rr):
+    """Integrates over a profile with spherical volume element"""
     mass_int = lambda r: profile(r) * r * r
     mass = np.zeros(rr.shape)
     for i, r in enumerate(rr):
@@ -260,6 +271,7 @@ def integrate_mass(profile, rr):
 
 
 def integrate(profile, rr):
+    """Integrate over the radii"""
     ret = np.zeros(rr.shape)
     rmax = rr[-1]
     for i, r in enumerate(rr):
@@ -268,6 +280,7 @@ def integrate(profile, rr):
 
 
 def integrate_toinf(profile, rr):
+    """Integrate to infinity"""
     ret = np.zeros(rr.shape)
     rmax = rr[-1]
     for i, r in enumerate(rr):
@@ -277,6 +290,7 @@ def integrate_toinf(profile, rr):
 
 
 def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
+    """Inverse sampling method to generate particle radii."""
     prng = parse_prng(prng)
     if r_max is None:
         ridx = r.size
@@ -292,6 +306,7 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
 
 
 def build_yt_dataset_fields(grid, models, domain_dimensions, centers, velocities):
+    """Build the yt dataset files."""
     from cluster_generator.model import ClusterModel
 
     # -- Segmenting the fields by type -- #
@@ -387,6 +402,7 @@ def build_yt_dataset_fields(grid, models, domain_dimensions, centers, velocities
 
 
 def ensure_ytquantity(x, default_units):
+    """Ensures the quantity has units"""
     if isinstance(x, unyt_quantity):
         return unyt_quantity(x.v, x.units).in_units(default_units)
     elif isinstance(x, tuple):
@@ -396,12 +412,14 @@ def ensure_ytquantity(x, default_units):
 
 
 def ensure_ytarray(arr, units):
+    """Ensures the array is a united array"""
     if not isinstance(arr, unyt_array):
         arr = unyt_array(arr, units)
     return arr.to(units)
 
 
 def parse_prng(prng):
+    """Grabs random state"""
     if isinstance(prng, RandomState):
         return prng
     else:
@@ -409,4 +427,5 @@ def parse_prng(prng):
 
 
 def ensure_list(x):
+    """Force x to be a list"""
     return list(always_iterable(x))
