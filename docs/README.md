@@ -1,4 +1,4 @@
-![logo](/source/_images/cluster_generator_logo.png)
+![logo](docs/source/_images/cluster_generator_logo.png)
 
 # The Cluster Generator Project
 
@@ -39,7 +39,7 @@ ______________________________________________________________________
 ## Getting the Package
 
 <div align="center">
-    <img src="/source/_images/rmd.svg" width="400" height="400" alt="css-in-readme">
+    <img src="docs/source/_images/rmd.svg" width="400" height="400" alt="css-in-readme">
 </div>
 
 ### Dependencies
