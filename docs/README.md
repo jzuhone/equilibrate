@@ -38,6 +38,10 @@ ______________________________________________________________________
 
 ## Getting the Package
 
+<div align="center">
+    <img src="/source/_images/rmd.svg" width="400" height="400" alt="css-in-readme">
+</div>
+
 ### Dependencies
 
 `cluster_generator` is compatible with Python 3.8+, and requires the following
