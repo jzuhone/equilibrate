@@ -1,0 +1,78 @@
+#
+# This file holds the default plot instructions for each of the fields available.
+#
+density:
+  label: "$\\rho_{g}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+total_density:
+  label: "$\\rho_{\\mathrm{dyn}}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+dark_matter_density:
+  label: "$\\rho_{\\mathrm{dm}}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+stellar_density:
+  label: "$\\rho_{\\star}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+gas_mass:
+  label: "$M_{g}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+total_mass:
+  label: "$M_{\\mathrm{dyn}}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+dark_matter_mass:
+  label: "$M_{\\mathrm{dm}}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+stellar_mass:
+  label: "$M_{\\star}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+temperature:
+  label: "$T_g$ / $\\left[%(unit)s\\right]$"
+  scale: "linear"
+  revision: null
+  kwargs: {}
+entropy:
+  label: "$S_g$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+gravitational_potential:
+  label: "$\\left|\\Phi\\right|$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: -1
+  kwargs: {}
+gravitational_field:
+  label: "$\\left|\\nabla \\Phi\\right|$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: -1
+  kwargs: {}
+pressure:
+  label: "$P_{\\mathrm{ICM}}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+gas_fraction:
+  label: "$f_{\\mathrm{gas}}$"
+  scale: "log"
+  revision: null
+  kwargs: {}
+electron_number_density:
+  label: "$n_{e^-}$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: null
+  kwargs: { }

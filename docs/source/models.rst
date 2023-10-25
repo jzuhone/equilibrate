@@ -4,7 +4,7 @@ Cluster Models
 --------------
 The :py:class:`model.ClusterModel` class is one of the core structures available in ``cluster_generator``. These objects hold all of
 the data related to a single cluster being modeled. The user can use a :py:class:`model.ClusterModel` object to generate particle distributions,
-enforce hydrostatic equilibrium, virialize halos, and generate intial conditions. Furthermore, the user can generate
+enforce hydrostatic equilibrium, virialize halos, and generate initial conditions. Furthermore, the user can generate
 :py:class:`model.ClusterModel` objects using a variety of pre-built protocols using :py:class:`radial_profiles.RadialProfile` objects to provide necessary fields of data.
 
 .. raw:: html
@@ -269,7 +269,7 @@ Another common approach for initializing magnetic fields is to let the magnetic 
 
 Adding Other Fields
 ===================
-Users may add additional fields to the :py:class`~model.ClusterModel` instance using the :py:meth:`~model.ClusterModel.set_field` method, which takes a
+Users may add additional fields to the :py:class:`~model.ClusterModel` instance using the :py:meth:`~model.ClusterModel.set_field` method, which takes a
 ``name`` and ``value`` and loads the corresponding field into the model.
 
 .. attention::

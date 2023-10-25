@@ -1,3 +1,6 @@
+"""
+CGP module for managing particle type initial conditions.
+"""
 from collections import OrderedDict, defaultdict
 from pathlib import Path
 
@@ -61,6 +64,8 @@ rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
 
 class ClusterParticles:
+    """Container class for particle initial conditions"""
+
     def __init__(self, particle_types, fields):
         self.particle_types = ensure_list(particle_types)
         self.fields = fields
@@ -134,6 +139,7 @@ class ClusterParticles:
         ptypes : list of strings, optional
             The particle types to perform the radial cut on. If
             not set, all will be exported.
+
         """
         rm2 = r_max * r_max
         if center is None:
@@ -174,6 +180,7 @@ class ClusterParticles:
             value of the gravitational potential to determine the
             position and velocity of the black hole particle. Default:
             False
+
         """
         mass = unyt_array([bh_mass], "Msun")
         if use_pot_min:
@@ -224,11 +231,14 @@ class ClusterParticles:
         ----------
         filename : string
             The name of the file to read the model from.
+        ptypes: list
+            A list of the particle types to load.
 
         Examples
         --------
         >>> from cluster_generator import ClusterParticles
         >>> dm_particles = ClusterParticles.from_file("dm_particles.h5")
+
         """
         names = {}
         with h5py.File(filename, "r") as f:
@@ -276,6 +286,7 @@ class ClusterParticles:
         >>> from cluster_generator import ClusterParticles
         >>> ptypes = ["gas", "dm"]
         >>> particles = ClusterParticles.from_gadget_file("snapshot_060.h5", ptypes=ptypes)
+
         """
         fields = OrderedDict()
         f = h5py.File(filename, "r")
@@ -319,6 +330,7 @@ class ClusterParticles:
             The file to write the particles to.
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
+
         """
         if Path(output_filename).exists() and not overwrite:
             raise IOError(
@@ -367,6 +379,7 @@ class ClusterParticles:
         passive_scalar : boolean, optional
             If set, the field to be added is a passive scalar.
             Default: False
+
         """
         if not isinstance(value, unyt_array):
             value = unyt_array(value, "dimensionless")
@@ -415,6 +428,7 @@ class ClusterParticles:
             type(s) to be offset. Default: None, meaning all of the
             particle types will be offset. This should not be used in
             normal circumstances.
+
         """
         if ptypes is None:
             ptypes = self.particle_types
@@ -466,6 +480,7 @@ class ClusterParticles:
             If specified, additional information will be written to
             the file so that it can be identified by yt as belonging
             to a specific frontend. Default: None
+
         """
         if Path(ic_filename).exists() and not overwrite:
             raise IOError(
@@ -533,6 +548,7 @@ class ClusterParticles:
         ptypes : string or list of strings, optional
             The particle types to export to the dataset. If
             not set, all will be exported.
+
         """
         from yt import load_particles
 
@@ -611,6 +627,7 @@ def _sample_clusters(
 def combine_two_clusters(
     particles1, particles2, hse1, hse2, center1, center2, velocity1, velocity2
 ):
+    """Combines 2 clusters"""
     center1 = ensure_ytarray(center1, "kpc")
     center2 = ensure_ytarray(center2, "kpc")
     velocity1 = ensure_ytarray(velocity1, "kpc/Myr")
@@ -649,6 +666,7 @@ def combine_three_clusters(
     velocity2,
     velocity3,
 ):
+    """Combine 3 clusters"""
     center1 = ensure_ytarray(center1, "kpc")
     center2 = ensure_ytarray(center2, "kpc")
     center3 = ensure_ytarray(center3, "kpc")
@@ -685,18 +703,7 @@ def combine_three_clusters(
 
 
 def resample_one_cluster(particles, hse, center, velocity):
-    """
-    Resample radial profiles onto a single cluster's particle
-    distribution.
-
-    Parameters
-    ----------
-
-    particles : :class:`~cluster_generator.particles.ClusterParticles`
-    hse :
-    center : array_like
-    velocity : array_like
-    """
+    """Resample radial profiles onto a single cluster's particle distribution. TODO: complete docstring"""
     if "gas" not in particles.particle_types:
         return particles
     center = ensure_ytarray(center, "kpc")
@@ -726,6 +733,7 @@ def resample_two_clusters(
     radii,
     passive_scalars=None,
 ):
+    """Resample 2 clusters"""
     particles = _sample_clusters(
         particles,
         [hse1, hse2],
@@ -752,6 +760,7 @@ def resample_three_clusters(
     radii,
     passive_scalars=None,
 ):
+    """Resample 3 clusters"""
     particles = _sample_clusters(
         particles,
         [hse1, hse2, hse3],

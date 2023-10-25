@@ -1,3 +1,4 @@
+"""Pytest configuration file"""
 import os
 
 import pytest
@@ -6,7 +7,7 @@ import pytest
 def pytest_collection_modifyitems(session, config, items):
     _module_order = [
         "cluster_generator.tests." + i
-        for i in ["test_particles", "test_profile", "test_gravity", "test_ics"]
+        for i in ["test_gravity", "test_particles", "test_profile", "test_ics"]
     ]
     _doc_test, its = [it for it in items if isinstance(it, pytest.DoctestItem)], [
         it for it in items if not isinstance(it, pytest.DoctestItem)
@@ -56,6 +57,12 @@ def answer_dir(request):
     if not os.path.exists(ad):
         os.makedirs(ad)
     return ad
+
+
+@pytest.fixture()
+def force_new(request):
+    """Forces every structure to be constructed from scratch."""
+    return request.config.getoption("--force_new")
 
 
 @pytest.fixture()

@@ -10,6 +10,11 @@ repos:
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
+    -   id: check-docstring-first
+    -   id: check-json
+    -   id: check-toml
+    -   id: pretty-format-json
+    -   id: mixed-line-ending
     -   id: check-yaml
         args: ["--unsafe"]
     -   id: check-added-large-files
@@ -37,3 +42,35 @@ repos:
         flake8-logging-format==0.7.4,
         flake8-2020==1.6.1,
       ]
+- repo: https://github.com/sphinx-contrib/sphinx-lint
+  rev: v0.8.1
+  hooks:
+    - id: sphinx-lint
+- repo: local
+  hooks:
+    - id: custom-comment-check
+      name: Check for Required Comments
+      entry: sh
+      args: ["-c", "grep -r 'TODO' ."]
+      language: python
+- repo: https://github.com/pre-commit/pygrep-hooks
+  rev: v1.10.0
+  hooks:
+    - id: rst-backticks
+    - id: rst-directive-colons
+    - id: rst-inline-touching-normal
+    - id: text-unicode-replacement-char
+- repo: https://github.com/PyCQA/pydocstyle
+  rev: 6.3.0
+  hooks:
+    - id: pydocstyle
+      files: ^((?!tests).)*[^(setup)]\.py
+- repo: https://github.com/executablebooks/mdformat
+  rev: 0.7.17
+  hooks:
+    - id: mdformat
+-   repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+    -   id: codespell
+        args: ["-L ded"]

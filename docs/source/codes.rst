@@ -40,11 +40,9 @@ for the ``ClusterMerger`` setup are as follows:
 Arepo
 =====
 
-``cluster_generator'' can be used to create HDF5-based initial conditions for
+CGP can be used to create HDF5-based initial conditions for
 one, two, or three clusters for an idealized merger simulation for the Arepo code.
 The way to do this is to create a Gadget-like HDF5 initial conditions file:
-
-
 
 After generating the initial conditions file, the ICs will need to be processed
 through two steps before the simulation proper can be run. The first step is to

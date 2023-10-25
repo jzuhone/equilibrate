@@ -1,6 +1,8 @@
 API
 ===
 
+API Reference for the CGP
+
 .. autosummary::
     :toctree: _as_gen
     :recursive:
@@ -16,3 +18,4 @@ API
     virial
     correction
     codes
+    numalgs
