@@ -15,9 +15,7 @@ fi
 PYVER=`python --version`
 
 conda install --yes numpy pytest pip h5py astropy tqdm cython scipy yt
-cd cluster_generator
-pip install .
-cd ..
+
 
 if [[ ${mode} == "wheels" ]]; then
   conda install --yes wheel setuptools
