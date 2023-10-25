@@ -1,0 +1,52 @@
+name: Build and Test
+
+on:
+  push:
+  pull_request:
+    paths-ignore:
+      - "doc/**"
+      - README.md
+
+defaults:
+    run:
+        shell: bash
+
+env:
+    ANSWER_NAME: cluster-generator-pull-request-2-answers
+
+jobs:
+    build:
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+                python-version: [ '3.10' ]
+                include:
+                    - os: ubuntu-latest
+                      python-version: '3.11'
+                    - os: ubuntu-latest
+                      python-version: 3.9
+            fail-fast: false
+        runs-on: ${{ matrix.os }}
+        steps:
+            - name: Install Python
+              uses: actions/setup-python@v2
+              with:
+                  python-version: ${{ matrix.python-version }}
+            - uses: actions/checkout@v2
+              with:
+                  submodules: recursive
+                  fetch-depth: 0
+            - uses: s-weigand/setup-conda@v1.1.1
+              with:
+                  update-conda: true
+                  conda-channels: conda-forge
+                  activate-conda: true
+                  python-version: ${{matrix.python-version}}
+            - name: Install dependencies and pyxsim
+              shell: bash
+              env:
+                  mode: testing
+              run: source ./tests/ci_install.sh
+            - name: Run Tests
+              run: pytest cluster_generator --doctest-modules --answer_dir="."  --cov=cluster_generator --cov-report=xml
+                   COVERALLS_REPO_TOKEN=tQ0ra8kUn56CDx6Cjp7Wil8Pp5qA9vTdK coveralls

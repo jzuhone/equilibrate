@@ -26,7 +26,7 @@ REPO_NAME="cluster_generator"
 OUTPUT_LOCATION="$(pwd)"
 TEST_BRANCH="pull-request-2"
 TEST_VERSION="latest"
-
+TEST_TYPE="core"
 
 # Reading the user input
 while getopts 'l:b:v:' OPTION; do
@@ -124,3 +124,29 @@ printf "%b\n" "$CGP_TXT Running pytest on $REPO_NAME (BRANCH = $TEST_BRANCH)"
 cd "$OUTPUT_LOCATION/$REPO_NAME" || exit 1
 
 pytest "$REPO_NAME" --answer_dir="$OUTPUT_LOCATION/$REPO_NAME-$TEST_BRANCH-answers" --answer_store
+
+if [ ! $? == 0 ]; then
+    printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Tests did not succeed."
+    exit 1
+fi
+
+printf "%b\n" "$CGP_TXT Tests completed. All tests passed."
+printf "%b" "$CGP_TXT Packaging test answers..."
+
+cd "$OUTPUT_LOCATION" || exit 1
+if [ -f "$REPO_NAME-$TEST_BRANCH-answers.tar.gz" ]; then
+      printf "%b\n" "$CGP_TXT $BLDMGT Warning$RST: Zip archive already exists."
+
+      rm "$REPO_NAME-$TEST_BRANCH-answers.tar.gz"
+fi
+
+tar -czvf "$REPO_NAME-$TEST_BRANCH-answers.tar.gz" "$REPO_NAME-$TEST_BRANCH-answers" >/dev/null 2>/dev/null
+
+if [ ! $? == 0 ]; then
+    printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Tar zipping failed"
+    exit 1
+fi
+
+printf "%b\n" "$DONE"
+
+exit 0
