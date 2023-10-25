@@ -14,7 +14,7 @@ fi
 
 PYVER=`python --version`
 
-conda install --yes numpy pytest pip h5py astropy tqdm cython scipy yt pytest-cov pytest-subtests coveralls
+conda install --yes numpy pytest pip h5py astropy tqdm cython scipy yt
 
 
 if [[ ${mode} == "wheels" ]]; then

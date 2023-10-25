@@ -48,5 +48,4 @@ jobs:
                   mode: testing
               run: source ./cluster_generator/bin/dev/ci_install.sh
             - name: Run Tests
-              run: pytest cluster_generator --doctest-modules --answer_dir="."  --cov=cluster_generator --cov-report=xml
-                   COVERALLS_REPO_TOKEN=tQ0ra8kUn56CDx6Cjp7Wil8Pp5qA9vTdK coveralls
+              run: pytest cluster_generator --answer_dir="."
