@@ -70,7 +70,7 @@ plotting:
   # These are options for any of the default plots generated in cluster generator.
   defaults:
     # -- Latex settings -- #
-    text.usetex: true
+    text.usetex: false
     # -- Tick Settings -- #
     xtick.major.size: 8
     ytick.major.size: 8

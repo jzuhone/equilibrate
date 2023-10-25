@@ -25,3 +25,5 @@ if [[ ${mode} == "testing" ]]; then
   # Install cluster_generator
   python -m pip install -e .
 fi
+
+ls -ltra
