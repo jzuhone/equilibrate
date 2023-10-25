@@ -39,7 +39,7 @@ def write_amr_particles(
 
     if Path(output_filename).exists() and not overwrite:
         raise IOError(
-            f"Cannot create {output_filename}. " f"It exists and overwrite=False."
+            f"Cannot create {output_filename}. It exists and overwrite=False."
         )
     nparts = [particles.num_particles[ptype] for ptype in ptypes]
     if format == "hdf5":
@@ -127,7 +127,6 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
     mylog.info("Write the following lines to Input__TestProblem: ")
     for line in outlines:
         print(line)
-    # num_particles = sum([ics.tot_np[key] for key in ics.tot_np])
     if ics.mag_file is not None:
         mylog.info(
             f"Rename the file '{ics.mag_file}' to 'B_IC' "

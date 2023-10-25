@@ -272,9 +272,7 @@ class ClusterField:
         if length_unit is None:
             length_unit = "kpc"
         if os.path.exists(filename) and not overwrite:
-            raise IOError(
-                f"Cannot create {filename}. " f"It exists and overwrite=False."
-            )
+            raise IOError(f"Cannot create {filename}. It exists and overwrite=False.")
         all_comps = ["x", "y", "z"] + self.comps
         if format == "hdf5":
             write_class = h5py.File

@@ -1,34 +1,57 @@
-import os
-import pathlib as pt
 from collections import OrderedDict, defaultdict
 from pathlib import Path
 
 import h5py
 import numpy as np
-import yaml
 from scipy.interpolate import InterpolatedUnivariateSpline
 from unyt import uconcatenate, unyt_array
 
 from cluster_generator.utils import ensure_list, ensure_ytarray, mylog
 
-# - Loading the yaml file
-with open(
-    os.path.join(
-        pt.Path(__file__).parents[0], "bin", "resources", "particle_fields.yaml"
-    )
-) as gfile:
-    _gadget_setup_dict = yaml.load(gfile, yaml.FullLoader)
-    gadget_fields, gadget_field_map, gadget_field_units = (
-        _gadget_setup_dict["gadget_fields"],
-        _gadget_setup_dict["gadget_field_map"],
-        _gadget_setup_dict["gadget_field_units"],
-    )
+gadget_fields = {
+    "dm": ["Coordinates", "Velocities", "Masses", "ParticleIDs", "Potential"],
+    "gas": [
+        "Coordinates",
+        "Velocities",
+        "Masses",
+        "ParticleIDs",
+        "InternalEnergy",
+        "MagneticField",
+        "Density",
+        "Potential",
+        "PassiveScalars",
+    ],
+    "star": ["Coordinates", "Velocities", "Masses", "ParticleIDs", "Potential"],
+    "black_hole": ["Coordinates", "Velocities", "Masses", "ParticleIDs"],
+    "tracer": ["Coordinates"],
+}
 
+gadget_field_map = {
+    "Coordinates": "particle_position",
+    "Velocities": "particle_velocity",
+    "Masses": "particle_mass",
+    "Density": "density",
+    "Potential": "potential_energy",
+    "InternalEnergy": "thermal_energy",
+    "MagneticField": "magnetic_field",
+}
+
+gadget_field_units = {
+    "Coordinates": "kpc",
+    "Velocities": "km/s",
+    "Masses": "1e10*Msun",
+    "Density": "1e10*Msun/kpc**3",
+    "InternalEnergy": "km**2/s**2",
+    "Potential": "km**2/s**2",
+    "PassiveScalars": "",
+    "MagneticField": "1e5*sqrt(Msun)*km/s/(kpc**1.5)",
+}
 
 ptype_map = OrderedDict(
     [
         ("PartType0", "gas"),
         ("PartType1", "dm"),
+        ("PartType2", "tracer"),
         ("PartType4", "star"),
         ("PartType5", "black_hole"),
     ]
