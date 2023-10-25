@@ -77,6 +77,10 @@ def find_holes(x, y, rtol=1e-3, dy=None):
         - hy: Array of size ``(n,2)`` with the left and right ``y`` value on each side of every hole.
         - hi: Array of size ``(n,2)`` with the left and right indices of the hole.
 
+    Notes
+    -----
+    To locate holes in the profile, this algorithm takes the cumulative maximum of the profile and compares it with the
+    true profile. In locations where the true profile falls below the cumulative maximum, a hole is identified.
     """
     _x, _y = x[:], y[:]
 

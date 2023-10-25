@@ -584,6 +584,16 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+Additional Pages
+================
+
+.. toctree::
+   :maxdepth: 1
+
+   Getting_Started
+   examples
+   api
+
 .. |yt-project| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"
    :target: https://yt-project.org
 

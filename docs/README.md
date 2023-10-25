@@ -59,51 +59,28 @@ below for installation from source code, from `pip` and from `conda`.
 ### From Source
 
 To install the library directly from source code, there are two options. If you are using / have installed pip, you can
-install directly from the github URL as follows:
-
-- Using your preferred environment (venv, local python installation, etc), call
-
-  ```bash
-  pip install git+https://www.github.com/eliza-diggins/cluster_generator
-  ```
-
-  This will install directly from this repository without generating a local clone.
-
-- If you're interested in having a local clone, you can instead do the following
-
-  - First, clone the repository using
-
-    ```bash
-    git clone https://www.github.com/eliza-diggins/cluster_generator
-    ```
-
-    > \[!WARNING\]
-    > Make sure to navigate to a directory where you want the clone to appear.
-
-    Once the clone has been generated, change your directory so that you are inside the clone and in the same directory as the `setup.py` script. Then run the following command:
-
-    ```bash
-    pip install .
-    ```
-
-    This will install the local clone to your python installations `site-packages` directory. If you want to install the package in place, you can use
-
-    ```bash
-    pip install -e .
-    ```
-
-    which will install the package in development mode.
-
-    > \[!WARNING\]
-    > If the package is installed in development mode, it will not be generically available from any directory.
-
-To test that you've installed the project, simply run
+install directly from the Github URL as follows:
 
 ```bash
-pip show cluster_generator
+pip install git+https://www.github.com/eliza-diggins/cluster_generator
 ```
 
-If a valid destination path is shown, the installation was successful.
+This will then clone the repository into your path libraries for the python environment you are using and run the setup procedure to install
+the software. You can check for a successful installation using `pip show cluster_generator`.
+
+Additionally, if you'd like to install the package for development, this process can be carried out in two steps. First,
+
+```
+git clone https://www.github.com/jzuhone/cluster_generator
+```
+
+to clone the repository, then
+
+```
+pip install . -e
+```
+
+to install the package in developer mode.
 
 ### Dependencies
 

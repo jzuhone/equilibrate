@@ -15,7 +15,7 @@ from tqdm.auto import tqdm
 
 from cluster_generator.model import ClusterModel
 from cluster_generator.numalgs import _check_non_positive
-from cluster_generator.utils import LogMute, mylog
+from cluster_generator.utils import LogMute, cgparams, mylog
 
 
 class NonPhysicalRegion:
@@ -321,7 +321,10 @@ class Type0NPR(NonPhysicalRegion):
             pass
         else:
             for field in cls._fields_of_interest:
-                if field in model.properties["meth"]["profiles"]:
+                if (
+                    field in model.properties["meth"]["profiles"]
+                    and model.properties["meth"]["profiles"][field] is not None
+                ):
                     domains = _check_non_positive(
                         model.properties["meth"]["profiles"][field](model["radius"].d),
                         domain=model.fields["radius"].d,
@@ -341,10 +344,9 @@ class Type0NPR(NonPhysicalRegion):
 
 class Type0aNPR(Type0NPR):
     r"""
-    Non-Physical Region marker class (Subclass of :py:class:`correction.Type0NPR`) which indicates NPRs of type 0a.
+    Subclass of :py:class:`correction.Type0NPR` which indicates a non-physical region associated with negative entropy or
+    temperature regions.
 
-    .. note::
-        NPRs of type 0a are characterized by non-physicality inherent in the basic profiles of initialization. In this case, negative temperature profiles.
 
     +--------------+-----------------------------+
     | Properties                                 |
@@ -352,6 +354,7 @@ class Type0aNPR(Type0NPR):
     | Scope        | Type 0a                     |
     +--------------+-----------------------------+
     | Methods      | :math:`T_g + \rho_g`        |
+    |              | :math:`S_g + \rho_g`        |
     +--------------+-----------------------------+
     | Gravity      | All                         |
     +--------------+-----------------------------+
@@ -366,10 +369,10 @@ class Type0aNPR(Type0NPR):
 
     """
 
-    _methods = ["from_dens_and_temp"]
-    _fields_of_interest = ["temperature"]
+    _methods = ["from_dens_and_temp", "from_dens_and_entr"]
+    _fields_of_interest = ["temperature", "entropy"]
     _message = """
-    NPR of type 0a: indicates that the user has erroneously specified a profile before any computation occurred. Specific to temperature profile.
+    NPR of type 0a: indicates that the user has erroneously specified a profile before any computation occurred. Specific to temperature / entropy profile.
     """
     _scope = "0a"
 
@@ -379,10 +382,8 @@ class Type0aNPR(Type0NPR):
 
 class Type0bNPR(Type0NPR):
     """
-    Non-Physical Region marker class (Subclass of :py:class:`correction.Type0NPR`) which indicates NPRs of type 0b.
+    Subclass of :py:class:`correction.Type0NPR` which indicates a non-physical region associated with negative density profiles.
 
-    .. note::
-        NPRs of type 0b are characterized by non-physicality inherent in the basic profiles of initialization. In this case, negative density (total or gaseous) profiles.
 
     +--------------+-----------------------------+
     | Properties                                 |
@@ -402,8 +403,13 @@ class Type0bNPR(Type0NPR):
         :parts: 1
     """
 
-    _fields_of_interest = ["density", "total_density"]
-    _methods = ["from_dens_and_tden", "from_dens_and_temp"]
+    _fields_of_interest = ["density", "total_density", "stellar_density"]
+    _methods = [
+        "from_dens_and_tden",
+        "from_dens_and_temp",
+        "no_gas",
+        "from_dens_and_entr",
+    ]
     _message = """
     NPR of type 0b: indicates that the user has erroneously specified a profile before any computation occurred. Specific to density profiles.
     """
@@ -415,11 +421,7 @@ class Type0bNPR(Type0NPR):
 
 class Type0cNPR(Type0NPR):
     """
-    Non-Physical Region marker class (Subclass of :py:class:`correction.Type0NPR`) which indicates NPRs of type 0c.
-
-    .. note::
-        NPRs of type 0c are characterized by non-physicality inherent in the basic profiles of initialization. In this case, any initialization profile not
-        considered in :py:class:`correction.Type0a` or :py:class:`correction.Type0b`.
+    Subclass of :py:class:`correction.Type0NPR` which indicates a non-physical region associated with a cause not elsewhere specified.
 
 
     +--------------+-----------------------------+
@@ -440,8 +442,8 @@ class Type0cNPR(Type0NPR):
         :parts: 1
     """
 
-    _methods = ["no_gas", "from_dens_and_entr", "from_arrays"]
-    _fields_of_interest = ["density", "total_density", "temperature", "entropy"]
+    _methods = ["from_arrays"]
+    _fields_of_interest = [""]
     _message = """
     NPR of type 0: indicates that the user has erroneously specified a profile before any computation occurred. Not elsewhere specified.
     """
@@ -579,7 +581,12 @@ class Type1aNPR(Type1NPR):
             )
         return nprs
 
-    def _correct(self, correction_parameter=0.8):
+    def _correct(
+        self,
+        correction_parameter=cgparams["numerical"]["interpolation"][
+            "correction_parameter"
+        ],
+    ):
         from scipy.interpolate import InterpolatedUnivariateSpline
         from unyt import unyt_array
 
