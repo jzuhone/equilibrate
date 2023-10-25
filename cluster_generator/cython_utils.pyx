@@ -16,7 +16,7 @@ import numpy as np
 cimport cython
 cimport numpy as np
 
-from scipy.interpolate import dfitpack
+from scipy.interpolate import _fitpack
 from tqdm.auto import tqdm
 
 
@@ -67,7 +67,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
             v2 = drand48()*vesc[i]
             v2 *= v2
             e[0] = psi[i]-0.5*v2
-            f = dfitpack.splev(t, c, k, e, ext)[0]
+            f = _fitpack._spl_(e, der, t, c, k, ext)[0]
             not_done = f*v2 < drand48()*fv2esc[i]
         velocity[i] = sqrt(v2)
         pbar.update()

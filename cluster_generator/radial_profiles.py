@@ -49,6 +49,10 @@ class RadialProfile:
         "broken_entropy_profile",
         "walker_entropy_profile",
     ]
+    _characteristic_range = [
+        1,
+        10000,
+    ]  # Used for defining equality (needed for testing consistency)
 
     def __init__(self, profile, name=None):
         #: The profile name.
@@ -94,6 +98,10 @@ class RadialProfile:
     def __pow__(self, power):
         p = lambda r: self.profile(r) ** power
         return RadialProfile(p)
+
+    def __eq__(self, other):
+        ar = np.linspace(*self._characteristic_range, 1000)
+        return np.array_equal(self(ar), other(ar))
 
     def add_core(self, r_core, alpha):
         r"""
