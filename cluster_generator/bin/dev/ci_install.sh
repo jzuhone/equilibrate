@@ -15,8 +15,6 @@ fi
 PYVER=`python --version`
 
 conda install --yes numpy pytest pip h5py astropy tqdm cython scipy yt
-ls -ltra
-git clone https://github.com/eliza-diggins/cluster_generator -b pull-request-2
 cd cluster_generator
 pip install .
 cd ..
