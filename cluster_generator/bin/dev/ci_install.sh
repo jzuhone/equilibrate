@@ -4,7 +4,7 @@ if [[ ${mode} == "testing" ]]; then
 
     # Download answers
 
-    curl -OL http://astro.utah.edu/~u1281896/software_development/cluster_generator/${ANSWER_VER}.tar.gz
+    curl -JOL http://astro.utah.edu/~u1281896/software_development/cluster_generator/${ANSWER_VER}.tar.gz
     tar -zxf ${ANSWER_VER}.tar.gz
 
 
