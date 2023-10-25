@@ -12,7 +12,7 @@ defaults:
         shell: bash
 
 env:
-    ANSWER_NAME: cluster-generator-pull-request-2-answers
+    ANSWER_VER: cluster-generator-pull-request-2-answers
 
 jobs:
     build:
