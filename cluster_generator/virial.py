@@ -192,7 +192,6 @@ class VirialEquilibrium:
         vesc = 2.0 * psi
         fv2esc = vesc * self.f(psi)
         vesc = np.sqrt(vesc)
-
         velocity_sub = generate_velocities(
             psi,
             vesc,
