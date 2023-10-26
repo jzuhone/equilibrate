@@ -2,6 +2,7 @@
 This file tests the correction.py module
 """
 import os
+import sys
 
 import numpy as np
 import pytest
@@ -22,6 +23,9 @@ from cluster_generator.radial_profiles import (
 
 
 @pytest.mark.usefixtures("answer_store", "answer_dir")
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Incompatible dill serialization"
+)
 class TestNPR:
     """
     This is just a template class for a correction type
@@ -70,6 +74,9 @@ class TestNPR:
 
 
 @pytest.mark.usefixtures("answer_store", "answer_dir")
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Incompatible dill serialization"
+)
 class TestNPR0a(TestNPR):
     """Tests NPR0a Problems"""
 
@@ -114,6 +121,9 @@ class TestNPR0a(TestNPR):
 
 
 @pytest.mark.usefixtures("answer_store", "answer_dir")
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Incompatible dill serialization"
+)
 class TestNPR0b(TestNPR):
     """Tests NPR0a Problems"""
 
@@ -154,6 +164,9 @@ class TestNPR0b(TestNPR):
         return [Type0bNPR(1, 1000, object)]
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Incompatible dill serialization"
+)
 class TestNPR1a(TestNPR):
     mdl_name = "test_correction_NRP1a.h5"
     npr = Type1aNPR

@@ -1,4 +1,5 @@
 import os
+import sys
 
 import numpy as np
 import pytest
@@ -37,6 +38,9 @@ class TestModels:
         assert np.all(m.check_hse() < 1.0e-4)
 
     @pytest.mark.noncritical
+    @pytest.mark.skipif(
+        sys.version_info < (3, 11), reason="Incompatible dill serialization"
+    )
     def test_properties(self, answer_dir):
         """Calls the properties of the current model, saves the model to file, reads it and checks that they are the same."""
         model = playmodel(answer_dir)
