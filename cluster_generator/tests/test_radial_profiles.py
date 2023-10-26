@@ -17,6 +17,7 @@ TestProfiles
 import logging
 import os
 import pathlib as pt
+import sys
 
 import numpy as np
 import pytest
@@ -84,6 +85,9 @@ class TestProfiles:
 
 
 @pytest.mark.filterwarnings("ignore:Casting")
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Incompatible dill serialization"
+)
 def test_profiles(answer_dir, answer_store):
     """Tests for consistency"""
 
