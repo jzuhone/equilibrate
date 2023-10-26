@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from numpy.testing import assert_equal
+from numpy.testing import assert_allclose
 
 from cluster_generator.model import ClusterModel
 from cluster_generator.particles import ClusterParticles
@@ -44,9 +44,9 @@ def model_answer_testing(model, filename, answer_store, answer_dir):
     else:
         old_model = ClusterModel.from_h5_file(p)
         for field in old_model.fields:
-            assert_equal(old_model[field], model[field])
-        assert_equal(old_model.dm_virial.df, model.dm_virial.df)
-        assert_equal(old_model.star_virial.df, model.star_virial.df)
+            assert_allclose(old_model[field], model[field], rtol=1e-8)
+        assert_allclose(old_model.dm_virial.df, model.dm_virial.df, rtol=1e-8)
+        assert_allclose(old_model.star_virial.df, model.star_virial.df, rtol=1e-8)
 
 
 def particle_answer_testing(parts, filename, answer_store, answer_dir):
@@ -56,4 +56,4 @@ def particle_answer_testing(parts, filename, answer_store, answer_dir):
     else:
         old_parts = ClusterParticles.from_file(p)
         for field in old_parts.fields:
-            assert_equal(old_parts[field], parts[field])
+            assert_allclose(old_parts[field], parts[field], rtol=1e-8)

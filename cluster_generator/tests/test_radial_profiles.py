@@ -116,6 +116,9 @@ def test_profiles(answer_dir, answer_store):
                 )
                 _f.to_binary(os.path.join(output_directory, f"{name}.rp"))
                 continue
+            except SystemError:
+                # Prevents ops issues when opening across non-matching python instances.
+                continue
 
             assert_array_equal(
                 old(x), _f(x), err_msg=f"Failed to match prior values for {name}."

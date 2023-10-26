@@ -243,6 +243,9 @@ class ClusterModel:
         except FileNotFoundError:
             mylog.warning(f"Failed to load properties file {properties_path}.")
             attrs = {}
+        except SystemError:
+            mylog.warning("Loading pickled file from unmatched python version.")
+            attrs = {}
 
         fields = OrderedDict()
         for field in fnames:
