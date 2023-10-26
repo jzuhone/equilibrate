@@ -48,4 +48,4 @@ jobs:
                   mode: testing
               run: source ./cluster_generator/bin/dev/ci_install.sh
             - name: Run Tests
-              run: pytest cluster_generator --answer_dir="~/$${{ env.ANSWER_VER }}"
+              run: pytest cluster_generator --answer_dir="${{ env.ANSWER_VER }}"
