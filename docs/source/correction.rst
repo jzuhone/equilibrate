@@ -14,7 +14,7 @@ this can occur:
 - **The profiles lead to non-physicalities because of their shapes**
 
   - Example: You create a gas density profile and a temperature profile, but they're not intrinsically connected. Sometimes they
-    won't be viable in a single system.
+    won't be viable together in a single system.
 
   - Another case in which this occurs regularly is that :math:`\rho_g` and :math:`T_g` profiles in the literature are only constructed
     on a particular domain and are fit independent of any constraints they impose on one another. While this is fine for many observational
