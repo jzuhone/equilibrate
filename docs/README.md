@@ -84,7 +84,7 @@ to install the package in developer mode.
 
 ### Dependencies
 
-`cluster_generator` is compatible with Python 3.8+, and requires the following
+`cluster_generator` is compatible with Python 3.9+, and requires the following
 Python packages:
 
 - [unyt](http://unyt.readthedocs.org%3E) \[Units and quantity manipulations\]
