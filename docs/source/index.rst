@@ -590,8 +590,10 @@ Additional Pages
 .. toctree::
    :maxdepth: 1
 
-   Getting_Started
+   getting_started
    examples
+   models
+   codes
    api
 
 .. |yt-project| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"

@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-
-# INSTRUCTIONS:
-#   This script will generate a test answer key in the directory you specify in the command line argument.
-#   The answer key will be zipped and named based on the branch and the version of the library.
-#   This should only be necessary if you are hosting the answers for github actions use.
-
-
-
-# -- COLORS -- #
+#======================================================================================================================#
+# CONFIGURATION
 RED="\x1b[31m"
 GREEN="\x1b[32m"
 RST="\x1b[0m"
@@ -16,59 +9,81 @@ BLDRD="\x1b[31;1m"
 CYANBLD="\x1b[36;1m"
 CGP_TXT="[$CYANBLD Cluster Generator Dev $RST]:"
 DONE="[$GREEN DONE $RST]"
+#======================================================================================================================#
+# USER SETTINGS --> These should be altered specific to the developer's need
+USE_CHPC=0 # If 1, the custom CHPC installation will be used.
+OUTPUT_DIRECTORY="$(pwd)" # The directory into which the answers should be placed
 
-# -- SETTING UP THE ENVIRONMENT -- #
-# !! If you are not a UofU affiliated user hosting on CHPC, this may need to be altered.
-
-USE_CHPC=0 # Indicate that you are using a CHPC custom python env.
-REPOSITORY_URL="https://www.github.com/eliza-diggins/cluster_generator"
+# BUILD Settings #
+REPOSITORY_URL="https://www.github.com/eliza-diggins/cluster_generator" # Used for installation
+BRANCH="master" # Overridden by -b tag.
+TEST_TYPE="all" # 'all' or 'core'.
 REPO_NAME="cluster_generator"
-OUTPUT_LOCATION="$(pwd)"
-TEST_BRANCH="pull-request-2"
-TEST_VERSION="latest"
-TEST_TYPE="core"
 
-# Reading the user input
-while getopts 'l:b:v:' OPTION; do
+#======================================================================================================================#
+# Managing command line inputs and setting up.
+
+# ***************************************** #
+#  AVAILABLE COMMAND LINE ARGS
+#  -b: determine the branch of the master repository to grab from.
+#  -r: The repository url to use.
+#  -t: The testing type to use
+#  -l: The output directory.
+# ****************************************** #
+
+while getopts 'l:b:r:t:' OPTION; do
   case "$OPTION" in
   l)
-    OUTPUT_LOCATION=$OPTARG
+    OUTPUT_DIRECTORY="$OPTARG"
 
-    if [ ! -d "$OUTPUT_LOCATION" ]; then
-      printf "%b\n" "$CGP_TXT $BLDRD Invalid Location: $OUTPUT_LOCATION"
+    if [ ! -d "$OUTPUT_DIRECTORY" ]; then
+      printf "%b\n" "$CGP_TXT $BLDRD Invalid Location: $OUTPUT_DIRECTORY"
       exit 1
     fi
     ;;
   b)
-    TEST_BRANCH="$OPTARG"
+    BRANCH="$OPTARG"
     ;;
-  v)
-    printf "%b\n" "$CGP_TXT $RED TEST_BRANCH option is not yet implemented. This will be ignored."
+  r)
+    REPOSITORY_URL="$OPTARG"
+    ;;
+  t)
+    TEST_TYPE="$OPTARG"
     ;;
   ?)
-    echo "script usage: $(basename \$0) [-l path] [-b branch-name] [-v version]" >&2
+    echo "script usage: $(basename \$0) [-l path] [-b branch-name] [-r repository URL] [-t test types]" >&2
     exit 1
     ;;
   esac
 done
 
-# Loading the modules for the custom python installation.
-printf "%b\n" "$CGP_TXT Constructing the installation and test generation environment."
+#======================================================================================================================#
+# Preparing the environment
+
+printf "%b\n" "$CGP_TXT Runtime environment prepared with the following runtime variables:"
+printf "\t \t %-30b \t \t %-12b\n" "$BLDMGT VARIABLE$RST" "$BLDMGT VALUE$RST"
+printf "\t \t %-30b \t \t %-12b\n" "$BLDMGT --------$RST" "$BLDMGT -----$RST"
+printf "\t \t %-30b \t \t %-12b\n" "$CYANBLD BRANCH$RST" "$CYANBLD $BRANCH$RST"
+printf "\t \t %-30b \t \t %-12b\n" "$CYANBLD REPOSITORY$RST" "$CYANBLD $REPOSITORY_URL $RST"
+printf "\t \t %-30b \t \t %-12b\n" "$CYANBLD REPO-NAME$RST" "$CYANBLD $REPO_NAME $RST"
+printf "\t \t %-30b \t \t %-12b\n" "$CYANBLD TEST-TYPES$RST" "$CYANBLD $TEST_TYPE $RST"
+printf "\t \t %-30b \t \t %-12b\n" "$CYANBLD OUTPUT_DIRECTORY$RST" "$CYANBLD $OUTPUT_DIRECTORY $RST"
+printf "%s\n" "############################################################################################################"
 
 if [ $USE_CHPC == 1 ]; then
   module use $HOME/MyModules
   ml miniconda3/latest
 fi
 
-cd $OUTPUT_LOCATION
+cd $OUTPUT_DIRECTORY
 
-printf "%b" "$CGP_TXT Cloning repository into $OUTPUT_LOCATION..."
+printf "%b" "$CGP_TXT Cloning repository into $OUTPUT_DIRECTORY..."
 
-git clone $REPOSITORY_URL -b $TEST_BRANCH >/dev/null 2>/dev/null
+git clone $REPOSITORY_URL -b $BRANCH >/dev/null 2>/dev/null
 
 if [ ! $? == 0  ]; then
   if [ ! -d "$REPO_NAME" ]; then
-    printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Failed to clone repository $REPOSITORY_URL on branch $TEST_BRANCH."
+    printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Failed to clone repository $REPOSITORY_URL on branch $BRANCH."
     exit 1
   else
     printf "\n%b\n" "$CGP_TXT $BLDMGT Warning$RST: There appears to be a repository already in existence. Continuing cautiously."
@@ -94,36 +109,36 @@ printf "%b\n" "$CGP_TXT Installing $REPO_NAME in $(pwd)... $DONE"
 
 #------------------------------------------------------------------------------------------------------#
 # Generating the tests
-cd "$OUTPUT_LOCATION" || exit 1
-printf "%b\n" "$CGP_TXT Creating directory $REPO_NAME-$TEST_BRANCH-answers to store answers."
+cd "$OUTPUT_DIRECTORY" || exit 1
+printf "%b\n" "$CGP_TXT Creating directory $REPO_NAME-$BRANCH-answers to store answers."
 
-mkdir "$REPO_NAME-$TEST_BRANCH-answers" >/dev/null 2>/dev/null
+mkdir "$REPO_NAME-$BRANCH-answers" >/dev/null 2>/dev/null
 
 if [ ! $? == 0 ]; then
     printf "%b\n" "$CGP_TXT $BLDMGT Warning$RST: Testing directory appears to already exist. Trying to delete it and rebuild."
 
-    rm -r "$REPO_NAME-$TEST_BRANCH-answers" >/dev/null 2>/dev/null
+    rm -r "$REPO_NAME-$BRANCH-answers" >/dev/null 2>/dev/null
 
     if [ ! $? == 0 ]; then
-        printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Failed to delete $REPO_NAME-$TEST_BRANCH-answers."
+        printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Failed to delete $REPO_NAME-$BRANCH-answers."
         exit 1
     else
-        mkdir "$REPO_NAME-$TEST_BRANCH-answers" >/dev/null 2>/dev/null
+        mkdir "$REPO_NAME-$BRANCH-answers" >/dev/null 2>/dev/null
     fi
 
     if [ ! $? == 0 ]; then
-        printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Failed to delete $REPO_NAME-$TEST_BRANCH-answers."
+        printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Failed to delete $REPO_NAME-$BRANCH-answers."
         exit 1
     else
-      printf "%b\n" "$CGP_TXT $BLDMGT Warning$RST: Succeeded in delete and rebuild of $REPO_NAME-$TEST_BRANCH-answers"
+      printf "%b\n" "$CGP_TXT $BLDMGT Warning$RST: Succeeded in delete and rebuild of $REPO_NAME-$BRANCH-answers"
       fi
 fi
 
-printf "%b\n" "$CGP_TXT Running pytest on $REPO_NAME (BRANCH = $TEST_BRANCH)"
+printf "%b\n" "$CGP_TXT Running pytest on $REPO_NAME (BRANCH = $BRANCH)"
 
-cd "$OUTPUT_LOCATION/$REPO_NAME" || exit 1
+cd "$OUTPUT_DIRECTORY/$REPO_NAME" || exit 1
 
-pytest "$REPO_NAME" --answer_dir="$OUTPUT_LOCATION/$REPO_NAME-$TEST_BRANCH-answers" --answer_store
+pytest "$REPO_NAME" --answer_dir="$OUTPUT_DIRECTORY/$REPO_NAME-$BRANCH-answers" --answer_store
 
 if [ ! $? == 0 ]; then
     printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Tests did not succeed."
@@ -133,14 +148,14 @@ fi
 printf "%b\n" "$CGP_TXT Tests completed. All tests passed."
 printf "%b" "$CGP_TXT Packaging test answers..."
 
-cd "$OUTPUT_LOCATION" || exit 1
-if [ -f "$REPO_NAME-$TEST_BRANCH-answers.tar.gz" ]; then
+cd "$OUTPUT_DIRECTORY" || exit 1
+if [ -f "$REPO_NAME-$BRANCH-answers.tar.gz" ]; then
       printf "%b\n" "$CGP_TXT $BLDMGT Warning$RST: Zip archive already exists."
 
-      rm "$REPO_NAME-$TEST_BRANCH-answers.tar.gz"
+      rm "$REPO_NAME-$BRANCH-answers.tar.gz"
 fi
 
-tar -czvf "$REPO_NAME-$TEST_BRANCH-answers.tar.gz" "$REPO_NAME-$TEST_BRANCH-answers" >/dev/null 2>/dev/null
+tar -czvf "$REPO_NAME-$BRANCH-answers.tar.gz" "$REPO_NAME-$BRANCH-answers" >/dev/null 2>/dev/null
 
 if [ ! $? == 0 ]; then
     printf "\n%b\n" "$CGP_TXT $BLDRD ERROR: Tar zipping failed"

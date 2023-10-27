@@ -1,3 +1,4 @@
+# Continuous integration / testing installation script.
 set -x   # Show which command is being run
 
 if [[ ${mode} == "testing" ]]; then
@@ -25,5 +26,3 @@ if [[ ${mode} == "testing" ]]; then
   # Install cluster_generator
   python -m pip install -e .
 fi
-
-ls -ltra

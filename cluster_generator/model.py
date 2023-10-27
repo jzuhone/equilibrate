@@ -1138,6 +1138,7 @@ class ClusterModel:
             prng=prng,
         )
 
+    @_enforce_style
     def plot(self, field, r_min=None, r_max=None, fig=None, ax=None, **kwargs):
         """
         Plot a field vs radius from this model using Matplotlib.
@@ -1164,17 +1165,21 @@ class ClusterModel:
         """
         import matplotlib.pyplot as plt
 
-        plt.rc("font", size=18)
-        plt.rc("axes", linewidth=2)
         if fig is None:
             fig = plt.figure(figsize=(10, 10))
         if ax is None:
             ax = fig.add_subplot(111)
         ax.loglog(self["radius"], self[field], **kwargs)
         ax.set_xlim(r_min, r_max)
-        ax.set_xlabel("Radius (kpc)")
-        ax.tick_params(which="major", width=2, length=6)
-        ax.tick_params(which="minor", width=2, length=3)
+        ax.set_ylabel(
+            r"%(field)s / $\left[%(unit)s\right]$"
+            % {"field": field, "unit": self[field].units.latex_representation()}
+        )
+
+        ax.set_xlabel(
+            r"Radius / $\left[%(unit)s\right]$"
+            % {"unit": self["radius"].units.latex_representation()}
+        )
         return fig, ax
 
     @_enforce_style
@@ -1328,7 +1333,7 @@ class ClusterModel:
                 r"Radius / $\left[%(unit)s\right]$"
                 % {"unit": self["radius"].units.latex_representation()}
             )
-        return fig, axes
+        return fig, axes, gridspec
 
     def mass_in_radius(self, radius):
         """Determine the mass within a given radius."""

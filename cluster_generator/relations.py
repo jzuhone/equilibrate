@@ -68,6 +68,24 @@ def m_sat(M500):
     return 10**y
 
 
+def rho_scale_hern(M, rs):
+    """
+    Returns the correct scale density for a total density and scale length.
+
+    Parameters
+    ----------
+    M: float
+        The total mass
+    rs: float
+        The scale radius
+
+    Returns
+    -------
+    float
+    """
+    return M / (2 * np.pi * rs**3)
+
+
 def r_bcg(r200):
     """
     Compute the BCG radius given some r200 value.

@@ -132,53 +132,55 @@ we recommend you begin on this page by reading through our quickstart guide to g
 Quickstart Guides
 +++++++++++++++++
 
-.. card-carousel:: 2
+.. card-carousel:: 3
 
-    .. card:: The Basics
-        :link: notebooks/quick_notebooks/quickbook
+    .. card:: Your First Journey with CGP
+        :link: _notebooks/examples/FirstJourney
         :link-type: doc
 
-        **Length**: 10 minutes
-        ^^^
-        Get a basic understanding of the ``cluster_generator`` library and its capabilities. Suitable for first time users.
+        Learn the basics of the CGP while taking a model of galaxy cluster Abell 133
+        all the way from literature to RAMSES simulation. This guide will show you
+        the basic pipeline from analytical profiles to actually running a simulation.
+
         +++
-        :doc:`Quickstart Guide: The Basics <notebooks/quick_notebooks/quickbook>`
+
+        |beginner| |20min|
+
+    .. card:: The Gravitational Wonderland
+
+        Learn the is and outs of the CGP's non-Newtonian gravitational theories in this
+        step by step guide for producing MONDian simulations.
 
 
-    .. card:: Your First Simulation
-        :link: notebooks/quick_notebooks/quickbook2
-        :link-type: doc
-
-        **Length**: 20 minutes
-        ^^^
-        So you know the basics, but you want to start actually doing your science? Use this guide as a reference for the
-        entire process of initializing and simulating a cluster from ``cluster_generator``. This guide uses RAMSES as an
-        example.
         +++
-        :doc:`Quickstart Guide: Your First Simulation <notebooks/quick_notebooks/quickbook2>`
 
-    .. card:: Getting the Most Out of the CGP
-        :link: notebooks/quick_notebooks/quickbook3
-        :link-type: doc
+        |beginner| |20min| |feature| |nyi|
 
-        **Length**: 40 minutes
-        ^^^
-        Starting to feel like you know the ropes? This guide will give you some deeper insight into the functionality of the
-        library and teach you to use advanced resources like alternative virialization methods, saving profiles, and accessing
-        collections.
+    .. card:: Collections
+
+        Learn how to pull cluster models directly from literature using the
+        :py:mod:`collection` module.
+
         +++
-        :doc:`Quickstart Guide: Getting the Most Out of the CGP <notebooks/quick_notebooks/quickbook3>`
 
-    .. card:: Getting Funky: MONDian Gravity
-        :link: notebooks/quick_notebooks/quickbook4
-        :link-type: doc
+        |beginner| |10min| |feature| |nyi|
+    .. card:: Virialization Methods
 
-        **Length**: 20 minutes
-        ^^^
-        Feeling ready to jump down a rabbit hole? This guide will show you how to use the MONDian gravity theories built
-        into cluster generator!
+        Learn about the ins and outs of virialization in the CGP's initial conditions.
+
         +++
-        :doc:`Quickstart Guide: Getting Funky - MONDian Gravity <notebooks/quick_notebooks/quickbook4>`
+
+        |intermediate| |20min| |nyi|
+    .. card:: Correcting Non-Physical Behaviors
+
+        In this guide, we consider the cluster A133 and its analytical model, which is
+        non-physical in certain radii. We show the tools available for correcting these
+        issues.
+
+        +++
+
+        |beginner| |20min| |nyi|
+
 
 
 
@@ -244,3 +246,13 @@ For some output quantities, these units are sometimes used:
 .. raw:: html
 
    <hr style="height:10px;background-color:black">
+.. |beginner| image:: https://img.shields.io/badge/Difficulty-Beginner-green
+.. |intermediate| image:: https://img.shields.io/badge/Difficulty-Intermediate-blue
+.. |advanced| image:: https://img.shields.io/badge/Difficulty-Advanced-black
+.. |10min| image:: https://img.shields.io/badge/10min-blue
+.. |20min| image:: https://img.shields.io/badge/20min-blue
+.. |30min| image:: https://img.shields.io/badge/30min-blue
+.. |40min| image:: https://img.shields.io/badge/40min-blue
+.. |60min| image:: https://img.shields.io/badge/60min-blue
+.. |feature| image:: https://img.shields.io/badge/Feature-purple
+.. |nyi| image::  https://img.shields.io/badge/NotYetImplemented-red

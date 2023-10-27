@@ -14,6 +14,7 @@ repos:
     -   id: check-json
     -   id: check-toml
     -   id: pretty-format-json
+        exclude: \.ipynb
     -   id: mixed-line-ending
     -   id: check-yaml
         args: ["--unsafe"]
@@ -74,3 +75,4 @@ repos:
     hooks:
     -   id: codespell
         args: ["-L ded"]
+        exclude: \.ipynb
