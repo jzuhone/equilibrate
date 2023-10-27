@@ -61,10 +61,10 @@ class TestNPR:
 
         m = self.model(answer_store, answer_dir)
 
-        f, a, g = m.panel_plot(color="red")
+        f, a = m.panel_plot(color="red")
         m = NonPhysicalRegion.correct(m, recursive=True)
 
-        f, a, g = m.panel_plot(color="blue", fig=f, axes=a)
+        f, a = m.panel_plot(color="blue", fig=f, axes=a)
 
         f.savefig(f"{answer_dir}/{self.mdl_name}_corrected.png")
         u = self.npr.identify(m, recursive=False)
