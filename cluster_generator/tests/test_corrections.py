@@ -61,7 +61,6 @@ class TestNPR:
 
         m = self.model(answer_store, answer_dir)
 
-        print(m)
         f, a, g = m.panel_plot(color="red")
         m = NonPhysicalRegion.correct(m, recursive=True)
 
