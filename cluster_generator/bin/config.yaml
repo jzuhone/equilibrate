@@ -76,5 +76,18 @@ plotting:
     ytick.major.size: 8
     xtick.minor.size: 5
     ytick.minor.size: 5
+    xtick.top: true
+    xtick.bottom: true
+    xtick.labeltop: false
+    xtick.labelbottom: true
+    xtick.minor.visible: true
+    ytick.left: true
+    ytick.right: true
+    ytick.labelleft: true
+    ytick.labelright: false
+    ytick.minor.visible: true
     xtick.direction: "in"
     ytick.direction: "in"
+    # -- Font Settings -- #
+    font.style: "normal"
+    font.size: 12

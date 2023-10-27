@@ -1139,7 +1139,9 @@ class ClusterModel:
         )
 
     @_enforce_style
-    def plot(self, field, r_min=None, r_max=None, fig=None, ax=None, **kwargs):
+    def plot(
+        self, field, r_min=None, r_max=None, fig=None, ax=None, defaults=None, **kwargs
+    ):
         """
         Plot a field vs radius from this model using Matplotlib.
 
@@ -1157,29 +1159,57 @@ class ClusterModel:
         ax : Matplotlib Axes
             The axes to plot in. Default: None, in which case
             one will be generated.
+        defaults: dict
+            A dictionary containing defaults for the specific field. This is loaded by default if left unset.
+            The dictionary must contain keys ``'label','scale','revision'``. ``label`` must be a string with a formatting
+            character of the form ``"%(units)s"``; the scale make be any valid input to ``ax.set_yscale``, and the revision should
+            be 1 if the plot should be left as normal and ``-1`` if the plot should be flipped over the x axis (gravitational potential).
 
         Returns
         -------
         The Figure, Axes tuple used for the plot.
 
         """
+        import pathlib as pt
+
         import matplotlib.pyplot as plt
 
         if fig is None:
             fig = plt.figure(figsize=(10, 10))
         if ax is None:
             ax = fig.add_subplot(111)
-        ax.loglog(self["radius"], self[field], **kwargs)
+
+        if defaults is None:
+            # Loading the plot defaults
+            _config_directory = os.path.join(
+                pt.Path(__file__).parents[0], "bin", "resources", "plot_defaults.yaml"
+            )
+
+            with open(_config_directory, "r") as f:
+                plt_defaults = yaml.load(f, yaml.FullLoader)
+
+            defaults = plt_defaults[field]
+
+        if "kwargs" in defaults:
+            for k, v in defaults["kwargs"]:
+                if k not in kwargs:
+                    kwargs[k] = v
+
+        ax.loglog(
+            self["radius"], defaults["revision"] * self[field], **kwargs
+        )  # revision flips negative plots.
         ax.set_xlim(r_min, r_max)
+
+        ax.set_yscale(defaults["scale"])
         ax.set_ylabel(
-            r"%(field)s / $\left[%(unit)s\right]$"
-            % {"field": field, "unit": self[field].units.latex_representation()}
+            defaults["label"] % {"unit": self[field].units.latex_representation()}
         )
 
         ax.set_xlabel(
             r"Radius / $\left[%(unit)s\right]$"
             % {"unit": self["radius"].units.latex_representation()}
         )
+
         return fig, ax
 
     @_enforce_style
@@ -1192,6 +1222,7 @@ class ClusterModel:
         axes=None,
         aspect_ratio=1,
         base_length=3,
+        gs_kwargs=None,
         **kwargs,
     ):
         """
@@ -1224,6 +1255,9 @@ class ClusterModel:
 
         base_length: float, optional
             The base length of each plot. Used to determine rest of the geometry.
+        gs_kwargs: dict, optional
+            additional kwargs to pass to the :py:class:`matplotlib.figure.GridSpec` instance.
+
         **kwargs
             Additional keyword arguments which are to be passed directly to :py:func:`matplotlib.pyplot.plot`. There are several formatting
             options for these keyword arguments and the behavior depends on their format.
@@ -1257,12 +1291,12 @@ class ClusterModel:
             plt_defaults = yaml.load(f, yaml.FullLoader)
 
         if fields == "all":
-            fields = list(self.fields.keys())
+            fields = [i for i in self.fields.keys() if i != "radius"]
+        else:
+            assert isinstance(
+                fields, (list, tuple)
+            ), "The fields must be specified as an array or a tuple."
 
-        if r_min is None:
-            r_min = np.amin(self["radius"].d)
-        if r_max is None:
-            r_max = np.amax(self["radius"].d)
         if fig is None:
             fig = plt.figure()
 
@@ -1277,7 +1311,10 @@ class ClusterModel:
             fig.set_figheight(h)
             fig.subplots_adjust(left=0.1, right=0.99, top=0.99, bottom=0.05)
 
-            gridspec = fig.add_gridspec(r, c)
+            if gs_kwargs is None:
+                gs_kwargs = {}
+
+            gridspec = fig.add_gridspec(r, c, **gs_kwargs)
             gspec_it = product(range(0, r), range(0, c))
 
             for gi, fi in zip(gspec_it, fields):
@@ -1291,49 +1328,17 @@ class ClusterModel:
                 k: (v[field] if isinstance(v, dict) else v) for k, v in kwargs.items()
             }
 
-            if field in plt_defaults:
-                for k, v in plt_defaults[field]["kwargs"]:
-                    if k not in tmp_kwargs:
-                        tmp_kwargs[k] = v
-
-                revision = (
-                    plt_defaults[field]["revision"]
-                    if plt_defaults[field]["revision"] is not None
-                    else 1
-                )
-            else:
-                revision = 1
-
-            ax.loglog(
-                self["radius"][
-                    np.where((r_min < self["radius"].d) & (r_max > self["radius"].d))
-                ],
-                revision
-                * self[field][
-                    np.where((r_min < self["radius"].d) & (r_max > self["radius"].d))
-                ],
+            self.plot(
+                field,
+                r_min=r_min,
+                r_max=r_max,
+                fig=fig,
+                ax=ax,
+                defaults=plt_defaults[field],
                 **tmp_kwargs,
             )
-            if field in plt_defaults:
-                if "label" in plt_defaults[field]:
-                    ax.set_ylabel(
-                        plt_defaults[field]["label"]
-                        % {"unit": self[field].units.latex_representation()}
-                    )
 
-                if "scale" in plt_defaults[field]:
-                    ax.set_yscale(plt_defaults[field]["scale"])
-            else:
-                ax.set_ylabel(
-                    r"%(field)s / $\left[%(unit)s\right]$"
-                    % {"field": field, "unit": self[field].units.latex_representation()}
-                )
-
-            ax.set_xlabel(
-                r"Radius / $\left[%(unit)s\right]$"
-                % {"unit": self["radius"].units.latex_representation()}
-            )
-        return fig, axes, gridspec
+        return fig, axes
 
     def mass_in_radius(self, radius):
         """Determine the mass within a given radius."""
