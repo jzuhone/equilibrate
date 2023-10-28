@@ -1,27 +1,27 @@
 # Cluster Generator
 
 [![yt-project](https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet")](https://yt-project.org)
-[![ncodes](https://img.shields.io/static/v1?label="Implemented%20Sim.%20Codes"&message="7"&color="red")](https://eliza-diggins.github.io/cluster_generator/build/html/codes.html)
-[![docs]( https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://eliza-diggins.github.io/cluster_generator)
+[![ncodes](https://img.shields.io/static/v1?label="Implemented%20Sim.%20Codes"&message="7"&color="red")](https://jzuhone.github.io/cluster_generator/build/html/codes.html)
+[![docs]( https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://jzuhone.github.io/cluster_generator)
 ![testing](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test.yml/badge.svg)
 ![Pylint](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/pylint.yml/badge.svg)
 ![Github Pages](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg)
 [![Coverage](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=master)](https://coveralls.io/github/Eliza-Diggins/cluster_generator)
 
-The [Cluster Generator Project](https://eliza-diggins.github.io/cluster_generator) (CGP) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
-CGP provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, the CGP is intented to interface with
+[Cluster Generator](https://jzuhone.github.io/cluster_generator) (CG) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
+CG provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, CG is intented to interface with
 the vast majority of N-body / hydrodynamics codes, reducing the headache of converting initial conditions between formats for different simulation softwares. GCP's goal is to provide
 comprehensive tools for modeling and implementation of galaxy clusters in astrophysical simulations to promote the study of galaxy cluster dynamics.
 
 This repository contains the core package, which is constructed modularly to facilitate easy development by users to meet particular scientific use cases. All of the
 necessary tools to get started building initial conditions are provided.
 
-You can access the documentation [here](http:eliza-diggins.github.io/cluster_generator), or build it from scratch using the ``./docs`` directory in this source distribution.
+You can access the documentation [here](http:jzuhone.github.io/cluster_generator), or build it from scratch using the ``./docs`` directory in this source distribution.
 
 Developement occurs here on Github, if you encounter any bugs, issues, documentation failures, or want to suggest features, we recommend that you submit an issue on
 the issues page of the repository.
 
-For installation directions, continue reading this README, or visit the [getting started page](https://eliza-diggins.github.io/cluster_generator/build/html/Getting_Started.html).
+For installation directions, continue reading this README, or visit the [getting started page](https://jzuhone.github.io/cluster_generator/build/html/Getting_Started.html).
 
 
 ## Contents
@@ -122,7 +122,7 @@ simulations which are created using initial conditions from
 ## Contributing Code Documentation or Feedback
 
 All contributions, bug fixes, documentation improvements, and ideas are welcome. If you're interested in pursuing further development of the
-Cluster Generator Project, we suggest you start by browsing the [API Documentation](https://eliza-diggins.github.io/cluster_generator/build/html/api.html). When you're ready
+Cluster Generator Project, we suggest you start by browsing the [API Documentation](https://jzuhone.github.io/cluster_generator/build/html/api.html). When you're ready
 create a fork of this branch and begin your development. When you finish,
 feel free to  add a pull request to this repositiory and we will review your code contribution.
 
