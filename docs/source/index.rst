@@ -1,8 +1,8 @@
 .. image:: _images/cluster_generator_logo.png
 
 
-The Cluster Generator Project
-=============================
+The Cluster Generator
+=====================
 
 |yt-project| |precom| |docs| |testing| |Github Page| |Pylint| |coverage| |ncodes|
 
@@ -13,7 +13,7 @@ The Cluster Generator Project
 
 `Cluster Generator <https://jzuhone.github.io/cluster_generator>`_ (CG) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
 CG provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, CG is intended to interface with
-a number of N-body / hydrodynamics codes used in studies of galaxy clusters, reducing the headache of converting initial conditions between formats for different simulation softwares. GCP's goal is to provide
+a number of N-body / hydrodynamics codes used in studies of galaxy clusters, reducing the headache of converting initial conditions between formats for different simulation software. GCP's goal is to provide
 
 comprehensive tools for modeling and implementation of galaxy clusters in astrophysical simulations to promote the study of galaxy cluster dynamics.
 
@@ -109,7 +109,7 @@ Features
 
         .. dropdown:: Implemented Codes
 
-            The CGP provides end-to-end initial condition generation tools for **all** of the following
+            CG provides end-to-end initial condition generation tools for **all** of the following
             codes:
 
             - :ref:`RAMSES <ramses>`
@@ -133,7 +133,7 @@ Features
 
         .. dropdown:: Automated Non-Physicality Correction
 
-            The CGP provides a purpose built algorithm for non-physical corrections in initialized clusters to reduce
+            The CG provides a purpose built algorithm for non-physical corrections in initialized clusters to reduce
             labor overhead in the generation of the initial conditions. For more information, visit the :ref:`correction` page.
 
 Resources
@@ -148,7 +148,7 @@ Resources
 
         Quickstart Guide
         ^^^^^^^^^^^^^^^^
-        New to the CGP? The quickstart guide is the best place to start learning to use all of the
+        New to CG? The quickstart guide is the best place to start learning to use all of the
         tools that we have to offer!
 
         +++
@@ -165,9 +165,9 @@ Resources
 
         Examples
         ^^^^^^^^
-        Have some basic experience with the CGP, but want to see a guide on how to execute a particular task? Need
+        Have some basic experience with CG, but want to see a guide on how to execute a particular task? Need
         to find some code to copy and paste? The examples page contains a wide variety of use case examples and explanations
-        for all of the various parts of the CGP library.
+        for all of the various parts of the CG library.
 
         +++
 
@@ -183,7 +183,7 @@ Resources
 
         User References
         ^^^^^^^^^^^^^^^^
-        The user guide contains comprehensive, text based explanations of the backbone components of the CGP library.
+        The user guide contains comprehensive, text based explanations of the backbone components of the CG library.
         If you're looking for information on the underlying code or for more details on particular aspects of the API, this is your best resource.
 
         +++
@@ -228,8 +228,8 @@ Related Projects
         PyXSIM
         ^^^^^^
 
-        Convert your CGP generated systems into synthetic photon event lists for use in simulating observations using X-ray observatories using PyXSIM.
-        the CGP is designed to easily interface with this library to provide as much ease as possible when building simulated observations of clusters.
+        Convert your CG generated systems into synthetic photon event lists for use in simulating observations using X-ray observatories using PyXSIM.
+        CG is designed to easily interface with this library to provide as much ease as possible when building simulated observations of clusters.
 
         +++
 

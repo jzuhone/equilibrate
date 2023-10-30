@@ -1,7 +1,7 @@
 API
 ===
 
-API Reference for the CGP
+API Reference for CG
 
 .. autosummary::
     :toctree: _as_gen

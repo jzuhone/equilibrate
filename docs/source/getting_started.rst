@@ -45,7 +45,7 @@ for a number of N-body/hydrodynamic codes used in the astrophysics community.
 Installing the Package
 ======================
 
-The ``cluster_generator`` package can be obtained for python versions 3.8 and up. The first step towards working with the CG is
+The ``cluster_generator`` package can be obtained for python versions 3.8 and up. The first step towards working with CG is
 obtaining the package. There are a few ways to do this, we encourage you to choose the best option from those below and follow their
 instructions to obtain the package:
 
@@ -134,11 +134,11 @@ Quickstart Guides
 
 .. card-carousel:: 3
 
-    .. card:: Your First Journey with CGP
+    .. card:: Your First Journey with CG
         :link: _notebooks/examples/FirstJourney
         :link-type: doc
 
-        Learn the basics of the CGP while taking a model of galaxy cluster Abell 133
+        Learn the basics of CG while taking a model of galaxy cluster Abell 133
         all the way from literature to RAMSES simulation. This guide will show you
         the basic pipeline from analytical profiles to actually running a simulation.
 
@@ -148,7 +148,7 @@ Quickstart Guides
 
     .. card:: The Gravitational Wonderland
 
-        Learn the is and outs of the CGP's non-Newtonian gravitational theories in this
+        Learn the is and outs of CG's non-Newtonian gravitational theories in this
         step by step guide for producing MONDian simulations.
 
 
@@ -167,7 +167,7 @@ Quickstart Guides
         |beginner| |10min| |feature| |nyi|
     .. card:: Virialization Methods
 
-        Learn about the ins and outs of virialization in the CGP's initial conditions.
+        Learn about the ins and outs of virialization in CG's initial conditions.
 
         +++
 

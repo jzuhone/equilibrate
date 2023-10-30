@@ -1,5 +1,5 @@
 """
-CGP Core module containing classes and method related to the :py:class:`model.ClusterModel` class for representing
+CG Core module containing classes and method related to the :py:class:`model.ClusterModel` class for representing
 physically self-consistent galaxy cluster models.
 """
 import os

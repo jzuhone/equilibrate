@@ -3,20 +3,20 @@
 Examples
 ========
 
-Welcome to the CGP's examples library! On this page, you should be able to find a wide
+Welcome to CG's examples library! On this page, you should be able to find a wide
 array of example scripts for a variety of purposes. Look out for the tags on each example to
 see what fits your use case, existing knowledge, and time frame.
 
-Using The CGP
--------------
+Using CG
+---------
 
 .. card-carousel:: 3
 
-    .. card:: Your First Journey with CGP
+    .. card:: Your First Journey with CG
         :link: _notebooks/examples/FirstJourney
         :link-type: doc
 
-        Learn the basics of the CGP while taking a model of galaxy cluster Abell 133
+        Learn the basics of CG while taking a model of galaxy cluster Abell 133
         all the way from literature to RAMSES simulation. This guide will show you
         the basic pipeline from analytical profiles to actually running a simulation.
 
@@ -26,7 +26,7 @@ Using The CGP
 
     .. card:: The Gravitational Wonderland
 
-        Learn the is and outs of the CGP's non-Newtonian gravitational theories in this
+        Learn the is and outs of CG's non-Newtonian gravitational theories in this
         step by step guide for producing MONDian simulations.
 
 
@@ -44,7 +44,7 @@ Using The CGP
         |beginner| |10min| |feature| |nyi|
     .. card:: Virialization Methods
 
-        Learn about the ins and outs of virialization in the CGP's initial conditions.
+        Learn about the ins and outs of virialization in CG's initial conditions.
 
         +++
 
@@ -71,7 +71,7 @@ Code Guides - Going From Code To Science
 
     .. card:: RAMSES
 
-        In this guide, we show you how to run a simulation in RAMSES from CGP models.
+        In this guide, we show you how to run a simulation in RAMSES from CG models.
 
         +++
 
@@ -79,7 +79,7 @@ Code Guides - Going From Code To Science
 
     .. card:: GADGET
 
-        In this guide, we show you how to run a simulation in GADGET from CGP models.
+        In this guide, we show you how to run a simulation in GADGET from CG models.
 
         +++
 
@@ -87,7 +87,7 @@ Code Guides - Going From Code To Science
 
     .. card:: ATHENA
 
-        In this guide, we show you how to run a simulation in ATHENA from CGP models.
+        In this guide, we show you how to run a simulation in ATHENA from CG models.
 
         +++
 
@@ -95,7 +95,7 @@ Code Guides - Going From Code To Science
 
     .. card:: GIZMO
 
-        In this guide, we show you how to run a simulation in GIZMO from CGP models.
+        In this guide, we show you how to run a simulation in GIZMO from CG models.
 
         +++
 
@@ -103,7 +103,7 @@ Code Guides - Going From Code To Science
 
     .. card:: FLASH
 
-        In this guide, we show you how to run a simulation in FLASH from CGP models.
+        In this guide, we show you how to run a simulation in FLASH from CG models.
 
         +++
 
@@ -113,14 +113,14 @@ Code Guides - Going From Code To Science
 
    <hr style="height:10px;background-color:black">
 
-Beyond CGP - External Packages
-------------------------------
+Beyond CG - External Packages
+-----------------------------
 
 .. card-carousel:: 3
 
-    .. card:: CGP with YT
+    .. card:: CG with YT
 
-        In this guide, we'll discuss using CGP with the `YT <https://yt-project.org/doc/index.html>`_ package.
+        In this guide, we'll discuss using CG with the `YT <https://yt-project.org/doc/index.html>`_ package.
 
         +++
 
@@ -128,7 +128,7 @@ Beyond CGP - External Packages
 
     .. card:: PynBody
 
-        In this guide, we'll discuss using CGP with the `pynbody <https://pynbody.github.io/>`_ package.
+        In this guide, we'll discuss using CG with the `pynbody <https://pynbody.github.io/>`_ package.
 
         +++
 
@@ -136,7 +136,7 @@ Beyond CGP - External Packages
 
     .. card:: Pyxsim + SOXS
 
-        In this guide, we'll discuss using CGP with the `PyXSIM <https://github.com/jzuhone/pyxsim>`_ package.
+        In this guide, we'll discuss using CG with the `PyXSIM <https://github.com/jzuhone/pyxsim>`_ package.
 
         +++
 
@@ -147,14 +147,14 @@ Beyond CGP - External Packages
 
    <hr style="height:10px;background-color:black">
 
-Developing in The CGP
----------------------
+Developing in CG
+--------------------
 
 .. card-carousel:: 3
 
     .. card:: Adding New Gravity
 
-        In this guide, we show you how to run a simulation in RAMSES from CGP models.
+        In this guide, we show you how to run a simulation in RAMSES from CG models.
 
         +++
 

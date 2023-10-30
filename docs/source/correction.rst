@@ -10,7 +10,7 @@ this can occur:
 
 - **The profiles are explicitly flawed**
 
-  - Example: You ask CGP to create initial conditions for a negative ICM temperature.
+  - Example: You ask CG to create initial conditions for a negative ICM temperature.
 
 - **The profiles lead to non-physicalities because of their shapes**
 
@@ -28,7 +28,7 @@ this can occur:
 
 Clearly, there are a variety of ways that these things can happen and they're often hard to predict as the end user. In previous
 initial conditions software, it was generally left up to the end user to construct self-consistent profiles (which could be a lot of work).
-The CGP is geared toward making the initialization process as simple as possible to facilitate easier science and therefore
+CG is geared toward making the initialization process as simple as possible to facilitate easier science and therefore
 comes with a set of algorithms for detection and correction of these non-physicalities.
 
 .. raw:: html
@@ -45,7 +45,7 @@ comes with a set of algorithms for detection and correction of these non-physica
 Non-Physical Regions
 --------------------
 
-To contend with the issue of non-physical regions, the CGP provides the :py:mod:`correction` module which is composed of
+To contend with the issue of non-physical regions, CG provides the :py:mod:`correction` module which is composed of
 class objects descended from :py:class:`correction.NonPhysicalRegion`. Each of these classes represents a particular category of
 non-physical region and has subclasses representing the documented sub-cases of the non-physicality described. As such, to get
 started correcting non-physical regions, it is first important to understand how they are categorized.\
@@ -53,7 +53,7 @@ started correcting non-physical regions, it is first important to understand how
 .. figure:: _images/diagrams/non-physical.drawio.png
     :alt: Non-physicalities diagram.
 
-    All of the possible non-physicalities which occur in the CGP.
+    All of the possible non-physicalities which occur in CG.
 
 
 Type 0 Non-Physicalities
@@ -217,7 +217,7 @@ of the model.
 Adding a New NPR
 ----------------
 
-If you're a contributor to the CGP, then you may find yourself in a situation where you need to add a new NPR type to the
+If you're a contributor to CG, then you may find yourself in a situation where you need to add a new NPR type to the
 :py:mod:`correction` module. The process to do so is relatively simple. Every novel NPR class should fit into a category and
 inherit directly from the next highest level NPR in the tree. The generic template for such an addition should look like this
 

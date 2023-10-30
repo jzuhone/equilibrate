@@ -1,5 +1,5 @@
 """
-Virialization module for the CGP
+Virialization module for CG
 """
 from collections import OrderedDict
 

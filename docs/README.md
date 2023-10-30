@@ -1,7 +1,6 @@
 ![logo](/docs/source/_images/cluster_generator_logo.png)
 
-
-# Cluster Generator 
+# Cluster Generator
 
 [![yt-project](https://img.shields.io/static/v1?label=%22works%20with%22&message=%22yt%22&color=%22blueviolet%22)](https://yt-project.org)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
@@ -13,17 +12,15 @@
 [![Coverage](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=master)](https://coveralls.io/github/Eliza-Diggins/cluster_generator)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-
 [Cluster Generator](https://jzuhone.github.io/cluster_generator) (CG) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
-CG provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, CG is intented to interface with
-the vast majority of N-body / hydrodynamics codes, reducing the headache of converting initial conditions between formats for different simulation softwares. GCP's goal is to provide
+CG provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, CG is intended to interface with
+the vast majority of N-body / hydrodynamics codes, reducing the headache of converting initial conditions between formats for different simulation software. GCP's goal is to provide
 comprehensive tools for modeling and implementation of galaxy clusters in astrophysical simulations to promote the study of galaxy cluster dynamics.
 
 This repository contains the core package, which is constructed modularly to facilitate easy development by users to meet particular scientific use cases. All of the
 necessary tools to get started building initial conditions are provided.
 
-You can access the documentation [here](http:jzuhone.github.io/cluster_generator), or build it from scratch using the ``./docs`` directory in this source distribution.
-
+You can access the documentation [here](http:jzuhone.github.io/cluster_generator), or build it from scratch using the `./docs` directory in this source distribution.
 
 Development occurs here on Github, if you encounter any bugs, issues, documentation failures, or want to suggest features, we recommend that you submit an issue on
 the issues page of the repository.
@@ -113,8 +110,8 @@ simulations which are created using initial conditions from
 
 ## Contributing Code Documentation or Feedback
 
-All contributions, bug fixes, documentation improvements, and ideas are welcome. If you're interested in pursuing further development of the
-Cluster Generator Project, we suggest you start by browsing the [API Documentation](https://jzuhone.github.io/cluster_generator/build/html/api.html). When you're ready
+All contributions, bug fixes, documentation improvements, and ideas are welcome. If you're interested in pursuing further development of
+Cluster Generator, we suggest you start by browsing the [API Documentation](https://jzuhone.github.io/cluster_generator/build/html/api.html). When you're ready
 create a fork of this branch and begin your development. When you finish,
 feel free to  add a pull request to this repository and we will review your code contribution.
 

@@ -322,7 +322,6 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     return radius, mtot
 
 
-
 def ensure_ytquantity(x, default_units):
     """Ensures the quantity has units"""
     if isinstance(x, unyt_quantity):

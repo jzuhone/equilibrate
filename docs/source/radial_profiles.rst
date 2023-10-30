@@ -7,11 +7,11 @@ Radial Profiles
 
    <hr style="height:10px;background-color:black">
 
-Under the hood, the CGP relies on functions of the cluster's radius to represent most physical variables. These are then used
+Under the hood, CG relies on functions of the cluster's radius to represent most physical variables. These are then used
 to carry out the mathematics necessary to produce the self consistent clusters necessary for simulation. The :py:mod:`radial_profiles` module
 and its core class :py:class:`radial_profiles.RadialProfile` provide all of the necessary additional structure needed for these
 radial profiles wrapped around standard python callables. On this page, you'll find information on the built-in radial profiles that
-CGP provides, how to use them, and how to define your own custom :py:class:`radial_profiles.RadialProfile`.
+CG provides, how to use them, and how to define your own custom :py:class:`radial_profiles.RadialProfile`.
 
 .. contents::
 
@@ -23,7 +23,7 @@ CGP provides, how to use them, and how to define your own custom :py:class:`radi
 Built-In Radial Profiles
 ========================
 
-The following radial profiles are built-in to the CGP framework. You can call them just as you would a standard function.
+The following radial profiles are built-in to the CG framework. You can call them just as you would a standard function.
 Click on the name of each profile to access more comprehensive information about it.
 
 .. py:currentmodule:: radial_profiles

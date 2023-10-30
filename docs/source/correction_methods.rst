@@ -6,7 +6,7 @@ Methods For Correcting Non-Physical Regions
 Type 0 NPRs
 -----------
 
-As a matter of convention, Type 0 NPRs are never corrected in the CGP because the represent
+As a matter of convention, Type 0 NPRs are never corrected in CG because the represent
 a fundamental failure in the user's initialization parameters and there is no clear physical foundation for even
 providing a method to fix them.
 

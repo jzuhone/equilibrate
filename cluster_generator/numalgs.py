@@ -1,5 +1,5 @@
 """
-Numerical algorithms for use in the backend of the CGP.
+Numerical algorithms for use in the backend of the CG.
 """
 import numpy as np
 from scipy.integrate import quad

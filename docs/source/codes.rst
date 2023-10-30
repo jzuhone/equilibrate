@@ -3,7 +3,7 @@
 Simulation Software
 -------------------
 
-The hallmark of the CGP is the ability to generate 1 model in ``cluster_generator`` and export it to a variety of simulation codes
+The hallmark of the CG is the ability to generate 1 model in ``cluster_generator`` and export it to a variety of simulation codes
 with ease. On this page, we've provided a list of the various simulation software we support and some software specific tips on
 how to use each of them.
 
@@ -59,7 +59,7 @@ for the ``ClusterMerger`` setup are as follows:
 |fully-supported| |SPH| |documentation_easy|
 
 ``Arepo`` [WeSpPa]_ is a smooth-particle hydrodynamics simulation software developed at the `Max-Planck Institute for Astrophysics <https://arepo-code.org/wp-content/userguide/index.html>`_.
-CGP can be used to create HDF5-based initial conditions for
+CG can be used to create HDF5-based initial conditions for
 one, two, or three clusters for an idealized merger simulation for the Arepo code.
 The way to do this is to create a Gadget-like HDF5 initial conditions file:
 
@@ -88,14 +88,14 @@ Coming soon!
 
 The ``RAMSES`` code is a multipurpose AMR software developed by `Romain Teyssier <https://bitbucket.org/rteyssie/ramses/src/master/>`_. Because of its
 support for minimally invasive patching, ``RAMSES`` supports a variety of options for non-newtonian gravity, sub-grid physics, and other
-adaptations. In particular, ``RAMSES`` is the only code supported by CGP which is capable of performing MONDian simulations.
+adaptations. In particular, ``RAMSES`` is the only code supported by CG which is capable of performing MONDian simulations.
 
-Due to the variety of options regarding setting up ``RAMSES`` for use with the CGP, interested users should read the guide below for a
-full breakdown of what can be done with ``RAMSES`` and ``CGP``.
+Due to the variety of options regarding setting up ``RAMSES`` for use with CG, interested users should read the guide below for a
+full breakdown of what can be done with ``RAMSES`` and ``CG``.
 
 .. card:: RAMSES
 
-    In this guide, we show you how to run a simulation in RAMSES from CGP models.
+    In this guide, we show you how to run a simulation in RAMSES from CG models.
 
     +++
 
