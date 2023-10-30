@@ -15,7 +15,7 @@ def test_single_ics(answer_dir):
         "single", 1, p, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], num_particles=num_particles
     )
     parts = ics.setup_particle_ics(prng=prng)
-    particle_answer_testing(parts, "particles.h5", False, answer_dir)
+    particle_answer_testing(parts, Path(answer_dir) / "particles.h5", False, answer_dir)
 
 
 def test_double_ics(answer_store, answer_dir):
@@ -33,4 +33,6 @@ def test_double_ics(answer_store, answer_dir):
         num_particles=num_particles,
     )
     parts = ics.setup_particle_ics(prng=prng)
-    particle_answer_testing(parts, "double_particles.h5", answer_store, answer_dir)
+    particle_answer_testing(
+        parts, Path(answer_dir) / "double_particles.h5", answer_store, answer_dir
+    )
