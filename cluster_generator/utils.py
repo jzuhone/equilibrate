@@ -14,8 +14,7 @@ import yaml
 from more_itertools import always_iterable
 from numpy.random import RandomState
 from scipy.integrate import quad
-from scipy.interpolate import InterpolatedUnivariateSpline
-from unyt import Unit, exceptions, kpc
+from unyt import kpc
 from unyt import physical_constants as pc
 from unyt import unyt_array, unyt_quantity
 
@@ -180,7 +179,25 @@ def _daemon_process_runner(*args, **kwargs):
 
 
 def time_limit(function, max_execution_time, *args, **kwargs):
-    """Run the function under a time limit."""
+    """
+    Assert a maximal time limit on functions with potentially problematic / unbounded execution times.
+
+    .. warning::
+
+        This function launches a daemon process.
+
+    Parameters
+    ----------
+    function: callable
+        The function to run under the time limit.
+    max_execution_time: float
+        The maximum runtime in seconds.
+    args:
+        arguments to pass to the function.
+    kwargs: optional
+        keyword arguments to pass to the function.
+
+    """
     import time
 
     from tqdm import tqdm
@@ -304,101 +321,6 @@ def generate_particle_radii(r, m, num_particles, r_max=None, prng=None):
     radius = np.interp(u, P_r, r, left=0.0, right=1.0)
     return radius, mtot
 
-
-def build_yt_dataset_fields(grid, models, domain_dimensions, centers, velocities):
-    """Build the yt dataset files."""
-    from cluster_generator.model import ClusterModel
-
-    # -- Segmenting the fields by type -- #
-    _added_fields = [
-        "density",
-        "pressure",
-        "dark_matter_density",
-        "stellar_density",
-        "gravitational_potential",
-    ]
-    _mass_weighted_fields = ["temperature"]
-    _mass_weighted_nonfields = ["velocity_x", "velocity_y", "velocity_z"]
-    units = {
-        "density": "Msun/kpc**3",
-        "pressure": "Msun/kpc/Myr**2",
-        "dark_matter_density": "Msun/kpc**3",
-        "stellar_density": "Msun/kpc**3",
-        "temperature": "K",
-        "gravitational_potential": "kpc**2/Myr**2",
-        "velocity_x": "kpc/Myr",
-        "velocity_y": "kpc/Myr",
-        "velocity_z": "kpc/Myr",
-        "magnetic_field_strength": "G",
-    }
-
-    # -- Sanity Checks -- #
-    models = ensure_list(models)
-
-    for mid, model in enumerate(models):
-        if isinstance(model, str):
-            models[mid] = ClusterModel.from_h5_file(model)
-
-    centers = ensure_ytarray(centers, "kpc")
-    velocities = ensure_ytarray(velocities, "kpc/Myr")
-
-    mylog.info("Building yt dataset structure...")
-
-    x, y, z = grid
-    fields = _added_fields + _mass_weighted_fields
-    data = {}
-    for i, p in enumerate(models):
-        xx = x - centers.d[i][0]
-        yy = y - centers.d[i][1]
-        zz = z - centers.d[i][2]
-        rr = np.sqrt(xx * xx + yy * yy + zz * zz)
-        fd = InterpolatedUnivariateSpline(p["radius"].d, p["density"].d)
-
-        # -- Managing constituent fields -- #
-        for field in fields:
-            if field not in p:  # We don't have this data, don't do anything.
-                continue
-            else:
-                # Managing units
-                try:
-                    p[field] = p[field].to(units[field])
-                except exceptions.UnitConversionError as error:
-                    if field == "temperature":
-                        p[field] = p[field].to("K", equivalence="thermal")
-                    else:
-                        raise error
-
-            if (
-                field not in data
-            ):  # This data needs to be initialized in the data object.
-                data[field] = unyt_array(np.zeros(domain_dimensions), units[field])
-
-            f = InterpolatedUnivariateSpline(p["radius"].d, p[field].d)
-
-            if field in _added_fields:
-                data[field] += unyt_array(f(rr), units[field])  # Just add the values
-            elif field in _mass_weighted_fields:
-                data[field] += unyt_array(
-                    f(rr) * fd(rr), Unit(units[field])
-                )  # Density weighted values
-
-        # -- Managing Velocities -- #
-        for j, field in enumerate(_mass_weighted_nonfields):
-            if field not in data:
-                data[field] = unyt_array(np.zeros(domain_dimensions), units[field])
-
-            # We do need to add it #
-            data[field] += unyt_array(velocities.d[i][j] * fd(rr), Unit(units[field]))
-
-    if "density" in data:
-        for field in _mass_weighted_fields + _mass_weighted_nonfields:
-            data[field] /= data["density"].d
-    else:
-        mylog.warning(
-            "Failed to obtain a density profile, many fields may be inaccurate."
-        )
-
-    return data
 
 
 def ensure_ytquantity(x, default_units):

@@ -1,5 +1,5 @@
 """
-CGP module for managing particle type initial conditions.
+CG module for managing particle type initial conditions.
 """
 from collections import OrderedDict, defaultdict
 from pathlib import Path

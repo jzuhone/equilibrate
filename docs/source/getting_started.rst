@@ -45,7 +45,7 @@ for a number of N-body/hydrodynamic codes used in the astrophysics community.
 Installing the Package
 ======================
 
-The ``cluster_generator`` package can be obtained for python versions 3.8 and up. The first step towards working with the CGP is
+The ``cluster_generator`` package can be obtained for python versions 3.8 and up. The first step towards working with the CG is
 obtaining the package. There are a few ways to do this, we encourage you to choose the best option from those below and follow their
 instructions to obtain the package:
 
@@ -102,7 +102,7 @@ These will be installed automatically if you use ``pip`` or ``conda`` as detaile
 
 
 .. note::
-    There are a variety of additional libraries which provide very useful interfacing utilities for the CGP. Though not required,
+    There are a variety of additional libraries which provide very useful interfacing utilities for CG. Though not required,
     we do recommend installing the following libraries to maximize the utility of the package:
 
     - [`yt project  <https://yt-project.org>`_]: Used to generate in-memory, 3D-grid datasets for the models and ICs generated in
@@ -162,6 +162,7 @@ Quickstart Guides
         :py:mod:`collection` module.
 
         +++
+
 
         |beginner| |10min| |feature| |nyi|
     .. card:: Virialization Methods

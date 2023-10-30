@@ -76,7 +76,7 @@ Gravity
 '''''''
 
 In the preceding section, we described the basic mathematics of hydrostatic equilibrium; however, to find the dynamical mass and other related quantities,
-an expression for :math:`\Gamma` must be obtained independently. In each gravitational theory implemented in the CGP, the dynamical field may be determined in terms of
+an expression for :math:`\Gamma` must be obtained independently. In each gravitational theory implemented in CG, the dynamical field may be determined in terms of
 :math:`\Gamma` and can then be used to construct the correct mass profiles. In the window below, we've included 3 archetypal examples:
 
 .. tab-set::
@@ -301,5 +301,5 @@ Non-Physical Profiles
 =====================
 
 Sometimes, for a variety of reasons, generated :py:class:`model.ClusterModel` instances might have profiles which are non-physical. Sometimes, this is caused by a poor choice
-of radial profile for the given gravity theory, or is caused because some other physical constraint is not respected. The CGP has a model (:py:mod:`correction`) entirely focused on
+of radial profile for the given gravity theory, or is caused because some other physical constraint is not respected. CG has a model (:py:mod:`correction`) entirely focused on
 fixing these problems. For a comprehensive description of these issues and the algorithms used to solve them, see :ref:`correction` .

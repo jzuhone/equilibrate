@@ -7,6 +7,7 @@ In many cases, perfectly reasonable initial profiles (be they :math:`\rho_g`, :m
 can lead to manifestly non-physical final clusters when all of the calculations have been made. There are generally 3 reasons why
 this can occur:
 
+
 - **The profiles are explicitly flawed**
 
   - Example: You ask CGP to create initial conditions for a negative ICM temperature.
@@ -180,10 +181,12 @@ is inconsistent during later steps of the computation process.
 Type 2 Non-Physicalities
 ''''''''''''''''''''''''
 
+
 Type 2 Non-Physical regions occur when some aspect of the gravitational theory being used is inconsistent with the
 profiles provided and thus leads to non-physical results.
 
 .. note::
+
 
     These classes will be implemented with the upcoming gravity update.
 
@@ -209,6 +212,7 @@ of the model.
 
     For more examples on how this process works in practice, visit the :ref:`examples` page. For a more in-depth explanation of
     correction methodologies, visit :ref:`correction_methods`.
+
 
 Adding a New NPR
 ----------------
@@ -259,6 +263,7 @@ inherit directly from the next highest level NPR in the tree. The generic templa
     @classmethod
     def _identify(cls, model):
         nprs = []  # The NPRs being returned
+
 
         #
         # YOUR CODE TO IDENTIFY THE NPR GOES HERE.

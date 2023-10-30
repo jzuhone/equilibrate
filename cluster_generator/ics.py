@@ -457,7 +457,7 @@ class ClusterICs:
         Create an in-memory, uniformly gridded dataset in 3D using yt by
         placing the clusters into a box. When adding multiple clusters,
         per-volume quantities from each cluster such as density and
-        pressure are added, whereas per-mass quantites such as temperature
+        pressure are added, whereas per-mass quantities such as temperature
         and velocity are mass-weighted.
 
         Parameters
