@@ -45,7 +45,7 @@ for a number of N-body/hydrodynamic codes used in the astrophysics commmunity.
 Installing the Package
 ======================
 
-The ``cluster_generator`` package can be obtained for python versions 3.8 and up. The first step towards working with the CG is
+The ``cluster_generator`` package can be obtained for python versions 3.8 and up. The first step towards working with CG is
 obtaining the package. There are a few ways to do this, we encourage you to choose the best option from those below and follow their
 instructions to obtain the package:
 

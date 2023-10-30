@@ -121,8 +121,8 @@ simulations which are created using initial conditions from
 
 ## Contributing Code Documentation or Feedback
 
-All contributions, bug fixes, documentation improvements, and ideas are welcome. If you're interested in pursuing further development of the
-Cluster Generator Project, we suggest you start by browsing the [API Documentation](https://jzuhone.github.io/cluster_generator/build/html/api.html). When you're ready
+All contributions, bug fixes, documentation improvements, and ideas are welcome. If you're interested in pursuing further development of
+Cluster Generator, we suggest you start by browsing the [API Documentation](https://jzuhone.github.io/cluster_generator/build/html/api.html). When you're ready
 create a fork of this branch and begin your development. When you finish,
 feel free to  add a pull request to this repositiory and we will review your code contribution.
 

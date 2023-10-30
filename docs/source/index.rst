@@ -7,7 +7,7 @@ cluster_generator
 
    <hr style="height:10px;background-color:black">
 
-`Cluster Generator Project <https://jzuhone.github.io/cluster_generator>`_ (CG) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
+`Cluster Generator <https://jzuhone.github.io/cluster_generator>`_ (CG) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
 CG provides a variety of construction approaches, different physical assumption, profiles, and gravitational theories. Furthermore, CG is intended to interface with
 a number of N-body / hydrodynamics codes used in studies of galaxy clusters, reducing the headache of converting initial conditions between formats for different simulation softwares. GCP's goal is to provide
 comprehensive tools for modeling and implementation of galaxy clusters in astrophysical simulations to promote the study of galaxy cluster dynamics.
