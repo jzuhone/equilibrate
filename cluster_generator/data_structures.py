@@ -9,6 +9,7 @@ from cluster_generator.utils import ensure_list, ensure_ytarray, mylog
 
 
 def build_yt_dataset_fields(grid, models, domain_dimensions, centers, velocities):
+    """Builds the datastructures for initializing yt datasets"""
     from cluster_generator.model import ClusterModel
 
     # -- Segmenting the fields by type -- #
