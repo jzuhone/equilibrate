@@ -3,7 +3,7 @@ name: publish
 on:
   push:
     branches:
-      - pull-request-2
+      - pull-request-3
   workflow_dispatch:
     inputs:
 
