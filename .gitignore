@@ -4,6 +4,8 @@ cluster_generator.egg-info
 *.o
 *.c
 *~
-doc/build
+docs/build
+/docs/source/_as_gen/*
+/docs/source/_as_gen/
 .idea
 *.h5
