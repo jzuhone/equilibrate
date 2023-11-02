@@ -2,10 +2,11 @@
 name: Usage Issue
 about: Report a usage issue relevant to a specific project
 title: "[USAGE ISSUE]"
-labels: ''
+labels: usage question
 assignees: ''
 
 ---
+
 <!-- Thanks for reporting an issue! Please make sure you click the link above to view the issue guidelines, then fill out the blanks below. -->
 
 What Are You Trying To Do?

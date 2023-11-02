@@ -1,13 +1,17 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Frontend Issue
+about: Questions / Issues about simulation software integration
 title: ''
-labels: bug
+labels: Code-Specific
 assignees: ''
 
 ---
 
 <!-- Thanks for reporting an issue! Please make sure you click the link above to view the issue guidelines, then fill out the blanks below. -->
+
+What simulation software are you using?
+---------------------------------------------
+...
 
 What are the steps to reproduce this issue?
 -------------------------------------------
@@ -39,3 +43,5 @@ What versions of software are you using?
 **Toolchain Version:** …
 
 **SDK Version:** …
+
+**Simulation-Software Version:**...

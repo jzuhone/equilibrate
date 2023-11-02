@@ -1,26 +1,23 @@
 ---
-name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: bug
+name: Documentation Issue / Request
+about: Report an issue or flaw in documentation
+title: Documentation Issue
+labels: Documentation Issue
 assignees: ''
 
 ---
 
 <!-- Thanks for reporting an issue! Please make sure you click the link above to view the issue guidelines, then fill out the blanks below. -->
 
-What are the steps to reproduce this issue?
+Where is this issue located (URL)
 -------------------------------------------
-1. …
-2. …
-3. …
 
-What happens?
--------------
+What's Wrong?
+-----------------
 …
 
-What were you expecting to happen?
-----------------------------------
+What were you expecting / hoping to find?
+------------------------------------------------
 …
 
 Any logs, error output, etc?
@@ -31,11 +28,3 @@ Any logs, error output, etc?
 Any other comments?
 -------------------
 …
-
-What versions of software are you using?
-----------------------------------------
-**Operating System:** …
-
-**Toolchain Version:** …
-
-**SDK Version:** …
