@@ -4,8 +4,9 @@
 
 [![yt-project](https://img.shields.io/static/v1?label=%22works%20with%22&message=%22yt%22&color=%22blueviolet%22)](https://yt-project.org)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![ncodes](https://img.shields.io/static/v1?label=%22Implemented%20Sim.%20Codes%22&message=%227%22&color=%22red%22)](https://eliza-diggins.github.io/cluster_generator/build/html/codes.html)
-[![docs](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://eliza-diggins.github.io/cluster_generator)
+[![ncodes](https://img.shields.io/static/v1?label=%22Implemented%20Sim.%20Codes%22&message=%227%22&color=%22red%22)](https://jzuhone.github.io/cluster_generator/build/html/codes.html)
+[![docs](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://zjuhone.github.io/cluster_generator)
+![Python](https://img.shields.io/badge/Python_support-3.9+-orange.svg)
 ![testing](https://github.com/jzuhone/cluster_generator/actions/workflows/build-test.yml/badge.svg)
 ![Github Pages](https://github.com/Jzuhone/cluster_generator/actions/workflows/build-docs.yml/badge.svg)
 [![Coverage](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=master)](https://coveralls.io/github/Eliza-Diggins/cluster_generator)
@@ -65,7 +66,7 @@ To install the library directly from source code, there are two options. If you 
 install directly from the Github URL as follows:
 
 ```bash
-pip install git+https://www.github.com/eliza-diggins/cluster_generator
+pip install git+https://www.github.com/jzuhone/cluster_generator
 ```
 
 This will then clone the repository into your path libraries for the python environment you are using and run the setup procedure to install
