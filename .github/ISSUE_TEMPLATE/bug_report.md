@@ -6,33 +6,35 @@ labels: ''
 assignees: ''
 
 ---
+<!-- Thanks for reporting an issue! Please make sure you click the link above to view the issue guidelines, then fill out the blanks below. -->
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+What are the steps to reproduce this issue?
+-------------------------------------------
+1. …
+2. …
+3. …
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+What happens?
+-------------
+…
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+What were you expecting to happen?
+----------------------------------
+…
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+Any logs, error output, etc?
+----------------------------
+<!-- If it’s long, please paste to https://gist.github.com/ and insert the link here. -->
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+Any other comments?
+-------------------
+…
 
-**Additional context**
-Add any other context about the problem here.
+What versions of software are you using?
+----------------------------------------
+**Operating System:** …
+
+**Toolchain Version:** …
+
+**SDK Version:** …
