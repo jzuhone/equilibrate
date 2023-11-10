@@ -74,16 +74,18 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
     pbar.close()
     return velocity
 
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
-def divergence_clean(np.ndarray[CTYPE_t, ndim=3] gx,
+def div_clean(np.ndarray[CTYPE_t, ndim=3] gx,
                      np.ndarray[CTYPE_t, ndim=3] gy,
                      np.ndarray[CTYPE_t, ndim=3] gz,
                      np.ndarray[DTYPE_t, ndim=3] kx,
                      np.ndarray[DTYPE_t, ndim=3] ky,
                      np.ndarray[DTYPE_t, ndim=3] kz,
                      np.ndarray[DTYPE_t, ndim=1] deltas):
+
     cdef int i, j, k
     cdef int nx, ny, nz
     cdef DTYPE_t kxd, kyd, kzd, kkd
@@ -106,10 +108,10 @@ def divergence_clean(np.ndarray[CTYPE_t, ndim=3] gx,
                 kyd = sin(ky[i,j,k] * deltas[1]) / deltas[1]
                 kzd = sin(kz[i,j,k] * deltas[2]) / deltas[2]
                 kkd = sqrt(kxd*kxd + kyd*kyd + kzd*kzd)
-                if kkd != 0:
+                if kkd > 0:
                     kxd /= kkd
                     kyd /= kkd
-                    kzd /= kzd
+                    kzd /= kkd
                 kg = kxd * ggx + kyd * ggy + kzd * ggz
                 gx[i,j,k] = ggx - kxd * kg
                 gy[i,j,k] = ggy - kyd * kg
