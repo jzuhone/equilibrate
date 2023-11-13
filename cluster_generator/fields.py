@@ -6,7 +6,7 @@ import os
 import numpy as np
 from unyt import unyt_array
 
-from cluster_generator.cython_utils import divergence_clean
+from cluster_generator.cython_utils import div_clean
 from cluster_generator.model import ClusterModel
 from cluster_generator.utils import mylog, parse_prng
 
@@ -163,10 +163,11 @@ class ClusterField:
         self.gx = np.fft.fftn(self.gx)
         self.gy = np.fft.fftn(self.gy)
         self.gz = np.fft.fftn(self.gz)
-        """
+
         # These k's are different because we are
         # using the finite difference form of the
         # divergence operator.
+        """
         kxd = np.sin(kx * self.dx) / self.dx
         kyd = np.sin(ky * self.dy) / self.dy
         kzd = np.sin(kz * self.dz) / self.dz
@@ -188,7 +189,7 @@ class ClusterField:
 
         del kxd, kyd, kzd, kb
         """
-        divergence_clean(self.gx, self.gy, self.gz, kx, ky, kz, self.deltas)
+        div_clean(self.gx, self.gy, self.gz, kx, ky, kz, self.deltas)
 
         self.gx = np.fft.ifftn(self.gx).real
         self.gy = np.fft.ifftn(self.gy).real
