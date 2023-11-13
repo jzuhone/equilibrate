@@ -1291,7 +1291,7 @@ class ClusterModel:
             plt_defaults = yaml.load(f, yaml.FullLoader)
 
         if fields == "all":
-            fields = [i for i in self.fields.keys() if i != "radius"]
+            fields = [i for i in self.fields.keys()]
         else:
             assert isinstance(
                 fields, (list, tuple)
@@ -1387,7 +1387,8 @@ class ClusterModel:
 
         from yt.loaders import load_uniform_grid
 
-        from cluster_generator.utils import build_yt_dataset_fields, mylog
+        from cluster_generator.data_structures import build_yt_dataset_fields
+        from cluster_generator.utils import mylog
 
         mylog.info(f"Loading yt dataset of {self}...")
 
@@ -1437,6 +1438,79 @@ class ClusterModel:
             mass_unit="Msun",
             time_unit="Myr",
             **kwargs,
+        )
+
+    @property
+    def is_physical(self):
+        """
+        Determines of the :py:class:`ClusterModel` instance is physically realizable.
+
+        Returns
+        -------
+        bool
+
+        Notes
+        -----
+        See documentation on non-physical regions. This check is completed by assessing of the required density is
+        sufficiently bounded by the actual dynamical density.
+
+        """
+        density_fields = [
+            i for i in self.fields if i in ["dark_matter_density","density","stellar_density"]
+        ]
+        critical_density = np.sum([self.fields[k].d for k in density_fields],axis=0)
+
+        if np.any(np.where(~np.isclose(critical_density,self["total_density"].v))):
+            return False
+        else:
+            return True
+
+    def correct(self, mode="minimal"):
+        """
+        Corrects non-physical issues within the model and returns a corrected version.
+
+        Parameters
+        ----------
+        mode: str
+            The mode for correction
+
+        """
+        if self.is_physical:
+            mylog.info("No corrections were necessary, returned copy...")
+            return self
+
+        density_fields = {
+            k: v.d
+            for k, v in self.fields.items()
+            if ("density" in k) and (k != "total_density")
+        }
+        critical_density = np.sum(
+            np.array([u for u in density_fields.values()]), axis=0
+        )
+
+        if mode == "minimal":
+            self.fields["total_density"][
+                np.where(self.fields["total_density"].d < critical_density)
+            ] = critical_density * (1.01)
+
+            if "density" in self.properties["meth"]["profiles"]:
+                density_function = self.properties["meth"]["profiles"]["density"]
+            else:
+                density_function = InterpolatedUnivariateSpline(
+                    self["radius"].d, self["density"].d
+                )
+
+            total_density_function = InterpolatedUnivariateSpline(
+                self["radius"].d, self["total_density"].d
+            )
+
+        return ClusterModel.from_dens_and_tden(
+            np.amin(self["radius"]),
+            np.amax(self["radius"]),
+            density_function,
+            total_density_function,
+            self.properties["meth"]["profiles"]["stellar_density"],
+            num_points=len(self["radius"]),
         )
 
 

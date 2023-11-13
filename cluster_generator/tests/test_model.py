@@ -79,3 +79,63 @@ class TestModels:
     @pytest.mark.skip("Test Not Yet Written")
     def test_dataset(self):
         pass
+
+
+@pytest.mark.usefixtures("answer_store", "answer_dir")
+class TestCorrections:
+    mdl_name = "test_correction.h5"
+
+    def model(self, answer_store, answer_dir):
+        from cluster_generator.radial_profiles import (
+            vikhlinin_density_profile,
+            vikhlinin_temperature_profile,
+        )
+
+        if answer_store:
+            if hasattr(self, "is_built") and self.is_built is True:
+                # This was already built once this cycle.
+                self._model = ClusterModel.from_h5_file(
+                    os.path.join(answer_dir, self.mdl_name)
+                )
+                return self._model
+            else:
+                pass
+        else:
+            if os.path.exists(os.path.join(answer_dir, self.mdl_name)):
+                self._model = ClusterModel.from_h5_file(
+                    os.path.join(answer_dir, self.mdl_name)
+                )
+                return self._model
+            else:
+                pass
+
+        density = vikhlinin_density_profile(
+            119846, 94.6, 1239.9, 0.916, 0.526, 4.943, 3
+        )
+        temperature = vikhlinin_temperature_profile(
+            3.61, 0.12, 5, 10, 1420, 0.27, 57, 3.88
+        )
+        self._model = ClusterModel.from_dens_and_temp(1, 10000, density, temperature)
+        self._model.write_model_to_h5(
+            os.path.join(answer_dir, self.mdl_name), overwrite=True
+        )
+        self.is_built = True
+        return self._model
+
+    def test_minimal(self, answer_store, answer_dir):
+        import matplotlib.pyplot as plt
+
+        m = self.model(answer_store, answer_dir)
+
+        f, a = m.panel_plot()
+
+        assert not m.is_physical
+
+        new_m = m.correct()
+
+        new_m.panel_plot(fig=f, axes=a)
+
+        plt.show()
+
+        print(new_m.is_physical)
+        assert new_m.is_physical

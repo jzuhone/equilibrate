@@ -12,6 +12,13 @@ cython_utils = Extension(
     libraries=["m"],
     include_dirs=[np.get_include()],
 )
+numeric = Extension(
+    "cluster_generator.numeric",
+    sources=["cluster_generator/numeric.pyx"],
+    language="c",
+    libraries=["m"],
+    include_dirs=[np.get_include()],
+)
 
 setup(
     name="cluster_generator",
@@ -29,5 +36,5 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Visualization",
     ],
-    ext_modules=cythonize([cython_utils]),
+    ext_modules=cythonize([cython_utils, numeric]),
 )

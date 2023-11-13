@@ -47,13 +47,6 @@ repos:
   rev: v0.8.1
   hooks:
     - id: sphinx-lint
-- repo: local
-  hooks:
-    - id: custom-comment-check
-      name: Check for Required Comments
-      entry: sh
-      args: ["-c", "grep -r 'TODO' ."]
-      language: python
 - repo: https://github.com/pre-commit/pygrep-hooks
   rev: v1.10.0
   hooks:

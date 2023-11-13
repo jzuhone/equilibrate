@@ -1,6 +1,11 @@
 #
 # This file holds the default plot instructions for each of the fields available.
 #
+radius:
+  label: "$r$ / $\\left[%(unit)s\\right]$"
+  scale: "log"
+  revision: 1
+  kwargs: {}
 density:
   label: "$\\rho_{g}$ / $\\left[%(unit)s\\right]$"
   scale: "log"
