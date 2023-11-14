@@ -16,6 +16,5 @@ API Reference for CG
     particles
     relations
     virial
-    correction
     codes
     numalgs

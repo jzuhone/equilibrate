@@ -1443,16 +1443,18 @@ class ClusterModel:
     @property
     def is_physical(self):
         """
-        Determines of the :py:class:`ClusterModel` instance is physically realizable.
+        Determines if the :py:class:`model.ClusterModel` instance is physically realizable.
 
         Returns
         -------
         bool
+            ``True`` if the system is physically realizable, ``False`` otherwise.
 
         Notes
         -----
-        See documentation on non-physical regions. This check is completed by assessing of the required density is
-        sufficiently bounded by the actual dynamical density.
+        See the documentation on correcting non-physical regions. This method uses the fact that all non-physicalities in
+        the system is manifested in the dynamical density. The algorithm therefore checks the dynamical density for signs of
+        non-physicality and returns the results.
 
         """
         density_fields = [
@@ -1463,18 +1465,27 @@ class ClusterModel:
         critical_density = np.sum([self.fields[k].d for k in density_fields], axis=0)
 
         if np.any(np.where(~np.isclose(critical_density, self["total_density"].v))):
+            # There is missing mass or too much mass.
             return False
         else:
+            # There is no mass differential.
             return True
 
     def correct(self, mode="minimal"):
         """
-        Corrects non-physical issues within the model and returns a corrected version.
+        Correct the :py:class:`model.ClusterModel` instance. The ``mode`` kwarg may be used to determine the precise algorithm
+        that is used to complete the correction.
 
         Parameters
         ----------
         mode: str
-            The mode for correction
+            The algorithm to use for correction. Options are ``minimal`` and ``smooth``. If ``minimal``, then the dynamical density
+            is replaced with the minimum allowed consistent value but may lack smoothness. If ``smooth``, then a smooth monotone
+            interpolation scheme is used.
+
+        Returns
+        -------
+        :py:class:`model.ClusterModel`
 
         """
         if self.is_physical:
@@ -1505,7 +1516,7 @@ class ClusterModel:
             total_density_function = InterpolatedUnivariateSpline(
                 self["radius"].d, self["total_density"].d
             )
-        if mode == "smooth":
+        elif mode == "smooth":
             from cluster_generator.numeric import hfa
 
             self.fields["total_density"][
@@ -1526,7 +1537,8 @@ class ClusterModel:
                 )
 
             total_density_function = InterpolatedUnivariateSpline(self["radius"].d, _y)
-
+        else:
+            raise ValueError(f"The correction mode {mode} is not a valid mode.")
         return ClusterModel.from_dens_and_tden(
             np.amin(self["radius"]),
             np.amax(self["radius"]),

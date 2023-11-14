@@ -83,9 +83,14 @@ class TestModels:
 
 @pytest.mark.usefixtures("answer_store", "answer_dir")
 class TestCorrections:
+    """
+    Testing for the corrections methods in the models module.
+    """
+
     mdl_name = "test_correction.h5"
 
     def model(self, answer_store, answer_dir):
+        """Constructs the relevant model"""
         from cluster_generator.radial_profiles import (
             vikhlinin_density_profile,
             vikhlinin_temperature_profile,
@@ -123,37 +128,15 @@ class TestCorrections:
         return self._model
 
     def test_minimal(self, answer_store, answer_dir):
-        import matplotlib.pyplot as plt
-
         m = self.model(answer_store, answer_dir)
-
-        f, a = m.panel_plot()
-
         assert not m.is_physical
-
         new_m = m.correct()
-
-        new_m.panel_plot(fig=f, axes=a)
-
-        plt.show()
-
         assert new_m.is_physical
 
     def test_smooth(self, answer_store, answer_dir):
-        import matplotlib.pyplot as plt
-
         m = self.model(answer_store, answer_dir)
-
-        f, a = m.panel_plot()
-
         assert not m.is_physical
-
         new_m = m.correct(mode="smooth")
-
-        new_m.panel_plot(fig=f, axes=a)
-
-        plt.show()
-
         assert new_m.is_physical
 
     def test_compare(self, answer_store, answer_dir):
@@ -170,6 +153,6 @@ class TestCorrections:
 
         new_m.panel_plot(fig=f, axes=a, color="red")
         new_m_minimal.panel_plot(fig=f, axes=a, color="green")
-        plt.show()
+        plt.savefig(os.path.join(answer_dir, "compare_correction.png"))
 
         assert new_m.is_physical
