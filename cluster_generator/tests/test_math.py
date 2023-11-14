@@ -54,6 +54,8 @@ class TestNumerical:
 
     def test_hfa(self, answer_store, answer_dir):
         """test hfa against profiles."""
+        import os
+
         import matplotlib.pyplot as plt
 
         x = np.geomspace(0.1, 100, 1000)
@@ -81,4 +83,4 @@ class TestNumerical:
             plt.loglog(x, y, color=colors[i])
             plt.loglog(_xx, _yy, color=colors[i], ls=":")
 
-        plt.show()
+        plt.savefig(os.path.join(answer_dir, "mono_interp.png"))
