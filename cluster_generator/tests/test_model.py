@@ -137,5 +137,39 @@ class TestCorrections:
 
         plt.show()
 
-        print(new_m.is_physical)
+        assert new_m.is_physical
+
+    def test_smooth(self, answer_store, answer_dir):
+        import matplotlib.pyplot as plt
+
+        m = self.model(answer_store, answer_dir)
+
+        f, a = m.panel_plot()
+
+        assert not m.is_physical
+
+        new_m = m.correct(mode="smooth")
+
+        new_m.panel_plot(fig=f, axes=a)
+
+        plt.show()
+
+        assert new_m.is_physical
+
+    def test_compare(self, answer_store, answer_dir):
+        import matplotlib.pyplot as plt
+
+        m = self.model(answer_store, answer_dir)
+
+        f, a = m.panel_plot()
+
+        assert not m.is_physical
+
+        new_m = m.correct(mode="smooth")
+        new_m_minimal = self.model(answer_store, answer_dir).correct(mode="minimal")
+
+        new_m.panel_plot(fig=f, axes=a, color="red")
+        new_m_minimal.panel_plot(fig=f, axes=a, color="green")
+        plt.show()
+
         assert new_m.is_physical

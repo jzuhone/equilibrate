@@ -1456,11 +1456,13 @@ class ClusterModel:
 
         """
         density_fields = [
-            i for i in self.fields if i in ["dark_matter_density","density","stellar_density"]
+            i
+            for i in self.fields
+            if i in ["dark_matter_density", "density", "stellar_density"]
         ]
-        critical_density = np.sum([self.fields[k].d for k in density_fields],axis=0)
+        critical_density = np.sum([self.fields[k].d for k in density_fields], axis=0)
 
-        if np.any(np.where(~np.isclose(critical_density,self["total_density"].v))):
+        if np.any(np.where(~np.isclose(critical_density, self["total_density"].v))):
             return False
         else:
             return True
@@ -1503,6 +1505,27 @@ class ClusterModel:
             total_density_function = InterpolatedUnivariateSpline(
                 self["radius"].d, self["total_density"].d
             )
+        if mode == "smooth":
+            from cluster_generator.numeric import hfa
+
+            self.fields["total_density"][
+                np.where(self.fields["total_density"].d < critical_density)
+            ] = critical_density * (1.01)
+
+            u = np.log10(self["radius"].d)
+            v = np.log10(self["total_density"].d)
+
+            _u, _v = hfa(u, v, 50)
+            _y = 10 ** (_v)
+
+            if "density" in self.properties["meth"]["profiles"]:
+                density_function = self.properties["meth"]["profiles"]["density"]
+            else:
+                density_function = InterpolatedUnivariateSpline(
+                    self["radius"].d, self["density"].d
+                )
+
+            total_density_function = InterpolatedUnivariateSpline(self["radius"].d, _y)
 
         return ClusterModel.from_dens_and_tden(
             np.amin(self["radius"]),
