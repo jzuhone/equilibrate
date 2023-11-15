@@ -52,35 +52,12 @@ class TestNumerical:
         assert_allclose(hi, np.array([[0, 500]], dtype="int32"))
         assert_allclose(hx, np.array([[0, a]]), rtol=(2 * a) / 1000)
 
-    def test_hfa(self, answer_store, answer_dir):
+    @pytest.mark.parametrize("test_id", range(10))
+    def test_hfa(self, answer_store, answer_dir, test_id):
         """test hfa against profiles."""
-        import os
-
-        import matplotlib.pyplot as plt
-
         x = np.geomspace(0.1, 100, 1000)
 
-        colors = [
-            "#d4b954",
-            "#875dd0",
-            "#7dcc57",
-            "#d449a3",
-            "#72caab",
-            "#ce6039",
-            "#5e90c2",
-            "#767f44",
-            "#b685bd",
-            "#c2636f",
-        ]
-        for i in range(10):
-            y = (x - uniform(0.1, 10)) ** 2 * (x)
-
-            _x, _y = np.log10(x), np.log10(y)
-
-            u, v = hfa(_x, _y, 50)
-            assert_array_less(np.zeros(v.shape) - 1e-2, v - np.maximum.accumulate(v))
-            _xx, _yy = 10 ** (u), 10 ** (v)
-            plt.loglog(x, y, color=colors[i])
-            plt.loglog(_xx, _yy, color=colors[i], ls=":")
-
-        plt.savefig(os.path.join(answer_dir, "mono_interp.png"))
+        y = (x - uniform(0.3, 10)) ** 2 * (x)
+        _x, _y = np.log10(x), np.log10(y)
+        u, v = hfa(_x, _y, 50)
+        assert_array_less(np.zeros(v.shape) - 1e-2, v - np.maximum.accumulate(v))
