@@ -10,3 +10,4 @@ docs/build
 .idea
 *.h5
 *.properties
+build

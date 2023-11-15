@@ -36,5 +36,6 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Visualization",
     ],
+    include_package_data=True,
     ext_modules=cythonize([cython_utils, numeric]),
 )
