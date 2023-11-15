@@ -81,6 +81,9 @@ class TestModels:
         pass
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Incompatible dill serialization"
+)
 @pytest.mark.usefixtures("answer_store", "answer_dir")
 class TestCorrections:
     """
