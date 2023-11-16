@@ -350,3 +350,17 @@ def parse_prng(prng):
 def ensure_list(x):
     """Force x to be a list"""
     return list(always_iterable(x))
+
+
+def _closest_factors(val):
+    assert isinstance(val, int), "Value must be integer."
+
+    a, b, i = 1, val, 0
+
+    while a < b:
+        i += 1
+        if val % i == 0:
+            a = i
+            b = val // a
+
+    return (a, b)

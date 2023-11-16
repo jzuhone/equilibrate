@@ -15,6 +15,7 @@ from unyt import unyt_array, unyt_quantity
 from cluster_generator.particles import ClusterParticles
 from cluster_generator.utils import (
     G,
+    _closest_factors,
     _enforce_style,
     ensure_ytquantity,
     generate_particle_radii,
@@ -1279,8 +1280,6 @@ class ClusterModel:
         from itertools import product
 
         import matplotlib.pyplot as plt
-
-        from cluster_generator.numalgs import _closest_factors
 
         # Loading the plot defaults
         _config_directory = os.path.join(
