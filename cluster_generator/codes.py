@@ -113,7 +113,7 @@ def setup_gamer_ics(ics, regenerate_particles=False, use_tracers=False):
         )
         hse_file_gamer = ics.profiles[i].replace(".h5", "_gamer.h5")
         hses[i].write_model_to_h5(
-            hse_file_gamer, overwrite=True, in_cgs=True, r_max=ics.r_max
+            hse_file_gamer, overwrite=True, in_cgs=True, r_max=ics.r_max[i]
         )
         vel = ics.velocity[i].to_value("km/s")
         outlines += [
