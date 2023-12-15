@@ -1,15 +1,15 @@
-name: Tests
+name: publish
 
 on:
   push:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ "3.8" ]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
@@ -18,15 +18,22 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get install build-essential  python3-dev
+          sudo apt install libgirepository1.0-dev
           python3 -m pip install --upgrade pip
-          pip3 install pylint
-          pip3 install pytest pytest-cov pytest-subtests
-          pip3 install coveralls
           pip3 install -r requirements.txt
+
       - name: Setup
         run: |
           pip install -e .
-      - name: Running pytest
+
+      - name: run
         run: |
-          pytest cluster_generator --doctest-modules --answer_dir="./tmp" --answer_store --gravity="Newtonian" --cov=cluster_generator --cov-report=xml
-          COVERALLS_REPO_TOKEN=tQ0ra8kUn56CDx6Cjp7Wil8Pp5qA9vTdK coveralls
+          sudo apt install pandoc
+          cd ./docs
+          make html
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs

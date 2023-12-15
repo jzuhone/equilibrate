@@ -1,6 +1,8 @@
 API
 ===
 
+API Reference for CG
+
 .. autosummary::
     :toctree: _as_gen
     :recursive:
@@ -14,5 +16,5 @@ API
     particles
     relations
     virial
-    correction
     codes
+    numalgs

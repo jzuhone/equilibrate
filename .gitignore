@@ -9,4 +9,5 @@ docs/build
 /docs/source/_as_gen/
 .idea
 *.h5
+*.properties
 build

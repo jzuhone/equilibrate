@@ -13,7 +13,8 @@ from cluster_generator.utils import mylog, parse_prng
 
 def parse_value(value, default_units):
     """
-    Parses an array of values into the correct units.
+    Parse an array of values into the correct units.
+
     Parameters
     ----------
     value: array-like or tuple
@@ -22,10 +23,12 @@ def parse_value(value, default_units):
         Finally, if ``value`` is an array, it is assumed that the ``default_units`` are correct.
     default_units: str
         The default unit for the quantity.
+
     Returns
     -------
     unyt_array:
         The converted array.
+
     """
     if isinstance(value, unyt_array):
         val = unyt_array(value.v, value.units).in_units(default_units)
@@ -39,6 +42,7 @@ def parse_value(value, default_units):
 def rot_3d(axis, gx, gy, gz, ang):
     """
     Rotates the vector ``[gx,gy,gz]`` by an angle ``ang`` around a specified axis.
+
     Parameters
     ----------
     axis: int
@@ -51,6 +55,7 @@ def rot_3d(axis, gx, gy, gz, ang):
         Vector z component.
     ang: float
         The angle over which to rotate.
+
     Returns
     -------
     gx: float
@@ -59,6 +64,7 @@ def rot_3d(axis, gx, gy, gz, ang):
         Vector y component.
     gz: float
         Vector z component.
+
     """
     c = np.cos(ang)
     s = np.sin(ang)
@@ -89,6 +95,7 @@ class ClusterField:
         If ``True``, the vector potential is generated.
     divergence_clean: bool
         If ``True``, divergence is removed.
+
     """
 
     _units = "dimensionless"
@@ -238,6 +245,7 @@ class ClusterField:
 
     @property
     def units(self):
+        """The units associated with the field."""
         if self.vector_potential:
             return f"{self._units}*kpc"
         else:
@@ -266,6 +274,9 @@ class ClusterField:
             Default: "kpc"
         field_unit : string, optional
             The units for the field
+        format: str, optional
+            The output format.
+
         """
         import h5py
         from scipy.io import FortranFile
@@ -320,6 +331,7 @@ class ClusterField:
         units : string, optional
             Change the units of the field. Default: None, which
             implies they will remain in "galactic" units.
+
         """
         from scipy.interpolate import RegularGridInterpolator
 
@@ -338,6 +350,8 @@ class ClusterField:
 
 
 class GaussianRandomField(ClusterField):
+    """Class for managing Gaussian random fields."""
+
     def __init__(
         self,
         left_edge,
@@ -573,6 +587,8 @@ class GaussianRandomField(ClusterField):
 
 
 class RandomMagneticField(GaussianRandomField):
+    """TODO: Docstring"""
+
     _units = "gauss"
     _name = "magnetic_field"
     _vector_potential = False
@@ -605,6 +621,8 @@ class RandomMagneticField(GaussianRandomField):
 
 
 class RadialRandomMagneticField(GaussianRandomField):
+    """TODO: Docstring"""
+
     _units = "gauss"
     _name = "magnetic_field"
     _vector_potential = False
@@ -712,16 +730,22 @@ class RadialRandomMagneticField(GaussianRandomField):
 
 
 class RandomMagneticVectorPotential(RandomMagneticField):
+    """TODO: Docstring"""
+
     _name = "magnetic_vector_potential"
     _vector_potential = True
 
 
 class RadialRandomMagneticVectorPotential(RadialRandomMagneticField):
+    """TODO: Docstring"""
+
     _name = "magnetic_vector_potential"
     _vector_potential = True
 
 
 class RandomVelocityField(GaussianRandomField):
+    """TODO: Docstring"""
+
     _units = "kpc/Myr"
     _name = "velocity"
 
@@ -753,6 +777,8 @@ class RandomVelocityField(GaussianRandomField):
 
 
 class RadialRandomVelocityField(GaussianRandomField):
+    """TODO: Docstring"""
+
     _units = "kpc/Myr"
     _name = "velocity"
 

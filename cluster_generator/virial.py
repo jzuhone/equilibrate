@@ -1,3 +1,6 @@
+"""
+Virialization module for CG
+"""
 from collections import OrderedDict
 
 import numpy as np
@@ -11,6 +14,8 @@ from cluster_generator.utils import generate_particle_radii, mylog, quad
 
 
 class VirialEquilibrium:
+    """Virialization manager: TODO"""
+
     def __init__(self, model, ptype="dark_matter", df=None):
         r"""
         Generate a virial equilibrium model from a profile.
@@ -26,6 +31,7 @@ class VirialEquilibrium:
         df : unyt_array
             The particle distribution function. If not supplied, it will
             be generated.
+
         """
         self.num_elements = model.num_elements
         self.ptype = ptype
@@ -82,6 +88,7 @@ class VirialEquilibrium:
         chk : NumPy array
             The relative difference between the input density
             profile and the one calculated using this method.
+
         """
         n = self.num_elements
         rho = np.zeros(n)
@@ -134,6 +141,7 @@ class VirialEquilibrium:
         -------
         particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of dark matter or star particles.
+
         """
         from cluster_generator.utils import parse_prng
 
@@ -184,7 +192,6 @@ class VirialEquilibrium:
         vesc = 2.0 * psi
         fv2esc = vesc * self.f(psi)
         vesc = np.sqrt(vesc)
-
         velocity_sub = generate_velocities(
             psi,
             vesc,
