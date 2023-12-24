@@ -2,16 +2,18 @@
 Utility functions for basic functionality of the py:module:`cluster_generator` package.
 """
 import logging
-import multiprocessing
 import os
 import pathlib as pt
 import sys
+from functools import wraps
+from itertools import product
 
 import numpy as np
 import yaml
 from more_itertools import always_iterable
 from numpy.random import RandomState
 from scipy.integrate import quad
+from tqdm import tqdm
 from unyt import kpc
 from unyt import physical_constants as pc
 from unyt import unyt_array, unyt_quantity
@@ -121,121 +123,6 @@ mue = 1.0 / (X_H + 0.5 * (1.0 - X_H))
 _truncator_function = lambda a, r, x: 1 / (1 + (x / r) ** a)
 
 
-class TimeoutException(Exception):
-    def __init__(self, msg="", func=None, max_time=None):
-        self.msg = f"{msg} -- {str(func)} -- max_time={max_time} s"
-
-
-def _daemon_process_runner(*args, **kwargs):
-    # Runs the function specified in the kwargs in a daemon process #
-
-    send_end = kwargs.pop("__send_end")
-    function = kwargs.pop("__function")
-
-    try:
-        result = function(*args, **kwargs)
-    except Exception as e:
-        send_end.send(e)
-        return
-
-    send_end.send(result)
-
-
-def time_limit(function, max_execution_time, *args, **kwargs):
-    """
-    Assert a maximal time limit on functions with potentially problematic / unbounded execution times.
-
-    .. warning::
-
-        This function launches a daemon process.
-
-    Parameters
-    ----------
-    function: callable
-        The function to run under the time limit.
-    max_execution_time: float
-        The maximum runtime in seconds.
-    args:
-        arguments to pass to the function.
-    kwargs: optional
-        keyword arguments to pass to the function.
-
-    """
-    import time
-
-    from tqdm import tqdm
-
-    recv_end, send_end = multiprocessing.Pipe(False)
-    kwargs["__send_end"] = send_end
-    kwargs["__function"] = function
-
-    tqdm_kwargs = {}
-    for key in ["desc"]:
-        if key in kwargs:
-            tqdm_kwargs[key] = kwargs.pop(key)
-
-    N = 1000
-
-    p = multiprocessing.Process(target=_daemon_process_runner, args=args, kwargs=kwargs)
-    p.start()
-
-    for _ in tqdm(
-        range(N),
-        **tqdm_kwargs,
-        bar_format="{desc}: {percentage:3.0f}%|{bar}| [{elapsed}<{remaining} - {postfix}]",
-        colour="green",
-        leave=False,
-    ):
-        time.sleep(max_execution_time / 1000)
-
-        if not p.is_alive():
-            p.join()
-            result = recv_end.recv()
-            break
-
-    if p.is_alive():
-        p.terminate()
-        p.join()
-        raise TimeoutException(
-            "Failed to complete process within time limit.",
-            func=function,
-            max_time=max_execution_time,
-        )
-    else:
-        p.join()
-        result = recv_end.recv()
-
-    if isinstance(result, Exception):
-        raise result
-    else:
-        return result
-
-
-def truncate_spline(f, r_t, a):
-    r"""
-    Takes the function ``f`` and returns a truncated equivalent of it, which becomes
-    .. math::
-    f'(x) = f(r_t) \left(\frac{x}{r_t}\right)**(r_t*df/dx(r_t)/f(r_t))
-    This preserves the slope and continuity of the function be yields a monotonic power law at large :math:`r`.
-    Parameters
-    ----------
-    f: InterpolatedUnivariateSpline
-        The function to truncate
-    r_t: float
-        The scale radius
-    a: float
-        Truncation rate. Higher values cause transition more quickly about :math:`r_t`.
-    Returns
-    -------
-    callable
-        The new function.
-    """
-    _gamma = r_t * f(r_t, 1) / f(r_t)  # This is the slope.
-    return lambda x, g=_gamma, a=a, r=r_t: f(x) * _truncator_function(a, r, x) + (
-        1 - _truncator_function(a, r, x)
-    ) * (f(r) * _truncator_function(-g, r, x))
-
-
 def integrate_mass(profile, rr):
     mass_int = lambda r: profile(r) * r * r
     mass = np.zeros(rr.shape)
@@ -300,3 +187,138 @@ def parse_prng(prng):
 
 def ensure_list(x):
     return list(always_iterable(x))
+
+
+def _build_chunks(chunksize, domain_dimensions):
+    domain_dimensions = np.array(domain_dimensions, dtype="uint16")
+    chunksize = np.array(3 * [chunksize], dtype="uint16")
+    ngrids = np.array(
+        np.ceil(domain_dimensions / chunksize), dtype="uint32"
+    )  # count of grids on each dimension.
+    _gu, _gv, _gw = np.mgrid[0 : ngrids[0], 0 : ngrids[1], 0 : ngrids[2]]
+
+    # Construct the index space coordinates for each of the chunks.
+    _chunk_coordinates = np.array(
+        [[_gu, _gv, _gw], [_gu + 1, _gv + 1, _gw + 1]], dtype="uint"
+    )
+    _chunk_coordinates[:, :, _gu, _gv, _gw] *= chunksize.reshape((1, 3, 1, 1, 1))
+
+    _chunk_coordinates[1, 0, -1, :, :] = domain_dimensions[0]
+    _chunk_coordinates[1, 1, :, -1, :] = domain_dimensions[1]
+    _chunk_coordinates[1, 2, :, :, -1] = domain_dimensions[2]
+
+    chunk_ids = list(product(*[range(k) for k in ngrids]))
+
+    return chunk_ids, _chunk_coordinates
+
+
+def chunked_operation(function):
+    @wraps(function)
+    def wrapper(
+        arrays_in,
+        array_out,
+        *args,
+        chunksize=64,
+        chunking=True,
+        chunk_data=None,
+        label=None,
+        progress_bar_position=0,
+        show_progress_bar=True,
+        leave_progress_bar=False,
+        **kwargs,
+    ):
+        """
+        Wraps ``function`` so that the operation acts on arrays in a chunked fashion. Generically, ``function`` must have
+        a structure ``function(array1,array2,...,arg1,arg2,...,kwarg1,kwarg2)``. The new, wrapped, function will have a signature
+        ``function([arrays_in],array_out,*args,...,**wrapper_kwargs,**kwargs)``. The operations will then be carried out in chunks and
+        each chunked operation written directly to ``array_out``.
+
+        Parameters
+        ----------
+        arrays_in: list of :py:class:`np.ndarray`
+            The input arrays. For whichever ``function`` is chosen as the base, the correct number of array arguments must be
+            contained in this list.
+        array_out: :py:class:`np.ndarray` or array-like
+            This is the output array, and therefore should be the object onto which the data is written. This could be an instance
+            of :py:class:`np.ndarray` stored in memory (in which case, chunking is effectively useless), or (as is more common), a reference
+            to an HDF5 dataset or similar IO protocol so that each chunk is written to disk and memory is preserved.
+        *args
+            Additional arguments which are not arrays (and therefore do not need to be chunked). These are passed directly to ``function``.
+        chunksize: int, optional
+            The maximum size of a given chunk in the operation. Smaller ``chunksize`` will reduce memory load but increase runtime. Default is 64.
+        chunking: bool, optional
+            If ``True``, chunking is used; otherwise, the operation is done as usual without the wrapper. Default is ``True``.
+        chunk_data: tuple, optional
+            Output from :py:func:`_build_chunks`. The ``chunk_ids`` and ``chunk_coordinates``. This kwarg is not necessary; however, if
+            many operations are performed on the same array structure, computing the chunk data once and specifying it in the kwarg will reduce
+            the runtime associated with repeated computation.
+        label: str, optional
+            The name of the process being executed. If not specified, the default string representation of the function is used.
+        progress_bar_position: int, optional
+            The position of the progress bar.
+        show_progress_bar: bool, optional
+            If ``False``, the progress bar is hidden.
+        leave_progress_bar: bool, optional
+            If ``True``, the progress bar will persist after the operation is complete.
+        **kwargs
+            Additional kwargs to pass to ``function``.
+
+        Returns
+        -------
+        callable
+            The output wrapper function
+        """
+        if label is None:
+            label = function.__str__()
+        domain_dimensions = array_out.shape
+
+        if chunking:
+            if not chunk_data:
+                chunk_ids, _chunk_coordinates = _build_chunks(
+                    chunksize, domain_dimensions
+                )
+            else:
+                chunk_ids, _chunk_coordinates = chunk_data
+
+            for chunk in tqdm(
+                chunk_ids,
+                desc=f"Computing {label} on {len(chunk_ids)} grids...",
+                position=progress_bar_position,
+                leave=leave_progress_bar,
+                disable=(not show_progress_bar),
+            ):
+                _cc = _chunk_coordinates[:, :, *chunk]
+                _slice = [
+                    slice(_cc[0, 0], _cc[1, 0]),
+                    slice(_cc[0, 1], _cc[1, 1]),
+                    slice(_cc[0, 2], _cc[1, 2]),
+                ]
+
+                array_out[*_slice] += function(
+                    *[i[*_slice] for i in arrays_in], *args, **kwargs
+                )
+        else:
+            array_out += function(*arrays_in, *args, **kwargs)
+
+    return wrapper
+
+
+@chunked_operation
+def add(a, b, c):
+    """
+
+    Parameters
+    ----------
+    a
+    b
+    c
+
+    Returns
+    -------
+
+    """
+    return a + b + c
+
+
+if __name__ == "__main__":
+    add()

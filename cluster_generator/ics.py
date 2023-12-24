@@ -1,6 +1,7 @@
 import os
 from numbers import Number
 
+import h5py
 import numpy as np
 from ruamel.yaml import YAML
 
@@ -13,7 +14,13 @@ from cluster_generator.particles import (
     resample_three_clusters,
     resample_two_clusters,
 )
-from cluster_generator.utils import ensure_list, ensure_ytarray, parse_prng
+from cluster_generator.utils import (
+    cgparams,
+    ensure_list,
+    ensure_ytarray,
+    mylog,
+    parse_prng,
+)
 
 
 def compute_centers_for_binary(center, d, b, a=0.0):
@@ -409,91 +416,139 @@ class ClusterICs:
             )
         return new_parts
 
-    def create_dataset(self, domain_dimensions, box_size, left_edge=None, **kwargs):
-        """
-        Create an in-memory, uniformly gridded dataset in 3D using yt by
-        placing the clusters into a box. When adding multiple clusters,
-        per-volume quantities from each cluster such as density and
-        pressure are added, whereas per-mass quantities such as temperature
-        and velocity are mass-weighted.
-
-        Parameters
-        ----------
-        domain_dimensions : 3-tuple of ints
-            The number of cells on a side for the domain.
-        box_size : float
-            The size of the box in kpc.
-        left_edge : array_like, optional
-            The minimum coordinate of the box in all three dimensions,
-            in kpc. Default: None, which means the left edge will
-            be [0, 0, 0].
-        """
+    def create_dataset(
+        self,
+        box_size,
+        fields=None,
+        domain_dimensions=(512, 512, 512),
+        chunking=False,
+        chunksize=64,
+        left_edge=None,
+        filename=None,
+        overwrite=False,
+    ):
         from scipy.interpolate import InterpolatedUnivariateSpline
-        from yt.loaders import load_uniform_grid
+        from yt import load_hdf5_file, load_uniform_grid
 
-        if left_edge is None:
-            left_edge = np.zeros(3)
-        left_edge = np.array(left_edge)
-        bbox = [
-            [left_edge[0], left_edge[0] + box_size],
-            [left_edge[1], left_edge[1] + box_size],
-            [left_edge[2], left_edge[2] + box_size],
-        ]
-        x, y, z = np.mgrid[
-            bbox[0][0] : bbox[0][1] : domain_dimensions[0] * 1j,
-            bbox[1][0] : bbox[1][1] : domain_dimensions[1] * 1j,
-            bbox[2][0] : bbox[2][1] : domain_dimensions[2] * 1j,
-        ]
-        fields1 = [
-            "density",
-            "pressure",
-            "dark_matter_density" "stellar_density",
-            "gravitational_potential",
-        ]
-        fields2 = ["temperature"]
-        fields3 = ["velocity_x", "velocity_y", "velocity_z"]
-        units = {
-            "density": "Msun/kpc**3",
-            "pressure": "Msun/kpc/Myr**2",
-            "dark_matter_density": "Msun/kpc**3",
-            "stellar_density": "Msun/kpc**3",
-            "temperature": "K",
-            "gravitational_potential": "kpc**2/Myr**2",
-            "velocity_x": "kpc/Myr",
-            "velocity_y": "kpc/Myr",
-            "velocity_z": "kpc/Myr",
-            "magnetic_field_strength": "G",
-        }
-        fields = fields1 + fields2
-        data = {}
-        for i, profile in enumerate(self.profiles):
-            p = ClusterModel.from_h5_file(profile)
-            xx = x - self.center.d[i][0]
-            yy = y - self.center.d[i][1]
-            zz = z - self.center.d[i][2]
-            rr = np.sqrt(xx * xx + yy * yy + zz * zz)
-            fd = InterpolatedUnivariateSpline(p["radius"].d, p["density"].d)
-            for field in fields:
-                if field not in p:
-                    continue
-                if field not in data:
-                    data[field] = (np.zeros(domain_dimensions), units[field])
-                f = InterpolatedUnivariateSpline(p["radius"].d, p[field].d)
-                if field in fields1:
-                    data[field][0] += f(rr)
-                elif field in fields2:
-                    data[field][0] += f(rr) * fd(rr)
-            for field in fields3:
-                data[field][0] += self.velocity.d[i][0] * fd(rr)
-        if "density" in data:
-            for field in fields2 + fields3:
-                data[field][0] /= data["density"][0]
-        return load_uniform_grid(
-            data,
-            domain_dimensions,
-            length_unit="kpc",
-            bbox=bbox,
-            mass_unit="Msun",
-            time_unit="Myr",
-            **kwargs,
+        from cluster_generator.data_structures import (
+            _fill_grid,
+            additive_fields,
+            chunked_operation,
+            compute_model_grids,
+            dens_weighted_fields,
+            dens_weighted_nonfields,
+            setup_geometry,
+            setup_yt_hdf5_file,
         )
+
+        mylog.info(f"Generating YT dataset, chunking={chunking}.")
+        if fields is None:  # --> User can leave as None to simple grab all fields.
+            fields = additive_fields + dens_weighted_fields + dens_weighted_nonfields
+        if left_edge is None:
+            left_edge = 3 * [-box_size / 2]
+
+        assert len(domain_dimensions) == 3, "Domain dimensions must be a 3 tuple."
+        assert len(left_edge) == 3, "`left_edge` must be a 3 tuple."
+
+        if (filename is not None) or chunking:  # Constructing the HDF5 system.
+            filename = setup_yt_hdf5_file(
+                fields,
+                domain_dimensions,
+                filename=filename,
+                overwrite=overwrite,
+                root="grid",
+            )
+            fo = h5py.File(filename, "a")
+            data_object = fo["grid"]
+            geom = fo["geometry"]["rr"]
+        else:
+            mylog.info("Loading YT grid data in memory.")
+            geom = np.zeros(domain_dimensions, dtype="float64")
+            data_object = {
+                field_name: np.zeros(domain_dimensions, dtype="float64")
+                for field_name in fields
+            }
+
+        for i, profile in enumerate(self.profiles):
+            bbox = setup_geometry(
+                geom,
+                box_size,
+                left_edge,
+                domain_dimensions,
+                chunking=chunking,
+                chunksize=chunksize,
+                center=self.center[i],
+            )  # Fetch the geometry on which to fill the grids.
+
+            p = ClusterModel.from_h5_file(profile)
+
+            compute_model_grids(p, geom, data_object, chunking, chunksize, fields)
+
+            if any(fld in dens_weighted_nonfields for fld in fields):
+                f = InterpolatedUnivariateSpline(p["radius"].d, p["density"].d)
+                for k, field in enumerate(dens_weighted_nonfields):
+                    _fill_grid(
+                        [geom],
+                        data_object[field],
+                        lambda x, ii=i, kk=k, ff=f: self.velocity[ii][kk] * ff(x),
+                        chunking=chunking,
+                        chunksize=chunksize,
+                        leave_progress_bar=False,
+                        progress_bar_position=1,
+                        show_progress_bar=cgparams["system"]["display"][
+                            "progress_bars"
+                        ],
+                        label=field,
+                    )
+        if "density" in data_object:
+            for field in dens_weighted_fields + dens_weighted_nonfields:
+                if field in data_object:
+                    # Divide the field by the relevant density. This is entirely superfluous, but necessary
+                    # when considering ICs with many models.
+                    chunked_operation(np.divide)(
+                        [data_object[field], data_object["density"]],
+                        data_object[field],
+                        chunksize=chunksize,
+                        chunking=chunking,
+                        label="density_weighting",
+                        show_progress_bar=cgparams["system"]["display"][
+                            "progress_bars"
+                        ],
+                        progress_bar_position=0,
+                        leave_progress_bar=False,
+                    )
+
+        if (
+            filename is not None
+        ):  # --> filename provided now even if chunking is on and filename was None.
+            fo.close()
+
+        # load the dataset
+        if filename is not None:
+            return load_hdf5_file(
+                filename,
+                "/grid",
+                bbox=bbox,
+                dataset_arguments={
+                    "length_unit": "kpc",
+                    "mass_unit": "Msun",
+                    "time_unit": "Myr",
+                    "magnetic_unit": "G",
+                    "velocity_unit": "kpc/Myr",
+                    "sim_time": 0.0,
+                    "dataset_name": self.__str__(),
+                },
+            )
+        else:
+            return load_uniform_grid(
+                data_object,
+                domain_dimensions,
+                length_unit="kpc",
+                mass_unit="Msun",
+                time_unit="Myr",
+                magnetic_unit="G",
+                velocity_unit="kpc/Myr",
+                sim_time=0.0,
+                bbox=bbox,
+                dataset_name=self.__str__(),
+            )
