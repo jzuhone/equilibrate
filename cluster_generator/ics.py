@@ -427,6 +427,41 @@ class ClusterICs:
         filename=None,
         overwrite=False,
     ):
+        r"""
+        Generates a YT dataset object representing the :py:class:`ics.ClusterICs` object.
+
+        Parameters
+        ----------
+        box_size: float
+            The size of the overall box in kpc. By default, this is twice the largest radius in the data.
+        fields: list, optional
+            The ``fields`` to include in the dataset. By default, ``fields == None`` and all valid fields are included. If a list
+            is provided, only those fields which are in the list are included in the final dataset. Regardless of presence in the ``fields`` list,
+            if a field is not recognized, it will not be included and a warning will be raised.
+        domain_dimensions: tuple, optional
+            The dimensions of the grid domain. ``domain_dimensions`` should be a 3-tuple containing the number of cells to
+            include on each axis of the grid. The default is ``(512,512,512)``.
+        chunking: bool, optional
+            If ``True``, then the dataset will be constructed in chunks. This may increase the generation time, but will decrease the overall
+            memory load of the dataset generation procedure. When ``chunking==False``, the dataset in produced in a standard :py:class:`dict` object and
+            stored entirely in memory. Otherwise, an HDF5 file is used to store the dataset on disk. if ``filename`` is ``None``, then this is a tempfile and
+            it is deleted at the end of standard runtime.
+        chunksize: int, optional
+            The chunk size to use if ``chunking == True``. This is the maximal size of each chunk. Defaults to ``64``.
+        left_edge: tuple, optional
+            The left edge of the domain box in kpc. This may be used to specify the precise positioning of the dataset relative to the
+            center position of the relevant model. By default, the left edge is set to be minus the largest radius contained in the fields.
+        filename: str, optional
+            The filename to use for storage of the YT dataset. If the filename is specified, then the YT dataset it writen to disk and
+            YT can load the dataset without any interfacing with cluster generator. If the filename is not specified, but chunking is on,
+            then the dataset is written to a tempfile which is deleted at the end of runtime.
+        overwrite: bool, optional
+            If ``True``, then if ``filename`` already exists, it will be overwritten by the incoming model data without warning.
+
+        Returns
+        -------
+        :py:class:`yt.dataset`
+        """
         from scipy.interpolate import InterpolatedUnivariateSpline
         from yt import load_hdf5_file, load_uniform_grid
 

@@ -2,6 +2,7 @@
 Utility functions for basic functionality of the py:module:`cluster_generator` package.
 """
 import logging
+import operator
 import os
 import pathlib as pt
 import sys
@@ -213,6 +214,8 @@ def _build_chunks(chunksize, domain_dimensions):
 
 
 def chunked_operation(function):
+    _ops = {"+=": operator.iadd, "*=": operator.imul, "=": None}
+
     @wraps(function)
     def wrapper(
         arrays_in,
@@ -225,6 +228,7 @@ def chunked_operation(function):
         progress_bar_position=0,
         show_progress_bar=True,
         leave_progress_bar=False,
+        oper="+=",
         **kwargs,
     ):
         """
@@ -294,31 +298,35 @@ def chunked_operation(function):
                     slice(_cc[0, 2], _cc[1, 2]),
                 ]
 
-                array_out[*_slice] += function(
-                    *[i[*_slice] for i in arrays_in], *args, **kwargs
-                )
+                if _ops[oper] is not None:
+                    array_out[*_slice] = _ops[oper](
+                        array_out[*_slice],
+                        function(*[i[*_slice] for i in arrays_in], *args, **kwargs),
+                    )
+                else:
+                    array_out[*_slice] = function(
+                        *[i[*_slice] for i in arrays_in], *args, **kwargs
+                    )
         else:
-            array_out += function(*arrays_in, *args, **kwargs)
+            if _ops[oper] is not None:
+                array_out = _ops[oper](array_out, function(*arrays_in, *args, **kwargs))
+            else:
+                array_out = function(*arrays_in, *args, **kwargs)
 
     return wrapper
 
 
-@chunked_operation
-def add(a, b, c):
-    """
-
-    Parameters
-    ----------
-    a
-    b
-    c
-
-    Returns
-    -------
-
-    """
-    return a + b + c
-
-
 if __name__ == "__main__":
-    add()
+    x, y, z = np.meshgrid(
+        np.linspace(-1, 1, 200), np.linspace(-1, 1, 200), np.linspace(-1, 1, 200)
+    )
+    rr = np.sqrt(x**2 + y**2 + z**2)
+
+    u = np.ones(rr.shape)
+    vp = np.zeros(rr.shape)
+
+    chunked_operation(np.divide)(
+        [u, np.sin(rr)], vp, chunksize=10, leave_progress_bar=True
+    )
+
+    print(vp)

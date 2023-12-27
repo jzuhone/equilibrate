@@ -1,5 +1,5 @@
 """
-Catch-all module for various data structures and their construction algorithms.
+Backend module for managing interfacing with :py:mod:`yt` and other external libraries / data structures.
 """
 import gc
 import os
@@ -142,6 +142,31 @@ def setup_geometry(
     chunksize=64,
     center=(0, 0, 0),
 ):
+    """
+    Construct the radial coordinate array for a given grid.
+
+    Parameters
+    ----------
+    io_array: :py:class:`np.ndarray`
+        The array into which the output data should be written.
+    box_size: tuple or list
+        A length 3 iterable with the values of each of the box sizes.
+    left_edge: tuple or list
+        A lenth 3 iterable containing the coordinates of the bottom left most point on the grid.
+    domain_dimensions: tuple or list
+        The number of "cells" to place on each axis of the grid.
+    chunking: bool, optional
+        (Default, ``True``) If enabled, chunking is used to reduce the memory load of the computation.
+    chunksize: int, optional
+        (Default, ``64``) The maximum size of a given chunk.
+    center: tuple, optional
+        (Default, ``(0,0,0)``) The center point of the chosen coordinate system.
+
+    Returns
+    -------
+    :py:class:`np.ndarray`
+        The boundary box for the output geometry. The geometry array itself is written to the ``io_array`` and not returned.
+    """
     mylog.info(
         f"Constructing grid geometry on domain {domain_dimensions}, chunking = {chunking}"
     )
@@ -207,6 +232,30 @@ def setup_geometry(
 
 
 def compute_model_grids(model, geometry, io, chunking, chunksize, fields):
+    """
+    Computes the relevant grids for a specified :py:class:`model.ClusterModel` object.
+
+    Parameters
+    ----------
+    model: py:class:`model.ClusterModel`
+        The model from which to produce the grid data.
+    geometry: :py:class:`np.ndarray`
+        The geometry array on which the ``model`` is evaluated. This should be an array representing the grid in space with each value providing
+        the radial position of the point.
+    io: dict
+        The IO object onto which the data should be written. If this is a ``dict``, then the data is written to an in-memory dictionary;
+        however, if it is a pointer to an HDF5 file, then the data will be written to disk.
+    chunking: bool
+        If ``True``, the computations are broken down into chunks on each array to reduce the overall memory load of the algorithm.
+    chunksize: int
+        The maximum size of any given chunk.
+    fields: list
+        The list of fields from the model which are to be included in the dataset.
+
+    Returns
+    -------
+    io
+    """
     _fields = [
         fi for fi in fields if fi in (_allowed_fields) and (fi in model.fields)
     ]  # fields recognized, in model, and in list.

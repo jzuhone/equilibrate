@@ -1001,6 +1001,7 @@ class ClusterModel:
                             "progress_bars"
                         ],
                         progress_bar_position=0,
+                        oper="=",
                         leave_progress_bar=False,
                     )
 
@@ -1043,10 +1044,3 @@ class ClusterModel:
 # This is only for backwards-compatibility
 class HydrostaticEquilibrium(ClusterModel):
     pass
-
-
-if __name__ == "__main__":
-    model = ClusterModel.from_h5_file("/home/ediggins/test/gravity_model_Newtonian.h5")
-    ds = model.create_dataset(
-        chunking=True, filename="/home/ediggins/test.h5", overwrite=True
-    )
