@@ -16,7 +16,7 @@
 #
 #
 #
-
+import h5py._hl.dataset
 import numpy as np
 
 cimport cython
@@ -43,84 +43,173 @@ cdef extern from "stdlib.h":
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
+ITYPE32 = np.uint32
+ctypedef np.uint32_t ITYPE32_t
+
 CTYPE = np.complex128
 ctypedef np.complex128_t CTYPE_t
 
 
-cdef void generate_grid_radii(
-        double[3][2] bbox,
-        double[3] domain_dimensions,
-        double* grid
-    ):
+
+##=================================================================================#
+## Chunk Management
+##=================================================================================#
+@cython.wraparound(False)
+@cython.boundscheck(False)
+@cython.cdivision(True)
+def construct_chunks(
+    np.ndarray[ITYPE32_t, ndim=1] domain_dimensions,
+    unsigned long chunksize
+):
     """
-    Computes the grid radii for the chunk from the bounding box and the domain dimensions.
+    Computes the index bounding boxes on each of the chunks.
 
     Parameters
     ----------
-    bbox: 3x2 array containing the bounding coordinates.
-    grid: the blank reference chunk.
-    domain_dimensions: the size of the chunk.
+    domain_dimensions: 3x1 array of ints
+    chunksize: uint maximum chunk size.
     """
-    cdef int i=0 ,j=0 ,k=0
-    cdef double drx,dry,dyz
-    cdef double px=bbox[0][0],py=bbox[1][0],pz=bbox[2][0]
+    #// Compute the number of necessary chunks.
+    cdef unsigned long i,j,k,_i
+    cdef np.ndarray[ITYPE32_t, ndim=1] nchunks = np.zeros(domain_dimensions.size,dtype="uint32")
 
-    # compute the grid spacing.
-
-    drx = (bbox[0][1]-bbox[0][0])/domain_dimensions[0]
-    dry = (bbox[1][1]-bbox[1][0])/domain_dimensions[1]
-    drz = (bbox[2][1]-bbox[2][0])/domain_dimensions[2]
-
-
-    # compute the grid
-    for i in range(domain_dimensions[0]):
-        px += drx
-        for j in range(domain_dimensions[1]):
-            py += dry
-            for k in range(domain_dimensions[2]):
-                pz += drz
-                grid[i][j][k] = sqrt(px*px + py*py + pz*pz)
+    for _i in range(domain_dimensions.size):
+        if domain_dimensions[_i]%chunksize == 0:
+            nchunks[_i] = domain_dimensions[_i]//chunksize
+        else:
+            nchunks[_i] = domain_dimensions[_i]//chunksize + 1
+    cdef np.ndarray[ITYPE32_t,ndim=5] chunks = np.zeros((3,2,nchunks[0],nchunks[1],nchunks[2]),dtype="uint32")
+    cdef np.ndarray[ITYPE32_t,ndim=1] p = np.zeros(3,dtype="uint32")
 
 
-#=================================================================================#
-# Interpolation Routines
-#=================================================================================#
+    for i in range(nchunks[0]):
+        p[1:] = 0
+        for j in range(nchunks[1]):
+            p[2:] = 0
+            for k in range(nchunks[2]):
+                # figure out the i,j,k - th value
+                chunks[:,0,i,j,k] = p
+                chunks[:,1,i,j,k] = p+chunksize
+                p[2] += chunksize
+            chunks[2,1,i,j,nchunks[2]-1] = domain_dimensions[2]
+            p[1] += chunksize
+        chunks[1, 1, i,  nchunks[1] - 1,:] = domain_dimensions[1]
+        p[0] += chunksize
+    chunks[0, 1, nchunks[0] - 1,:,:] = domain_dimensions[0]
+
+    return chunks.reshape((3,2,nchunks[0]*nchunks[1]*nchunks[2]))
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
-def interpolate_from_tables(
-    np.ndarray[DTYPE_t, ndim=1] _x,
-    np.ndarray[DTYPE_t, ndim=1] _y
-    ):
+def dump_field_to_hdf5(
+        buffer_object,
+        np.ndarray[DTYPE_t, ndim=2] bbox,
+        np.ndarray[ITYPE32_t, ndim=1] domain_dimensions,
+        np.ndarray[ITYPE32_t, ndim=3] chunkmap,
+        np.ndarray[DTYPE_t, ndim=1] t,
+        np.ndarray[DTYPE_t, ndim=1] c,
+        int k,
+        unsigned int level,
+        str fieldname
+):
     """
-    Constructs the spline interpolation over ``_x`` and ``_y``.
-
-    Parameters
-    ----------
-    _x: np.ndarray
-        The x values on which to interpolate.
-    _y: np.ndarray
-        The y values on which to interpolate.
-
-    Returns
-    -------
-
+    Dump the field to hdf5 buffer.
     """
-    cdef np.ndarray[DTYPE_t, ndim = 1] t,
-    cdef np.ndarray[DTYPE_t, ndim = 1] c,
-    cdef int k, n
 
-    _,_,_,_,_,k,_,n,t,c,_,_,_,_ = dfitpack.fpcurf0(_x,_y,3,w=None,xb=_x[0],xe=_x[_x.size-1],s=0.0)
-    return t[:n],c[:n],k
+    cdef np.ndarray[DTYPE_t,ndim=2] dp = ((bbox[:, 1] - bbox[:, 0]) / domain_dimensions).reshape((3,1))
+    cdef np.ndarray[DTYPE_t,ndim=2] sbbox
+    cdef np.ndarray[ITYPE32_t,ndim=1] s
+    cdef np.ndarray[DTYPE_t,ndim=3] _x,_y,_z
+    cdef np.ndarray[DTYPE_t,ndim=1] _r
+    pbar = tqdm(
+        desc=f"Chunked Interpolation: {fieldname}",
+        leave=False,
+        position=level,
+        total=chunkmap.shape[2],
+    )
+
+    for chunk_id in range(chunkmap.shape[2]):
+        sbbox =  bbox[:, 0].reshape(3, 1) + chunkmap[:,:,chunk_id]*dp
+        s = chunkmap[:,1,chunk_id] - chunkmap[:,0,chunk_id]
+        _x, _y, _z = np.mgrid[
+                     sbbox[0, 0]:sbbox[0, 1]:s[0] * 1j,
+                     sbbox[1, 0]:sbbox[1, 1]:s[1] * 1j,
+                     sbbox[2, 0]:sbbox[2, 1]:s[2] * 1j
+                     ]
+
+        _r = np.sqrt(_x ** 2 + _y ** 2 + _z ** 2).ravel()
+        buffer_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
+                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
+                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]] += dfitpack.splev(t,c,k,_r,0)[0].reshape(s)
+
+        pbar.update()
+    pbar.close()
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
-def eval_tck(
-    np.ndarray[DTYPE_t, ndim=1] x,
-    np.ndarray[DTYPE_t, ndim=1] t,
-    np.ndarray[DTYPE_t, ndim=1] c,
-    int k
-    ):
-    return dfitpack.splev(t,c,k,x,0)[0]
+def renormalize(
+        buffer_object,
+        density_object,
+        np.ndarray[ITYPE32_t, ndim=3] chunkmap,
+        unsigned int level,
+        str fieldname
+):
+    """
+    Dump the field to hdf5 buffer.
+    """
+    cdef np.ndarray[ITYPE32_t,ndim=1] s
+    cdef np.ndarray[DTYPE_t,ndim=3] _x,_y,_z
+    cdef np.ndarray[DTYPE_t,ndim=1] _r
+    pbar = tqdm(
+        desc=f"Normalizing: {fieldname}",
+        leave=False,
+        position=level,
+        total=chunkmap.shape[2],
+    )
+
+    for chunk_id in range(chunkmap.shape[2]):
+
+        buffer_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
+                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
+                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]] /= density_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
+                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
+                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]]
+
+        pbar.update()
+    pbar.close()
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+@cython.cdivision(True)
+def unnormalize(
+        buffer_object,
+        density_object,
+        np.ndarray[ITYPE32_t, ndim=3] chunkmap,
+        unsigned int level,
+        str fieldname
+):
+    """
+    Dump the field to hdf5 buffer.
+    """
+    cdef np.ndarray[ITYPE32_t,ndim=1] s
+    cdef np.ndarray[DTYPE_t,ndim=3] _x,_y,_z
+    cdef np.ndarray[DTYPE_t,ndim=1] _r
+    pbar = tqdm(
+        desc=f"Un-normalizing: {fieldname}",
+        leave=False,
+        position=level,
+        total=chunkmap.shape[2],
+    )
+
+    for chunk_id in range(chunkmap.shape[2]):
+
+        buffer_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
+                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
+                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]] *= density_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
+                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
+                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]]
+
+        pbar.update()
+    pbar.close()

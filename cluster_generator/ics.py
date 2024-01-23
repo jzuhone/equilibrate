@@ -1,7 +1,6 @@
 import os
 from numbers import Number
 
-import h5py
 import numpy as np
 from ruamel.yaml import YAML
 
@@ -14,13 +13,7 @@ from cluster_generator.particles import (
     resample_three_clusters,
     resample_two_clusters,
 )
-from cluster_generator.utils import (
-    cgparams,
-    ensure_list,
-    ensure_ytarray,
-    mylog,
-    parse_prng,
-)
+from cluster_generator.utils import ensure_list, ensure_ytarray, parse_prng
 
 
 def compute_centers_for_binary(center, d, b, a=0.0):
@@ -418,172 +411,62 @@ class ClusterICs:
 
     def create_dataset(
         self,
-        box_size,
-        fields=None,
-        domain_dimensions=(512, 512, 512),
-        chunking=False,
-        chunksize=64,
-        left_edge=None,
         filename=None,
+        domain_dimensions=(512, 512, 512),
+        left_edge=None,
+        box_size=None,
         overwrite=False,
+        chunksize=64,
+        included_fields=None,
     ):
         r"""
-        Generates a YT dataset object representing the :py:class:`ics.ClusterICs` object.
+        Generate a :py:mod:`yt` dataset grid for the :py:class:`model.ClusterModel` instance.
 
         Parameters
         ----------
-        box_size: float
-            The size of the overall box in kpc. By default, this is twice the largest radius in the data.
-        fields: list, optional
-            The ``fields`` to include in the dataset. By default, ``fields == None`` and all valid fields are included. If a list
-            is provided, only those fields which are in the list are included in the final dataset. Regardless of presence in the ``fields`` list,
-            if a field is not recognized, it will not be included and a warning will be raised.
-        domain_dimensions: tuple, optional
-            The dimensions of the grid domain. ``domain_dimensions`` should be a 3-tuple containing the number of cells to
-            include on each axis of the grid. The default is ``(512,512,512)``.
-        chunking: bool, optional
-            If ``True``, then the dataset will be constructed in chunks. This may increase the generation time, but will decrease the overall
-            memory load of the dataset generation procedure. When ``chunking==False``, the dataset in produced in a standard :py:class:`dict` object and
-            stored entirely in memory. Otherwise, an HDF5 file is used to store the dataset on disk. if ``filename`` is ``None``, then this is a tempfile and
-            it is deleted at the end of standard runtime.
-        chunksize: int, optional
-            The chunk size to use if ``chunking == True``. This is the maximal size of each chunk. Defaults to ``64``.
-        left_edge: tuple, optional
-            The left edge of the domain box in kpc. This may be used to specify the precise positioning of the dataset relative to the
-            center position of the relevant model. By default, the left edge is set to be minus the largest radius contained in the fields.
         filename: str, optional
-            The filename to use for storage of the YT dataset. If the filename is specified, then the YT dataset it writen to disk and
-            YT can load the dataset without any interfacing with cluster generator. If the filename is not specified, but chunking is on,
-            then the dataset is written to a tempfile which is deleted at the end of runtime.
+            The filename at which to write the HDF5 formatted grid dataset. By default, this is ``None``, and a
+            temporary directory is generated which is deleted after runtime has concluded.
+        domain_dimensions: tuple, optional
+            Length 3 tuple of integers. Represents the number of cells to place on each of the axes of the
+            grid. By default, the grid is :math:`512^3` cells.
+        left_edge: tuple, optional
+            The left edge of the grid. By default, this is :math:`-r_{\mathrm{max}}` (for each entry), so as to contain the entire
+            model within the grid domain. In conjunction with ``box_size``, this serves to determine the geometry of the
+            output dataset.
+        box_size: tuple, optional
+            The size of each of the box axes. By default, these are each twice the maximum radius of the model to ensure that
+            the entire model is included in the dataset.
         overwrite: bool, optional
-            If ``True``, then if ``filename`` already exists, it will be overwritten by the incoming model data without warning.
+            If ``True``, the dataset creation process will attempt to overwrite an existing data file if necessary. Default is ``False``.
+        chunksize: int, optional
+            The maximum chunksize for subgrid operations. Lower values with increase the execution time but save memory. By default,
+            chunks contain no more that :math:`64^3` cells (``chunksize=64``).
+        included_fields: list, optional
+            The particular fields to write to the HDF5 file. By default, this kwarg is ``None``, which leads to the writing of each
+            of the fields contained in the model.
 
         Returns
         -------
-        :py:class:`yt.dataset`
+        yt_dataset
         """
-        from scipy.interpolate import InterpolatedUnivariateSpline
-        from yt import load_hdf5_file, load_uniform_grid
+        from data_structures import YTHDF5
 
-        from cluster_generator.data_structures import (
-            _fill_grid,
-            additive_fields,
-            chunked_operation,
-            compute_model_grids,
-            dens_weighted_fields,
-            dens_weighted_nonfields,
-            setup_geometry,
-            setup_yt_hdf5_file,
+        if not left_edge:
+            left_edge = 3 * [-np.amax(self.r_max)]
+        if not box_size:
+            box_size = 2 * np.amax(self.r_max)
+
+        bbox = [le + box_size for le in left_edge]
+
+        ds_obj = YTHDF5.new(
+            domain_dimensions,
+            bbox,
+            chunksize=chunksize,
+            fields=included_fields,
+            filename=filename,
+            overwrite=overwrite,
         )
+        ds_obj.add_ICs(self)
 
-        mylog.info(f"Generating YT dataset, chunking={chunking}.")
-        if fields is None:  # --> User can leave as None to simple grab all fields.
-            fields = additive_fields + dens_weighted_fields + dens_weighted_nonfields
-        if left_edge is None:
-            left_edge = 3 * [-box_size / 2]
-
-        assert len(domain_dimensions) == 3, "Domain dimensions must be a 3 tuple."
-        assert len(left_edge) == 3, "`left_edge` must be a 3 tuple."
-
-        if (filename is not None) or chunking:  # Constructing the HDF5 system.
-            filename = setup_yt_hdf5_file(
-                fields,
-                domain_dimensions,
-                filename=filename,
-                overwrite=overwrite,
-                root="grid",
-            )
-            fo = h5py.File(filename, "a")
-            data_object = fo["grid"]
-            geom = fo["geometry"]["rr"]
-        else:
-            mylog.info("Loading YT grid data in memory.")
-            geom = np.zeros(domain_dimensions, dtype="float64")
-            data_object = {
-                field_name: np.zeros(domain_dimensions, dtype="float64")
-                for field_name in fields
-            }
-
-        for i, profile in enumerate(self.profiles):
-            bbox = setup_geometry(
-                geom,
-                box_size,
-                left_edge,
-                domain_dimensions,
-                chunking=chunking,
-                chunksize=chunksize,
-                center=self.center[i],
-            )  # Fetch the geometry on which to fill the grids.
-
-            p = ClusterModel.from_h5_file(profile)
-
-            compute_model_grids(p, geom, data_object, chunking, chunksize, fields)
-
-            if any(fld in dens_weighted_nonfields for fld in fields):
-                f = InterpolatedUnivariateSpline(p["radius"].d, p["density"].d)
-                for k, field in enumerate(dens_weighted_nonfields):
-                    _fill_grid(
-                        [geom],
-                        data_object[field],
-                        lambda x, ii=i, kk=k, ff=f: self.velocity[ii][kk] * ff(x),
-                        chunking=chunking,
-                        chunksize=chunksize,
-                        leave_progress_bar=False,
-                        progress_bar_position=1,
-                        show_progress_bar=cgparams["system"]["display"][
-                            "progress_bars"
-                        ],
-                        label=field,
-                    )
-        if "density" in data_object:
-            for field in dens_weighted_fields + dens_weighted_nonfields:
-                if field in data_object:
-                    # Divide the field by the relevant density. This is entirely superfluous, but necessary
-                    # when considering ICs with many models.
-                    chunked_operation(np.divide)(
-                        [data_object[field], data_object["density"]],
-                        data_object[field],
-                        chunksize=chunksize,
-                        chunking=chunking,
-                        label="density_weighting",
-                        show_progress_bar=cgparams["system"]["display"][
-                            "progress_bars"
-                        ],
-                        progress_bar_position=0,
-                        leave_progress_bar=False,
-                    )
-
-        if (
-            filename is not None
-        ):  # --> filename provided now even if chunking is on and filename was None.
-            fo.close()
-
-        # load the dataset
-        if filename is not None:
-            return load_hdf5_file(
-                filename,
-                "/grid",
-                bbox=bbox,
-                dataset_arguments={
-                    "length_unit": "kpc",
-                    "mass_unit": "Msun",
-                    "time_unit": "Myr",
-                    "magnetic_unit": "G",
-                    "velocity_unit": "kpc/Myr",
-                    "sim_time": 0.0,
-                    "dataset_name": self.__str__(),
-                },
-            )
-        else:
-            return load_uniform_grid(
-                data_object,
-                domain_dimensions,
-                length_unit="kpc",
-                mass_unit="Msun",
-                time_unit="Myr",
-                magnetic_unit="G",
-                velocity_unit="kpc/Myr",
-                sim_time=0.0,
-                bbox=bbox,
-                dataset_name=self.__str__(),
-            )
+        return ds_obj.create_dataset()

@@ -1,16 +1,24 @@
 """
 Backend module for managing interfacing with :py:mod:`yt` and other external libraries / data structures.
 """
-import gc
 import os
+import tempfile
 
 import h5py
 import numpy as np
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import dfitpack
 from tqdm import tqdm
 
-from cluster_generator.utils import _build_chunks, cgparams, chunked_operation, mylog
+from cluster_generator import ClusterModel
+from cluster_generator.opt.structures import (
+    construct_chunks,
+    dump_field_to_hdf5,
+    renormalize,
+    unnormalize,
+)
+from cluster_generator.utils import cgparams, ensure_ytarray, mylog
 
+# from cluster_generator.opt.structures import interpolate_from_tables
 #: Field names corresponding to cases where fields may be added without concern for a weight function.
 additive_fields = [
     "density",
@@ -22,7 +30,19 @@ additive_fields = [
 #: Fields which need to be weighted by gas density when models are being combined.
 dens_weighted_fields = ["temperature"]  # Density weighted fields.
 #: density weighted non-fields
-dens_weighted_nonfields = ["velocity_x", "velocity_y", "velocity_z"]
+dens_weighted_nonfields = {
+    "velocity_x": ("density", 0, "velocity"),
+    "velocity_y": ("density", 1, "velocity"),
+    "velocity_z": ("density", 2, "velocity"),
+    "stellar_velocity_x": ("stellar_density", 0, "velocity"),
+    "stellar_velocity_y": ("stellar_density", 1, "velocity"),
+    "stellar_velocity_z": ("stellar_density", 2, "velocity"),
+    "dm_velocity_x": ("dark_mater_density", 0, "velocity"),
+    "dm_velocity_y": ("dark_mater_density", 1, "velocity"),
+    "dm_velocity_z": ("dark_mater_density", 2, "velocity"),
+    "mixing": ("density", None, "model_id"),
+}
+
 #: Field standard units.
 units = {
     "density": ("Msun/kpc**3", None),
@@ -35,276 +55,506 @@ units = {
     "velocity_y": ("kpc/Myr", None),
     "velocity_z": ("kpc/Myr", None),
     "magnetic_field_strength": ("G", None),
+    "stellar_velocity_x": ("kpc/Myr", None),
+    "stellar_velocity_y": ("kpc/Myr", None),
+    "stellar_velocity_z": ("kpc/Myr", None),
+    "dm_velocity_x": ("kpc/Myr", None),
+    "dm_velocity_y": ("kpc/Myr", None),
+    "dm_velocity_z": ("kpc/Myr", None),
+    "mixing": ("", None),
 }
-_allowed_fields = additive_fields + dens_weighted_fields  # fields that are recognized.
+_allowed_fields = (
+    additive_fields + dens_weighted_fields + list(dens_weighted_nonfields.keys())
+)  # fields that are recognized.
 
 
-def setup_yt_hdf5_file(
-    fields, domain_dimensions, filename=None, overwrite=False, root="grid"
-):
+class YTHDF5:
     """
-    Set up an HDF5 file with correctly sized data grids for producing a fully realized :py:mod:`yt` dataset. This function
-    will generate blank grids in the correct format for each of the specified fields provided as well as any additional meta-data
-    necessary for :py:mod:`yt` to read the dataset.
-
-    Parameters
-    ----------
-    fields: list of str
-        The names of the relevant fields.
-
-        .. warning::
-
-            All provided fields will receive grids in the dataset; however, only recognized fields will actually have data
-            written to them during the dataset generation process. A warning will be raised if an invalid field name is included
-            in the dataset.
-
-    domain_dimensions: tuple or list
-        The size of each of the domains of the grids. These should be a length 3 tuple, list, or other iterable object which contain
-        the number of cells to place in the grid along each of the data axes.
-    filename: str, optional
-        The filename at which to produce the HDF5 file. If ``filename`` is left as ``None`` (Default), then the HDF5 file is generated
-        in a temporary directory within the systems ``/tmp`` directory (or OS equivalent). This file will be deleted after runtime has
-        terminated.
-    overwrite: bool, optional
-        If ``True``, any existing HDF5 data at the ``filename`` location will be deleted and overwritten. Default is ``False``.
-    root: str, optional
-        The name of the ``HDF5`` "directory" at which to place the true datagrids. By default, this is ``grid``, which is what
-        :py:mod:`yt` will look for when seeking readable data in HDF5.
-
-    Returns
-    -------
-    str
-        The filename for the output file.
-
-    Raises
-    ------
-    IOError
-        If the file cannot be generated or the parent directories don't exist.
+    Wrapper class for YT style HDF5 files. Used to manage the writing of :py:class:`model.ClusterModel` instances
+    to YT datasets.
     """
-    import tempfile
 
-    if filename is None:  # Use a tempfile to store the HDF5 data.
-        tf = tempfile.NamedTemporaryFile(delete=False)
-        fname = tf.name
-        fo = h5py.File(tf, "a")
-    else:
-        if os.path.exists(filename) and not overwrite:
-            raise IOError(
-                f"The yt HDF5 file {filename} already exists and overwrite = False."
-            )
-        elif os.path.exists(filename):
-            mylog.info(
-                f"An existing HDF5 file was found at {filename}. Overwrite=True, so the data is being deleted."
-            )
-            os.remove(filename)
+    def __init__(
+        self, domain_dimensions, bbox, chunksize=64, fields=None, filename=None
+    ):
+        """
+        Initializes the :py:class:`YTHDF5` instance.
+
+        Parameters
+        ----------
+        domain_dimensions: array-like
+            The dimensions of the grid along each axis (3-tuple)
+        bbox: array-like
+            The bounding box of the grid. Should be of size ``(3,2)``.
+        chunksize: int, optional
+            The maximum size of a chunk. Chunking is used to conserve memory during computations. A higher ``chunksize`` will
+            increase the memory usage but decrease computation time, a lower value will do the opposite. Default is ``64``.
+        fields: list of str, optional
+            The fields to include in the dataset. If ``None``, then all of the available fields are included.
+        filename: str, optional
+            The filename for the underlying file. If left as ``None``, a ``tmpfile`` is generated to hold the dataset.
+            Otherwise, if a ``str`` instance is provided, then that file will be used. If a pre-existing file is specified,
+            then it will either overwrite or raise an error depending on ``overwrite``.
+        """
+        self._cm = None
+        self._dd = np.array(domain_dimensions, dtype="uint32")
+        self.bbox = np.array(bbox, dtype="float64")
+        self.chunksize = chunksize
+        self.fields = fields if fields is not None else _allowed_fields
+        self._buffer = None
+        self._gridbuffer = None
+
+        if filename is None:
+            tf = tempfile.NamedTemporaryFile(delete=False)
+            self.filename = tf.name
+
         else:
-            pass
+            self.filename = filename
 
+    @classmethod
+    def new(
+        cls,
+        domain_dimensions,
+        bbox,
+        chunksize=64,
+        fields=None,
+        filename=None,
+        overwrite=False,
+    ):
+        """
+        Initialize a new :py:class:`YTHDF5` instance given specific generation parameters.
+
+        Parameters
+        ----------
+        domain_dimensions: array-like
+            The dimensions of the grid along each axis (3-tuple)
+        bbox: array-like
+            The bounding box of the grid. Should be of size ``(3,2)``.
+        chunksize: int, optional
+            The maximum size of a chunk. Chunking is used to conserve memory during computations. A higher ``chunksize`` will
+            increase the memory usage but decrease computation time, a lower value will do the opposite. Default is ``64``.
+        fields: list of str, optional
+            The fields to include in the dataset. If ``None``, then all of the available fields are included.
+        filename: str, optional
+            The filename for the underlying file. If left as ``None``, a ``tmpfile`` is generated to hold the dataset.
+            Otherwise, if a ``str`` instance is provided, then that file will be used. If a pre-existing file is specified,
+            then it will either overwrite or raise an error depending on ``overwrite``.
+        overwrite: bool, optional
+            If ``True``, then the file will be overwritten if it already exists. Default ``False``.
+
+        Returns
+        -------
+        :py:class:`data_structures.YTHDF5`
+            The generated YT dataset.
+        """
+        if filename is not None and os.path.exists(filename):
+            if overwrite is True:
+                mylog.info(f"Clearning pre-existing data from {filename}...")
+                os.remove(filename)
+            else:
+                pass
+
+        h5 = cls(domain_dimensions, bbox, chunksize, fields=fields, filename=filename)
+        h5._setup()
+        return h5
+
+    @classmethod
+    def read(cls, filename):
+        """
+        Read an :py:class:`data_structures.YTHDF5` instance from the ``.h5`` file.
+
+        Parameters
+        ----------
+        filename: str
+            The filename to read. The filename must exist.
+
+        Returns
+        -------
+        :py:class:`data_structures.YTHDF5`
+        """
+        properties = {
+            k: None for k in ["domain_dimensions", "bbox", "chunksize", "fields"]
+        }
+        assert os.path.exists(filename), f"The file {filename} doesn't appear to exist."
+
+        fo = h5py.File(filename, "a")
+        for k in properties:
+            try:
+                properties[k] = fo.attrs[k]
+            except KeyError:
+                raise SyntaxError(
+                    f"The YTHDF5 file {filename} doesn't have the appropriate attributes. (FAILED TO FIND {k})."
+                )
+        properties["filename"] = filename
+
+        o = cls(
+            properties["domain_dimensions"],
+            properties["bbox"],
+            properties["chunksize"],
+            fields=properties["fields"],
+            filename=filename,
+        )
         try:
-            fo = h5py.File(filename, "a")
+            o._cm = fo["chunks"]["chunkmap"][...]
+        except KeyError:
+            raise IOError("Failed to locate the chunkmap for this file.")
+
+        fo.close()
+        return o
+
+    def _ensure_open(self):
+        if self._buffer is None or not self._buffer:
+            self._buffer = h5py.File(self.filename, "a")
+
+    @property
+    def _estimated_size(self):
+        return (np.prod(np.array(self._dd))) * 8 * len(self.fields) / (1e9)
+
+    @property
+    def _estimated_chunk_memory(self):
+        return (self.chunksize**3) * 8 / (1e9)
+
+    @property
+    def buffer(self):
+        """
+        Direct access to the underlying HDF5 file at the base of the file structure.
+        """
+        self._ensure_open()
+        return self._buffer
+
+    @property
+    def grid(self):
+        """
+        Direct access to the ``/grid`` root of the HDF5 data. This is where all of the datasets are stored.
+        """
+        self._ensure_open()
+
+        if self._gridbuffer is None or not self._gridbuffer:
+            self._gridbuffer = self._buffer["grid"]
+        return self._gridbuffer
+
+    @property
+    def is_normalized(self):
+        """
+        Check if the :py:class:`data_structures.YTHDF5` object is normalized (it's weighted fields are normalized).
+        """
+        self._ensure_open()
+
+        return self._buffer.attrs["is_normalized"]
+
+    def __bool__(self):
+        return self._buffer.__bool__()
+
+    def __str__(self):
+        return f"<YTHDF5 File> @ {self.filename}"
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __getitem__(self, item):
+        self._ensure_open()
+        return self._buffer["grid"][item]
+
+    def __setitem__(self, key, value):
+        raise SyntaxError("Values cannot be set by indexing in YTHDF5 objects.")
+
+    def keys(self):
+        """
+        Alias for ``self.buffer['grid'].keys()``.
+
+        Returns
+        -------
+        list
+
+        """
+        return self.buffer["grid"].keys()
+
+    def _setup(self):
+        try:
+            self._buffer = h5py.File(self.filename, "a")
         except FileNotFoundError:
             raise IOError(
-                f"The parent directories of {filename} don't exist. HDF5 file cannot be generated."
+                f"The parent directories of {self.filename} don't exist. YTHDF5 file was not generated."
             )
 
-        fname = filename
+        self._gridbuffer = self._buffer.create_group(
+            "grid"
+        )  # --> create the grid of the dataset.
 
-    grid_group = fo.create_group(root)  # --> stores the true data
-    geometry_group = fo.create_group(
-        "geometry"
-    )  # --> Stores the geometry of the space when too big for RAM.
+        for field in self.fields:
+            if field in _allowed_fields:
+                self._gridbuffer.create_dataset(field, self._dd, dtype="float64")
+                self._gridbuffer[field].attrs["unit"] = units[field][0]
+            else:
+                mylog.warning(
+                    f"The field {field} is not recognized. It will be ignored."
+                )
 
-    for field in fields:
-        grid_group.create_dataset(field, domain_dimensions, dtype="float64")
-
-    geometry_group.create_dataset("rr", domain_dimensions, dtype="float64")
-    fo.close()
-
-    mylog.info(f"Generated YT-HDF5 file at {fname}.")
-    return fname
-
-
-@chunked_operation
-def _fill_grid(vin, field_function, weight_function=None):
-    if weight_function is None:
-        # fix the weight function to 1 if none is given.
-        weight_function = lambda r: 1
-
-    return weight_function(vin) * field_function(vin)
-
-
-def setup_geometry(
-    io_array,
-    box_size,
-    left_edge,
-    domain_dimensions,
-    chunking=True,
-    chunksize=64,
-    center=(0, 0, 0),
-):
-    """
-    Construct the radial coordinate array for a given grid.
-
-    Parameters
-    ----------
-    io_array: :py:class:`np.ndarray`
-        The array into which the output data should be written.
-    box_size: tuple or list
-        A length 3 iterable with the values of each of the box sizes.
-    left_edge: tuple or list
-        A lenth 3 iterable containing the coordinates of the bottom left most point on the grid.
-    domain_dimensions: tuple or list
-        The number of "cells" to place on each axis of the grid.
-    chunking: bool, optional
-        (Default, ``True``) If enabled, chunking is used to reduce the memory load of the computation.
-    chunksize: int, optional
-        (Default, ``64``) The maximum size of a given chunk.
-    center: tuple, optional
-        (Default, ``(0,0,0)``) The center point of the chosen coordinate system.
-
-    Returns
-    -------
-    :py:class:`np.ndarray`
-        The boundary box for the output geometry. The geometry array itself is written to the ``io_array`` and not returned.
-    """
-    mylog.info(
-        f"Constructing grid geometry on domain {domain_dimensions}, chunking = {chunking}"
-    )
-    domain_dimensions = np.array(domain_dimensions)
-    if chunking:
-        exp_mem = 1240 * np.prod(domain_dimensions / chunksize) / (8 * 1e6)
-        mylog.info(
-            f"Expected memory usage / iteration is {np.round(exp_mem,decimals=2)} MB."
+        self.buffer.attrs["domain_dimensions"] = self._dd
+        self.buffer.attrs["bbox"] = self.bbox
+        self.buffer.attrs["chunksize"] = self.chunksize
+        self.buffer.attrs["fields"] = self.fields
+        self.buffer.attrs[
+            "is_normalized"
+        ] = False  # tag for renorm / unnorm when needed.
+        self.buffer.attrs["model_count"] = 0
+        # Generate the chunk id's and the indices of the edges ahead of time to reuse.
+        self._buffer.create_group("chunks")
+        self._cm = construct_chunks(self._dd, self.chunksize)
+        mylog.info(f"Decomposed {self} domain into {self._cm.shape[-1]} chunks.")
+        self._buffer["chunks"].create_dataset(
+            "chunkmap", self._cm.shape, dtype="uint32"
         )
-    else:
-        exp_mem = 256 * np.prod(domain_dimensions) / (8 * 1e6)
-        mylog.info(f"Expected memory usage is {np.round(exp_mem,decimals=2)} MB.")
 
-    bbox = np.array(
-        [
-            [left_edge[0], left_edge[0] + box_size],
-            [left_edge[1], left_edge[1] + box_size],
-            [left_edge[2], left_edge[2] + box_size],
-        ]
-    )
+        self._buffer.close()
+        mylog.info(f"Generated YT-HDF5 file at {self.filename}.")
 
-    if chunking:
-        # compute iteratively.
-        _chunk_ids, _chunk_coords = _build_chunks(chunksize, domain_dimensions)
+    def survey_memory(self):
+        """
+        Prints a survey of the expected memory and disk usage of the :py:class:`data_structures.YTHDF5` instance.
 
-        for chunk in tqdm(
-            _chunk_ids,
-            desc="Constructing coordinate grids...",
+        If ``psutil`` is installed, additional information is provided regarding the systems capacity to execute the
+        chunked operations.
+        """
+        mylog.info(f"MEMORY SURVEY: {self.filename}")
+        mylog.info(f"Total size: {np.round(self._estimated_size,decimals=4)} GB.")
+        mylog.info(
+            f"Chunk size: {np.round(self._estimated_chunk_memory,decimals=4)} GB."
+        )
+
+        try:
+            import psutil
+
+            mylog.info(
+                f"Free memory: {np.round(psutil.virtual_memory().available/1e9,decimals=3)} GB"
+            )
+
+            if psutil.virtual_memory().available / 1e9 < self._estimated_chunk_memory:
+                mylog.warning(
+                    "Free memory may be insufficient for chunked operations. Processes at this chunksize may fail."
+                )
+            else:
+                pass
+        except ImportError:
+            pass  # The user doesn't have psutils installed, we don't want to force them to do so.
+
+    def add_model(self, model, center, velocity, normalize=True, level=0):
+        """
+        Add the :py:class:`model.ClusterModel` instance to the :py:class:`data_structures.YTHDF5` instance.
+
+        Parameters
+        ----------
+        model: :py:class:`model.ClusterModel`
+            The model to add to the :py:class:`data_structures.YTHDF5` instance.
+        center: array-like
+            The center of the cluster in the coordinates of :py:attr:`data_structures.YTHDF5.bbox`.
+        velocity: array-like
+            The COM velocity of the cluster in the coordinates of :py:attr:`data_structures.YTHDF5.bbox`.
+        """
+        center, velocity = ensure_ytarray(center, "kpc"), ensure_ytarray(
+            velocity, "kpc/Myr"
+        )
+        _model_id = self.buffer.attrs[
+            "model_count"
+        ]  # --> This is for the mixing weight.
+
+        _relative_bbox = self.bbox - center.d.reshape((3, 1))
+
+        if self.is_normalized:
+            mylog.info(
+                f"Un-normalizing {self.__str__()} to accommodate new model {model}."
+            )
+            self._unnormalize(level=level)
+
+        mylog.info(f"Adding {model} to {self.__str__()}")
+        mylog.info(
+            f"\tPos: {[np.round(j,decimals=2) for j in center.d]} kpc, Vel: {[np.round(j,decimals=2) for j in velocity.to_value('km/s')]} km/s"
+        )
+
+        # setup the coordinates to maximize ease of interpolation.
+        _rr = model["radius"].to_value("kpc")
+        _dens = model["density"].to_value(
+            units["density"][0]
+        )  # needed for normalization
+
+        # secure the chunkmap, make sure it exists and is in order.
+        _chunkmap = self._cm
+
+        for field in tqdm(
+            self.fields,
+            desc=f"Writing {model} to YTHDF5",
+            position=level,
             leave=False,
             disable=(not cgparams["system"]["display"]["progress_bars"]),
         ):
-            _cc = _chunk_coords[:, :, *chunk]
-            x, y, z = np.mgrid[
-                _cc[0, 0] : _cc[1, 0], _cc[0, 1] : _cc[1, 1], _cc[0, 2] : _cc[1, 2]
-            ] * ((bbox[:, 1] - bbox[:, 0]) / (domain_dimensions - 1)).reshape(
-                3, 1, 1, 1
-            ) + bbox[
-                :, 0
-            ].reshape(
-                3, 1, 1, 1
-            )
-            rr = np.sqrt(
-                (x - center[0]) ** 2 + (y - center[1]) ** 2 + (z - center[2]) ** 2
-            )
+            if field in dens_weighted_fields + additive_fields:
+                if field in dens_weighted_fields:
+                    _yy = _dens * model[field].to_value(
+                        units[field][0], equivalence=units[field][1]
+                    )
+                else:
+                    _yy = model[field].to_value(
+                        units[field][0], equivalence=units[field][1]
+                    )
+                self._add_field(
+                    _rr, _yy, field, _relative_bbox, _chunkmap, level=level + 1
+                )
 
-            io_array[
-                _cc[0, 0] : _cc[1, 0], _cc[0, 1] : _cc[1, 1], _cc[0, 2] : _cc[1, 2]
-            ] = rr
-
-        del x, y, z, rr
-        gc.collect()
-        return bbox
-    else:
-        # compute in a single pass.
-        x, y, z = np.mgrid[
-            bbox[0][0] : bbox[0][1] : domain_dimensions[0] * 1j,
-            bbox[1][0] : bbox[1][1] : domain_dimensions[1] * 1j,
-            bbox[2][0] : bbox[2][1] : domain_dimensions[2] * 1j,
-        ]
-        io_array = np.sqrt(x**2 + y**2 + z**2)
-
-        return bbox
-
-
-def compute_model_grids(model, geometry, io, chunking, chunksize, fields):
-    """
-    Computes the relevant grids for a specified :py:class:`model.ClusterModel` object.
-
-    Parameters
-    ----------
-    model: py:class:`model.ClusterModel`
-        The model from which to produce the grid data.
-    geometry: :py:class:`np.ndarray`
-        The geometry array on which the ``model`` is evaluated. This should be an array representing the grid in space with each value providing
-        the radial position of the point.
-    io: dict
-        The IO object onto which the data should be written. If this is a ``dict``, then the data is written to an in-memory dictionary;
-        however, if it is a pointer to an HDF5 file, then the data will be written to disk.
-    chunking: bool
-        If ``True``, the computations are broken down into chunks on each array to reduce the overall memory load of the algorithm.
-    chunksize: int
-        The maximum size of any given chunk.
-    fields: list
-        The list of fields from the model which are to be included in the dataset.
-
-    Returns
-    -------
-    io
-    """
-    _fields = [
-        fi for fi in fields if fi in (_allowed_fields) and (fi in model.fields)
-    ]  # fields recognized, in model, and in list.
-
-    if any(fi not in _fields for fi in fields):
-        mylog.warning(
-            f"Some fields are not written to YT dataset because they are not recognized or are not in the model: {[fi for fi in fields if fi not in _fields]}"
+        mylog.info(f"Core fields of {model} where written to {self}.")
+        self._add_model_velocity_fields(
+            model, velocity, _model_id, _chunkmap, _relative_bbox, level=level
         )
 
-    rr = model.fields["radius"].to_value("kpc")
-    if "density" in model.fields:
-        # construct a density spline for a weight function when there is gas.
-        fd = InterpolatedUnivariateSpline(
-            rr, model.fields["density"].to_value("Msun/kpc**3")
-        )
-    else:
-        fd = lambda x: 1  # --> This is only relevant in DM only cases.
-
-    for field in tqdm(
-        _fields,
-        desc=f"Constructing YT grids for {len(_fields)} fields.",
-        leave=False,
-        position=0,
-        disable=(not cgparams["system"]["display"]["progress_bars"]),
-    ):
-        f_arr = model.fields[field].to_value(
-            units[field][0], equivalence=units[field][1]
-        )
-        field_function = InterpolatedUnivariateSpline(rr, f_arr)
-
-        if field in dens_weighted_fields:
-            wf = fd
+        if normalize:
+            # --> We are going to normalize the weighted fields.
+            self._normalize(level=level)
         else:
-            wf = None
+            pass
 
-        _cd = _build_chunks(chunksize, domain_dimensions=geometry.shape)
+        self.buffer.attrs["model_count"] += 1
+        self.buffer.close()
 
-        _fill_grid(
-            [geometry],
-            io[field],
-            field_function,
-            chunking=chunking,
-            chunksize=chunksize,
-            chunk_data=_cd,
-            weight_function=wf,
-            leave_progress_bar=False,
-            progress_bar_position=1,
-            show_progress_bar=cgparams["system"]["display"]["progress_bars"],
-            label=field,
+    def add_ICs(self, ics):
+        """
+        Add an entire :py:class:`ics.ClusterICs` instance to the :py:class:`data_structures.YTHDF5` buffer.
+
+        Parameters
+        ----------
+        ics: :py:class:`ics.ClusterICs`
+            The initial conditions to add to the HDF5 buffer.
+        """
+        mylog.info(f"Adding {ics.basename} to {self}.")
+
+        if self.is_normalized:
+            mylog.info(f"Un-normalizing {self.__str__()} to accommodate new ics {ics}.")
+            self._unnormalize(level=1)
+
+        for ic_id, ic_model in enumerate(
+            tqdm(
+                ics.profiles,
+                desc=f"Writing {ics} to YTHDF5",
+                position=0,
+                leave=False,
+                disable=(not cgparams["system"]["display"]["progress_bars"]),
+            )
+        ):
+            model = ClusterModel.from_h5_file(ic_model)
+            center, velocity = ics.center[ic_id], ics.velocity[ic_id]
+
+            self.add_model(model, center, velocity, normalize=False, level=1)
+
+        self._normalize()
+        self.buffer.close()
+
+    def _add_field(self, r, y, fieldname, bbox, chunkmap, level=1):
+        # Interpolate and pass to the Cython level.
+        _, _, _, _, _, k, _, n, t, c, _, _, _, _ = dfitpack.fpcurf0(
+            r, y, 3, w=None, xb=r[0], xe=r[-1], s=0.0
+        )
+        _buffer_obj = self.grid[fieldname]
+        dump_field_to_hdf5(
+            _buffer_obj, bbox, self._dd, chunkmap, t, c, k, level, fieldname
         )
 
-    return io
+    def _add_model_velocity_fields(self, model, velocity, id, cm, rbb, level=0):
+        mylog.info(f"Managing non-fields of {model}")
+
+        _available_nonfields = [
+            key
+            for key, value in dens_weighted_nonfields.items()
+            if value[0] in model.fields
+        ]
+        _rr = model["radius"].to_value("kpc")
+        for non_field in tqdm(
+            _available_nonfields,
+            desc="Writing non-fields to YTHDF5",
+            position=level,
+            leave=False,
+            disable=(not cgparams["system"]["display"]["progress_bars"]),
+        ):
+            # we add these if they don't already exist.
+            if non_field not in list(self.grid.keys()):
+                self._gridbuffer.create_dataset(non_field, self._dd, dtype="float64")
+                self._gridbuffer[non_field].attrs["unit"] = units[non_field][0]
+
+            # non-fields are corrected and density weighted.
+            field_params = dens_weighted_nonfields[non_field]
+
+            if field_params[2] == "velocity":
+                # this is weighted by velocity
+                _yy = velocity[field_params[1]] * model[field_params[0]].to_value(
+                    units[field_params[0]][0], equivalence=units[field_params[0]][1]
+                )
+            elif field_params[2] == "model_id":
+                _yy = id * model[field_params[0]].to_value(
+                    units[field_params[0]][0], equivalence=units[field_params[0]][1]
+                )
+
+            self._add_field(_rr, _yy, non_field, rbb, cm, level=level + 1)
+
+    def _normalize(self, level=0):
+        mylog.info(f"Renormalizing density weighted fields for {self}")
+
+        for field in tqdm(
+            dens_weighted_fields + list(dens_weighted_nonfields.keys()),
+            desc=f"Normalizing {self}.",
+            position=level,
+            leave=False,
+            disable=(not cgparams["system"]["display"]["progress_bars"]),
+        ):
+            renormalize(
+                self.grid[field], self.grid["density"], self._cm, level + 1, field
+            )
+
+        self.buffer.attrs["is_normalized"] = True
+
+    def _unnormalize(self, level=0):
+        mylog.info(f"Un-normalizing density weighted fields for {self}")
+
+        for field in tqdm(
+            dens_weighted_fields + list(dens_weighted_nonfields.keys()),
+            desc=f"Un-normalizing {self}.",
+            position=level,
+            leave=False,
+            disable=(not cgparams["system"]["display"]["progress_bars"]),
+        ):
+            unnormalize(
+                self.grid[field], self.grid["density"], self._cm, level + 1, field
+            )
+
+        self.buffer.attrs["is_normalized"] = False
+
+    def create_dataset(self, simulation_time=0.0, dataset_name="unnamed"):
+        """
+        Read the :py:class:`data_structures.YTHDF5` instance as a YT dataset.
+
+        Parameters
+        ----------
+        simulation_time: float, optional
+            The simulation time at which to load the dataset. This makes relatively little impact on the results of any analysis;
+            however, it may impact redshift dependent measures. Default is ``0``.
+        dataset_name: str, optional
+            The name of the dataset. By default, this is ``"unnamed"``.
+
+        Returns
+        -------
+        yt dataset
+
+        """
+        mylog.info(f"Passing {self} to yt.")
+        import yt
+
+        return yt.load_hdf5_file(
+            self.filename,
+            "/grid",
+            bbox=self.bbox,
+            dataset_arguments={
+                "length_unit": "kpc",
+                "mass_unit": "Msun",
+                "time_unit": "Myr",
+                "magnetic_unit": "G",
+                "velocity_unit": "kpc/Myr",
+                "sim_time": simulation_time,
+                "dataset_name": dataset_name,
+            },
+        )
