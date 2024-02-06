@@ -11,6 +11,7 @@ from cluster_generator.particles import ClusterParticles
 from cluster_generator.utils import (
     G,
     ensure_ytquantity,
+    field_label_map,
     generate_particle_radii,
     integrate,
     integrate_mass,
@@ -860,6 +861,7 @@ class ClusterModel:
         ax.loglog(self["radius"], self[field], **kwargs)
         ax.set_xlim(r_min, r_max)
         ax.set_xlabel("Radius (kpc)")
+        ax.set_ylabel(field_label_map.get(field, ""))
         ax.tick_params(which="major", width=2, length=6)
         ax.tick_params(which="minor", width=2, length=3)
         return fig, ax
