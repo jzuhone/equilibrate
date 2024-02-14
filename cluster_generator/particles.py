@@ -22,11 +22,17 @@ gadget_fields = {
         "MagneticField",
         "Density",
         "Potential",
-        "PassiveScalars",
     ],
     "star": ["Coordinates", "Velocities", "Masses", "ParticleIDs", "Potential"],
     "black_hole": ["Coordinates", "Velocities", "Masses", "ParticleIDs"],
     "tracer": ["Coordinates"],
+}
+
+code_fields = {
+    "arepo": {
+        "PassiveScalars",
+        "GFM_Metallicity",
+    }
 }
 
 gadget_field_map = {
@@ -37,6 +43,8 @@ gadget_field_map = {
     "Potential": "potential_energy",
     "InternalEnergy": "thermal_energy",
     "MagneticField": "magnetic_field",
+    "Metallicity": "metallicity",
+    "GFM_Metallicity": "metallicity",
 }
 
 gadget_field_units = {
@@ -48,7 +56,10 @@ gadget_field_units = {
     "Potential": "km**2/s**2",
     "PassiveScalars": "",
     "MagneticField": "1e5*sqrt(Msun)*km/s/(kpc**1.5)",
+    "Metallicity": "",
+    "GFM_Metallicity": "",
 }
+
 
 ptype_map = OrderedDict(
     [
@@ -428,11 +439,15 @@ class ClusterParticles:
             self.fields[ptype, "particle_position"] += r_ctr
             self.fields[ptype, "particle_velocity"] += v_ctr
 
-    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype):
-        for field in gadget_fields[ptype]:
+    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype, code):
+        fields = gadget_fields[ptype]
+        if code in code_fields:
+            fields += code_fields[code][ptype]
+        for field in fields:
             if field == "ParticleIDs":
+                # these are handled later
                 continue
-            if field == "PassiveScalars" and ptype == "gas":
+            if field == "PassiveScalars":
                 if self.num_passive_scalars > 0:
                     data = np.stack(
                         [self[ptype, s].d for s in self.passive_scalars], axis=-1
@@ -483,7 +498,7 @@ class ClusterParticles:
             idxs = self._clip_to_box(ptype, box_size)
             num_particles[ptype] = idxs.sum()
             g = f.create_group(gptype)
-            self._write_gadget_fields(ptype, g, idxs, dtype)
+            self._write_gadget_fields(ptype, g, idxs, dtype, code)
             ids = np.arange(num_particles[ptype]) + 1 + npart
             g.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             npart += num_particles[ptype]
