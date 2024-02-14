@@ -361,7 +361,7 @@ def tnfw_mass_profile(rho_s, r_s, r_t):
     def _tnfw(r):
         x = r / r_s
         a = r_t / r_s
-        return 4 * np.pi * rho_s * r_s**3 * fl(x, a).astype("float64")
+        return 4 * np.pi * rho_s * r_s**3 * fl(x, a).real
 
     return RadialProfile(_tnfw)
 
