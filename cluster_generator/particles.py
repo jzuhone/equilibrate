@@ -30,8 +30,10 @@ gadget_fields = {
 
 code_fields = {
     "arepo": {
-        "PassiveScalars",
-        "GFM_Metallicity",
+        "PartType0": [
+            "PassiveScalars",
+            "GFM_Metallicity",
+        ]
     }
 }
 
