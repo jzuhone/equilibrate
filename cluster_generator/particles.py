@@ -30,7 +30,7 @@ gadget_fields = {
 
 code_fields = {
     "arepo": {
-        "PartType0": [
+        "gas": [
             "PassiveScalars",
             "GFM_Metallicity",
         ]
@@ -444,7 +444,7 @@ class ClusterParticles:
     def _write_gadget_fields(self, ptype, h5_group, idxs, dtype, code):
         fields = gadget_fields[ptype]
         if code in code_fields:
-            fields += code_fields[code][ptype]
+            fields += code_fields[code].get(ptype, [])
         for field in fields:
             if field == "ParticleIDs":
                 # these are handled later
