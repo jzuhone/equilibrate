@@ -16,7 +16,6 @@
 #
 #
 #
-import h5py._hl.dataset
 import numpy as np
 
 cimport cython
@@ -110,7 +109,6 @@ def dump_field_to_hdf5(
         np.ndarray[DTYPE_t, ndim=1] t,
         np.ndarray[DTYPE_t, ndim=1] c,
         int k,
-        unsigned int level,
         str fieldname
 ):
     """
@@ -125,91 +123,19 @@ def dump_field_to_hdf5(
     pbar = tqdm(
         desc=f"Chunked Interpolation: {fieldname}",
         leave=False,
-        position=level,
         total=chunkmap.shape[2],
     )
-
+    s = chunkmap[:, 1, 1] - chunkmap[:, 0, 0] # This is fixed by our requirement that chunksize is invariant.
     for chunk_id in range(chunkmap.shape[2]):
         sbbox =  bbox[:, 0].reshape(3, 1) + chunkmap[:,:,chunk_id]*dp
-        s = chunkmap[:,1,chunk_id] - chunkmap[:,0,chunk_id]
         _x, _y, _z = np.mgrid[
                      sbbox[0, 0]:sbbox[0, 1]:s[0] * 1j,
                      sbbox[1, 0]:sbbox[1, 1]:s[1] * 1j,
                      sbbox[2, 0]:sbbox[2, 1]:s[2] * 1j
                      ]
 
-        _r = np.sqrt(_x ** 2 + _y ** 2 + _z ** 2).ravel()
-        buffer_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
-                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
-                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]] += dfitpack.splev(t,c,k,_r,0)[0].reshape(s)
-
-        pbar.update()
-    pbar.close()
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-@cython.cdivision(True)
-def renormalize(
-        buffer_object,
-        density_object,
-        np.ndarray[ITYPE32_t, ndim=3] chunkmap,
-        unsigned int level,
-        str fieldname
-):
-    """
-    Dump the field to hdf5 buffer.
-    """
-    cdef np.ndarray[ITYPE32_t,ndim=1] s
-    cdef np.ndarray[DTYPE_t,ndim=3] _x,_y,_z
-    cdef np.ndarray[DTYPE_t,ndim=1] _r
-    pbar = tqdm(
-        desc=f"Normalizing: {fieldname}",
-        leave=False,
-        position=level,
-        total=chunkmap.shape[2],
-    )
-
-    for chunk_id in range(chunkmap.shape[2]):
-
-        buffer_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
-                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
-                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]] /= density_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
-                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
-                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]]
-
-        pbar.update()
-    pbar.close()
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-@cython.cdivision(True)
-def unnormalize(
-        buffer_object,
-        density_object,
-        np.ndarray[ITYPE32_t, ndim=3] chunkmap,
-        unsigned int level,
-        str fieldname
-):
-    """
-    Dump the field to hdf5 buffer.
-    """
-    cdef np.ndarray[ITYPE32_t,ndim=1] s
-    cdef np.ndarray[DTYPE_t,ndim=3] _x,_y,_z
-    cdef np.ndarray[DTYPE_t,ndim=1] _r
-    pbar = tqdm(
-        desc=f"Un-normalizing: {fieldname}",
-        leave=False,
-        position=level,
-        total=chunkmap.shape[2],
-    )
-
-    for chunk_id in range(chunkmap.shape[2]):
-
-        buffer_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
-                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
-                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]] *= density_object[chunkmap[0,0,chunk_id]:chunkmap[0,1,chunk_id],
-                                 chunkmap[1,0,chunk_id]:chunkmap[1,1,chunk_id],
-                                 chunkmap[2,0,chunk_id]:chunkmap[2,1,chunk_id]]
+        _r = np.sqrt(_x ** 2 + _y ** 2 + _z ** 2)
+        buffer_object[chunk_id,:,:,:] += dfitpack.splev(t,c,k,_r,0)[0]
 
         pbar.update()
     pbar.close()

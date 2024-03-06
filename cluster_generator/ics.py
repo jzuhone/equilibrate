@@ -411,20 +411,19 @@ class ClusterICs:
 
     def create_dataset(
         self,
-        filename=None,
+        filename,
         domain_dimensions=(512, 512, 512),
         left_edge=None,
         box_size=None,
         overwrite=False,
         chunksize=64,
-        included_fields=None,
     ):
         r"""
         Generate a :py:mod:`yt` dataset grid for the :py:class:`model.ClusterModel` instance.
 
         Parameters
         ----------
-        filename: str, optional
+        filename: str
             The filename at which to write the HDF5 formatted grid dataset. By default, this is ``None``, and a
             temporary directory is generated which is deleted after runtime has concluded.
         domain_dimensions: tuple, optional
@@ -442,9 +441,6 @@ class ClusterICs:
         chunksize: int, optional
             The maximum chunksize for subgrid operations. Lower values with increase the execution time but save memory. By default,
             chunks contain no more that :math:`64^3` cells (``chunksize=64``).
-        included_fields: list, optional
-            The particular fields to write to the HDF5 file. By default, this kwarg is ``None``, which leads to the writing of each
-            of the fields contained in the model.
 
         Returns
         -------
@@ -459,12 +455,11 @@ class ClusterICs:
 
         bbox = [le + box_size for le in left_edge]
 
-        ds_obj = YTHDF5.new(
+        ds_obj = YTHDF5.build(
+            filename,
             domain_dimensions,
             bbox,
             chunksize=chunksize,
-            fields=included_fields,
-            filename=filename,
             overwrite=overwrite,
         )
         ds_obj.add_ICs(self)
