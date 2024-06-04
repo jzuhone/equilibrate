@@ -5,26 +5,58 @@ with external packages like :py:mod:`yt`.
 import os
 import pathlib as pt
 from contextlib import contextmanager
+from numbers import Number
+from typing import Any, Collection, Generic, Self, Type, TypeVar, Union
 
 import h5py
 import numpy as np
+import unyt
 from scipy.interpolate import dfitpack
-from tqdm import tqdm
+from tqdm.auto import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
-from cluster_generator import ClusterModel
+from cluster_generator.ics import ClusterICs
+from cluster_generator.model import ClusterModel
 from cluster_generator.opt.structures import construct_chunks, dump_field_to_hdf5
 from cluster_generator.utils import cgparams, ensure_ytarray, mylog
 
-fields = {
-    "density": "Msun/kpc**3",
-    "dm_density": "Msun/kpc**3",
-    "stellar_density": "Msun/kpc**3",
-    "pressure": "Msun/(kpc*Myr**2)",
-    "momentum_density_x": "Msun/(Myr*kpc**2)",
-    "momentum_density_y": "Msun/(Myr*kpc**2)",
-    "momentum_density_z": "Msun/(Myr*kpc**2)",
-    "magnetic_pressure": "Msun/(kpc*Myr**2)",
-}
+Instance = TypeVar("Instance")
+Value = TypeVar("Value")
+Attribute = TypeVar("Attribute")
+
+
+class _YTHDF5_Attribute(Generic[Instance, Attribute, Value]):
+    """Private attribute descriptor class for YTHDF5 structures."""
+
+    def __set_name__(self, owner, name):
+        self.public_name = name
+
+    def __get__(
+        self, instance: Union[Instance, None], owner: Type[Instance]
+    ) -> Union[Value, Self]:
+        if (self.public_name in instance._attribute_dictionary) and (
+            instance._attribute_dictionary[self.public_name]
+        ) is not None:
+            # the attribute is already loaded, we simple return it.
+            return instance._attribute_dictionary[self.public_name]
+        else:
+            # The attribute is not already loaded, we should try to get it from disk.
+            return self._get_from_file(instance)
+
+    def _get_from_file(self, instance: Union[Instance, None]) -> Union[Value, Self]:
+        with h5py.File(instance.filename, "r") as fo:
+            if self.public_name in fo.attrs.keys():
+                return fo.attrs[self.public_name]
+            else:
+                raise ValueError(
+                    f"Attribute {self.public_name} is not present in attributes of {instance.filename}."
+                )
+
+    def __set__(self, instance: Union[Instance, None], value: Any):
+        with h5py.File(instance.filename, "a") as fo:
+            fo.attrs[self.public_name] = value
+
+        instance._attribute_dictionary[self.public_name] = value
 
 
 class YTHDF5:
@@ -33,54 +65,75 @@ class YTHDF5:
     to YT datasets.
     """
 
-    def __init__(self, filename):
+    _yt_fields: dict = {
+        "density": "Msun/kpc**3",
+        "dark_matter_density": "Msun/kpc**3",
+        "stellar_density": "Msun/kpc**3",
+        "pressure": "Msun/(kpc*Myr**2)",
+        "momentum_density_x": "Msun/(Myr*kpc**2)",
+        "momentum_density_y": "Msun/(Myr*kpc**2)",
+        "momentum_density_z": "Msun/(Myr*kpc**2)",
+        "magnetic_pressure": "Msun/(kpc*Myr**2)",
+    }
+
+    domain_dimensions: Collection[int] = _YTHDF5_Attribute()
+    """array-like of int: The grid domain sizes along each of the axes.
+
+    Should be a ``(3,)`` array of integer types specifying the number of cells contained along each of the axes.
+    """
+    bbox: Collection[float] = _YTHDF5_Attribute()
+    """array-like of float: The bounding box of the represented domain.
+
+    The ``bbox`` is a ``(3,2)`` array where the first index corresponds to each of the axes and the second to the min and max
+    coordinate values respectively. The units are assumed to be kpc.
+    """
+    model_count: int = _YTHDF5_Attribute()
+    """int: The number of models which are currently incorporated in this hdf5 dataset.
+    """
+    chunksize: int = _YTHDF5_Attribute()
+    """int: The maximum size (along a single axis) of the computation chunks."""
+
+    def __init__(self, filename: str | pt.Path) -> None:
         """
-        Initializes the :py:class:`data_structures.YTHDF5` data structure.
+        Initialize a :py:class:`data_structures.YTHDF5` instance from an underlying HDF5 file.
 
         Parameters
         ----------
         filename: str
-            The file path from which to open the YT-HDF file.
+            The HDF5 file corresponding to the intended data structure.
         """
-        assert os.path.exists(filename), f"The file {filename} doesn't appear to exist."
-        fo = h5py.File(filename, "a")
+        # Manage the filename and assure that the file does exist.
+        self.filename: pt.Path = pt.Path(filename)
+        """:py:class:`pathlib.Path`: The path to the underlying HDF5 data.
+        """
+        assert (
+            self.filename.exists()
+        ), f"The file {self.filename} doesn't appear to exist."
 
-        #: The path to the base hdf5 file.
-        self.filename = filename
-        #: The dimensions of the grid for each of the fields.
-        self.domain_dimensions = None
-        #: the bounding box for the model.
-        self.bbox = None
-        #: the number of models added to the HDF5 file.
-        self.model_count = None
-        #: the size of each chunk (maximum).
-        self.chunksize = None
+        self._attribute_dictionary: dict = {}
+        # The attribute dictionary is the __get__ / __set__ location for attribute descriptors.
 
-        for k, v in fo.attrs.items():
-            setattr(self, k, v)
+        with h5py.File(filename, "a") as fo:
+            self.chunkmap: np.ndarray = fo["chunks"]["chunkmap"][:]
+            """:py:class:`np.ndarray`: The map of chunks for the underlying data structure.
 
-        #: The chunkmap, provides information to the backend for IO operations.
-        self.chunkmap = fo["chunks"]["chunkmap"][:]
+            The chunkmap provides a mapping between a given chunk id and the corresponding grid coordinates of its edges.
+            """
 
-        fo.close()
-
-    def __str__(self):
+    def __str__(self) -> str:
         return f"<YTHDF5 File @ {self.filename}>"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
-
-    def __getitem__(self, item):
-        with self.open() as file:
-            return file.attrs[item]
-
-    def __setitem__(self, key, value):
-        with self.open() as file:
-            file.attrs[key] = value
 
     @classmethod
     @contextmanager
-    def temporary(cls, domain_dimensions=(512, 512, 512), bbox=None, chunksize=64):
+    def temporary(
+        cls,
+        domain_dimensions: Collection[int] = (512, 512, 512),
+        bbox: Collection[float] | None = None,
+        chunksize: int = 64,
+    ):
         """
         Create a temporary :py:class:`data_structures.YTHDF5` instance.
 
@@ -103,6 +156,9 @@ class YTHDF5:
         """
         import tempfile
 
+        if bbox is None:
+            bbox = np.array([[0, 1], [0, 1], [0, 1]], dtype="f64")
+
         path = tempfile.NamedTemporaryFile(delete=False)
         built_cls = cls.build(
             path.name,
@@ -115,13 +171,13 @@ class YTHDF5:
         os.remove(path.name)
 
     @classmethod
-    def load(cls, filename):
+    def load(cls, filename: str | pt.Path) -> Self:
         """
         Load an existing :py:class:`data_structures.YTHDF5` instance from file.
 
         Parameters
         ----------
-        filename: str
+        filename: str or :py:class:`pathlib.Path`
             The path to the file.
 
         Returns
@@ -134,23 +190,24 @@ class YTHDF5:
     @classmethod
     def build(
         cls,
-        filename,
-        domain_dimensions=(512, 512, 512),
-        bbox=None,
-        overwrite=False,
-        chunksize=64,
-    ):
+        filename: str | pt.Path,
+        domain_dimensions: Collection[int] = (512, 512, 512),
+        bbox: Collection[float] = None,
+        overwrite: bool = False,
+        chunksize: int = 64,
+    ) -> Self:
         """
         Create a new :py:class:`data_structures.YTHDF5` instance.
 
         Parameters
         ----------
         filename: str
-            The filename for the underlying file.
+            The path at which to generate the HDF5 file and the corresponding data structure.
         domain_dimensions: array-like, optional
-            The dimensions of the grid along each axis (3-tuple)
-        bbox: array-like
-            The bounding box of the grid. Should be of size ``(3,2)``.
+            The dimensions of the grid along each axis (3-tuple). By default, this is ``(512,512,512)``.
+        bbox: array-like, optional
+            The bounding box of the grid. Should be of size ``(3,2)``. By default, the bounding box will be ``[0,1]`` along
+            each of the axes.
         overwrite: bool, optional
             If ``True``, then the file will be overwritten if it already exists. Default ``False``.
         chunksize: int, optional
@@ -163,15 +220,15 @@ class YTHDF5:
             The generated YT dataset.
         """
         filename = pt.Path(filename)
-
-        # Sanity checking
         domain_dimensions = np.array(domain_dimensions, dtype="uint32")
+
         if bbox is None:
             bbox = np.array([[0, 1], [0, 1], [0, 1]], dtype="float64")
 
+        # -- Sanity checks -- #
         assert np.array_equal(
             domain_dimensions % chunksize, np.array([0, 0, 0])
-        ), "The chunksize does not evenly divide the domain."
+        ), "The chunksize does not evenly divide the domain. Please alter you chunksize so that it fits."
 
         # Managing file existence logic.
         if (filename.exists()) and (not overwrite):
@@ -180,7 +237,7 @@ class YTHDF5:
             )
         elif filename.exists():
             mylog.info(f"{filename} exists. Overwriting it...")
-            os.remove(filename)
+            filename.unlink()
         else:
             pass
 
@@ -189,16 +246,22 @@ class YTHDF5:
         return cls.load(filename)
 
     @contextmanager
-    def open(self):
+    def open(self, **kwargs):
         """
         Context manager for opening the HDF5 buffer for direct read write options.
         """
-        fo = h5py.File(self.filename, "a")
+        fo = h5py.File(self.filename, kwargs.pop("mode", "a"), **kwargs)
         yield fo
         fo.close()
 
-    @staticmethod
-    def _construct_hdf5_schema(filename, domain_dimensions, bbox, chunksize):
+    @classmethod
+    def _construct_hdf5_schema(
+        cls,
+        filename: str | pt.Path,
+        domain_dimensions: Collection[int],
+        bbox: Collection[float],
+        chunksize: int,
+    ):
         # loading the hdf5 file and constructing groups.
         try:
             _buffer = h5py.File(filename, "a")
@@ -222,22 +285,27 @@ class YTHDF5:
         _buffer["chunks"]["chunkmap"][:] = chunkmap
 
         # constructing fields
-        for field in fields:
+        for field, unit in cls._yt_fields.items():
             _grid.create_dataset(
                 field,
                 (chunkmap.shape[-1], chunksize, chunksize, chunksize),
                 dtype="float64",
             )
-            _grid[field].attrs["unit"] = fields[field]
+            _grid[field].attrs["unit"] = unit
 
         _buffer.close()
 
     @property
-    def _estimated_size(self):
-        return (np.prod(np.array(self.domain_dimensions))) * 8 * len(fields) / (1e9)
+    def _estimated_size(self) -> float:
+        return (
+            (np.prod(np.array(self.domain_dimensions)))
+            * 8
+            * len(self.__class__._yt_fields)
+            / (1e9)
+        )
 
     @property
-    def _estimated_chunk_memory(self):
+    def _estimated_chunk_memory(self) -> Number:
         return (self.chunksize**3) * 8 / (1e9)
 
     def survey_memory(self):
@@ -269,9 +337,14 @@ class YTHDF5:
         except ImportError:
             pass  # The user doesn't have psutils installed, we don't want to force them to do so.
 
-    def add_model(self, model, center, velocity):
+    def add_model(
+        self,
+        model: ClusterModel,
+        center: unyt.unyt_array | np.ndarray,
+        velocity: unyt.unyt_array | np.ndarray,
+    ):
         """
-        Add the :py:class:`model.ClusterModel` instance to the :py:class:`data_structures.YTHDF5` instance.
+        Add a new :py:class:`model.ClusterModel`
 
         Parameters
         ----------
@@ -282,6 +355,7 @@ class YTHDF5:
         velocity: array-like
             The COM velocity of the cluster in the coordinates of :py:attr:`data_structures.YTHDF5.bbox`.
         """
+        # Enforce unit conventions on method arguments.
         center, velocity = ensure_ytarray(center, "kpc"), ensure_ytarray(
             velocity, "kpc/Myr"
         )
@@ -292,21 +366,26 @@ class YTHDF5:
             f"\tPos: {[np.round(j,decimals=2) for j in center.d]} kpc, Vel: {[np.round(j,decimals=2) for j in velocity.to_value('km/s')]} km/s"
         )
 
-        # setup the coordinates to maximize ease of interpolation.
+        # Pull out critical profiles as arrays to ease interpolation logic later on.
         _rr = model["radius"].to_value("kpc")
-        _dens = model["density"].to_value(fields["density"])
 
-        with self.open() as ythdf5_io:
+        with self.open(mode="a") as ythdf5_io, logging_redirect_tqdm(loggers=[mylog]):
             for field, unit in tqdm(
-                fields.items(),
+                self._yt_fields.items(),
                 desc=f"Writing {model} to YTHDF5",
                 leave=False,
                 disable=(not cgparams["system"]["display"]["progress_bars"]),
             ):
                 if "momentum_density" in field:
-                    # manage the momentum density.
+                    # The field is a momentum density field. The axis needs to be determined before we can
+                    # proceed with the computations.
                     _momentum_index = {"x": 0, "y": 1, "z": 2}[field[-1]]
-                    _yy = _dens * velocity[_momentum_index].to_value(unit)
+                    _yy = (model["density"] * velocity[_momentum_index]).to_value(unit)
+                    # !
+                    # NOTE: because we are working in a grid-context, particle velocities are not pertinent
+                    # (unlike SPH).
+                    #        Thus, the momentum density should be zero for stationary cells
+                    #        (because the system is equilibrated).
                 elif field in model.fields:
                     _yy = model[field].to_value(unit)
                 else:
@@ -323,7 +402,7 @@ class YTHDF5:
 
             ythdf5_io.attrs["model_count"] += 1
 
-    def add_ICs(self, ics):
+    def add_ICs(self, ics: ClusterICs):
         """
         Add an entire :py:class:`ics.ClusterICs` instance to the :py:class:`data_structures.YTHDF5` buffer.
 
@@ -349,16 +428,13 @@ class YTHDF5:
             self.add_model(model, center, velocity)
 
     def _add_field(self, fileio, r, y, fieldname, bbox, chunkmap):
-        # Interpolate and pass to the Cython level.
+        # Construct the interpolation parameters from FITPACK.
         _, _, _, _, _, k, _, n, t, c, _, _, _, _ = dfitpack.fpcurf0(
             r, y, 3, w=None, xb=r[0], xe=r[-1], s=0.0
         )
         _buffer_obj = fileio["grid"][fieldname]
+
+        # Dump the field to HDF5 -> cython.
         dump_field_to_hdf5(
             _buffer_obj, bbox, self.domain_dimensions, chunkmap, t, c, k, fieldname
         )
-
-
-if __name__ == "__main__":
-    with YTHDF5.temporary() as temp:
-        print(temp)

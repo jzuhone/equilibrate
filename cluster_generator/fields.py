@@ -6,8 +6,8 @@ import os
 import numpy as np
 from unyt import unyt_array
 
-from cluster_generator.cython_utils import div_clean
 from cluster_generator.model import ClusterModel
+from cluster_generator.opt.cython_utils import div_clean
 from cluster_generator.utils import mylog, parse_prng
 
 

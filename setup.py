@@ -6,8 +6,8 @@ from Cython.Build import cythonize
 from setuptools import setup
 
 cython_utils = Extension(
-    "cluster_generator.cython_utils",
-    sources=["cluster_generator/cython_utils.pyx"],
+    "cluster_generator.opt.cython_utils",
+    sources=["cluster_generator/opt/cython_utils.pyx"],
     language="c",
     libraries=["m"],
     include_dirs=[np.get_include()],

@@ -5,7 +5,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from tqdm.auto import tqdm
 from unyt import unyt_array
 
-from cluster_generator.cython_utils import generate_velocities
+from cluster_generator.opt.cython_utils import generate_velocities
 from cluster_generator.particles import ClusterParticles
 from cluster_generator.utils import generate_particle_radii, mylog, quad
 

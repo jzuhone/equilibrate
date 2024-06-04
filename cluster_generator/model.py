@@ -1,5 +1,8 @@
 import os
+import pathlib as pt
 from collections import OrderedDict
+from numbers import Number
+from typing import Collection
 
 import h5py
 import numpy as np
@@ -10,6 +13,7 @@ from unyt import unyt_array, unyt_quantity
 from cluster_generator.particles import ClusterParticles
 from cluster_generator.utils import (
     G,
+    ensure_ytarray,
     ensure_ytquantity,
     generate_particle_radii,
     integrate,
@@ -880,49 +884,69 @@ class ClusterModel:
 
     def create_dateset(
         self,
-        filename,
-        domain_dimensions=(512, 512, 512),
-        left_edge=None,
-        box_size=None,
-        overwrite=False,
-        chunksize=64,
+        filename: str | pt.Path,
+        domain_dimensions: Collection[int] = (512, 512, 512),
+        left_edge: Collection[Number] | unyt_array | None = None,
+        box_size: Collection[Number] | unyt_array | None = None,
+        overwrite: bool = False,
+        chunksize: int = 64,
     ):
         r"""
-        Generate a :py:mod:`yt` dataset grid for the :py:class:`model.ClusterModel` instance.
+        Construct a ``yt`` dataset object from this model on a uniformly spaced grid.
 
         Parameters
         ----------
-        filename: str
-            The filename at which to write the HDF5 formatted grid dataset. By default, this is ``None``, and a
-            temporary directory is generated which is deleted after runtime has concluded.
-        domain_dimensions: tuple, optional
-            Length 3 tuple of integers. Represents the number of cells to place on each of the axes of the
-            grid. By default, the grid is :math:`512^3` cells.
-        left_edge: tuple, optional
-            The left edge of the grid. By default, this is :math:`-r_{\mathrm{max}}` (for each entry), so as to contain the entire
-            model within the grid domain. In conjunction with ``box_size``, this serves to determine the geometry of the
-            output dataset.
-        box_size: tuple, optional
-            The size of each of the box axes. By default, these are each twice the maximum radius of the model to ensure that
-            the entire model is included in the dataset.
+        filename: str or :py:class:`pathlib.Path`
+            The path at which to generate the underlying HDF5 datafile.
+        domain_dimensions: Collection of int, optional
+            The size of the uniform grid along each axis of the domain. If specified, the argument must be an iterable type with
+            shape ``(3,)``. Each element should be an ``int`` specifying the number of grid cells to place along that axis. By default,
+            the selected value is ``(512,512,512)``.
+        left_edge: Collection of float or :py:class:`unyt.unyt_array`, optional
+            The left-most edge of the uniform grid's domain. In conjunction with ``box_size``, this attribute specifies the position of
+            the model in the box and the amount of the model which is actually written to the disk. If specified, ``left_edge`` should be a
+            length 3 iterable with each of the entries representing the minimum value of the respective axis. If elements of the iterable have units, or
+            the array is a :py:class:`unyt.unyt_array` instance, then the units will be interpreted automatically; otherwise, units are assumed to be
+            kpc. By default, the left edge is determined such that the resulting grid contains the full radial domain of the :py:class:`ClusterModel`.
+        box_size: Collection of float or :py:class:`unyt.unyt_array`, optional
+            The length of the grid along each of the physical axes. Along with ``left_edge``, this argument determines the positioning of the grid and
+            the model within it. If specified, ``box_size`` should be a length 3 iterable with each of the entries representing the length
+            of the grid along the respective axis. If elements of the iterable have units, or the array is a :py:class:`unyt.unyt_array` instance,
+             then the units will be interpreted automatically; otherwise, units are assumed to be kpc.
+            By default, the ``box_size`` is determined such that the resulting grid contains the full radial domain of the :py:class:`ClusterModel`.
         overwrite: bool, optional
-            If ``True``, the dataset creation process will attempt to overwrite an existing data file if necessary. Default is ``False``.
+            If ``False`` (default), the an error is raised if ``filename`` already exists. Otherwise, ``filename`` will be deleted and overwritten
+            by this method.
         chunksize: int, optional
             The maximum chunksize for subgrid operations. Lower values with increase the execution time but save memory. By default,
             chunks contain no more that :math:`64^3` cells (``chunksize=64``).
 
-        Returns
-        -------
-        yt_dataset
+        Notes
+        -----
+
+        Generically, converting a :py:class:`ClusterModel` instance to a valid ``yt`` dataset occurs in two steps. In the first step,
+        the dataset is written to disk on a uniform grid (or, more generally, an AMR grid). From this grid, ``yt`` can then interpret the
+        data and construct a dataset from there.
+
+        Because constructing the underlying grid is a memory intensive procedure, this method utilizes the HDF5 structure as an intermediary
+        (effectively using the disk for VRAM).
+
         """
-        from data_structures import YTHDF5
+        from cluster_generator.data_structures import YTHDF5
 
-        if not left_edge:
-            left_edge = 3 * [np.amin(self["radius"].to_value("kpc"))]
-        if not box_size:
-            box_size = 2 * np.amax(self["radius"].to_value("kpc"))
+        # If the base parameters are not specified, then they need to be constructed from the dataset information.
+        if left_edge is None:
+            left_edge = unyt_array(3 * [-np.amax(self["radius"])])
+        if box_size is None:
+            box_size = unyt_array(3 * [2 * np.amax(self["radius"])])
 
-        bbox = [le + box_size for le in left_edge]
+        # Enforce unit conversions and then remove units and keep everything in kpc
+        left_edge, box_size = ensure_ytarray(left_edge, "kpc").to_value(
+            "kpc"
+        ), ensure_ytarray(box_size, "kpc").to_value("kpc")
+        bbox = np.array(
+            [[le, le + bs] for le, bs in zip(left_edge, box_size)], dtype="float"
+        )
 
         ds_obj = YTHDF5.build(
             filename,
@@ -931,9 +955,9 @@ class ClusterModel:
             chunksize=chunksize,
             overwrite=overwrite,
         )
-        ds_obj.add_model(self, [0, 0, 0], [0, 0, 0])
 
-        return ds_obj.create_dataset()
+        ds_obj.add_model(self, [0, 0, 0], [0, 0, 0])
+        return None
 
 
 # This is only for backwards-compatibility
