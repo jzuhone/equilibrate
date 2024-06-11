@@ -446,7 +446,7 @@ class ClusterICs:
         -------
         yt_dataset
         """
-        from data_structures import YTHDF5
+        from cluster_generator.data_structures import YTHDF5
 
         if not left_edge:
             left_edge = 3 * [-np.amax(self.r_max)]
@@ -463,5 +463,3 @@ class ClusterICs:
             overwrite=overwrite,
         )
         ds_obj.add_ICs(self)
-
-        return ds_obj.create_dataset()

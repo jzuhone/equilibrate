@@ -882,7 +882,7 @@ class ClusterModel:
         d = self.fields["density"].to_value("Msun/kpc**3")[::-1]
         return unyt_quantity(np.interp(density, d, r), "kpc")
 
-    def create_dateset(
+    def create_dataset(
         self,
         filename: str | pt.Path,
         domain_dimensions: Collection[int] = (512, 512, 512),
@@ -957,7 +957,6 @@ class ClusterModel:
         )
 
         ds_obj.add_model(self, [0, 0, 0], [0, 0, 0])
-        return None
 
 
 # This is only for backwards-compatibility
