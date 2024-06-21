@@ -2,6 +2,7 @@
 IO Backend for integrating :py:class:`cluster_generator.model.ClusterModel` and :py:class:`cluster_generator.ics.ClusterICs` instances
 with external packages like :py:mod:`yt`.
 """
+
 import os
 import pathlib as pt
 from contextlib import contextmanager
@@ -115,6 +116,7 @@ class YTHDF5:
 
         with h5py.File(filename, "a") as fo:
             self.chunkmap: np.ndarray = fo["chunks"]["chunkmap"][:]
+
             """:py:class:`np.ndarray`: The map of chunks for the underlying data structure.
 
             The chunkmap provides a mapping between a given chunk id and the corresponding grid coordinates of its edges.
