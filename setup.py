@@ -29,7 +29,15 @@ setup(
     author_email="jzuhone@gmail.com",
     url="https://github.com/jzuhone/cluster_generator",
     download_url="https://github.com/jzuhone/cluster_generator/tarball/0.1.0",
-    install_requires=["numpy", "scipy", "yt", "unyt", "cython", "ruamel.yaml", "h5py"],
+    install_requires=[
+        "numpy<2",
+        "scipy",
+        "yt",
+        "unyt",
+        "cython",
+        "ruamel.yaml",
+        "h5py",
+    ],
     classifiers=[
         "Intended Audience :: Science/Research",
         "Operating System :: OS Independent",
