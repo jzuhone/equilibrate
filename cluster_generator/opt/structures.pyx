@@ -16,6 +16,7 @@ import array
 
 cimport numpy as np
 
+np.import_array() # --> fix numpy error at runtime for not having it. Why do we need this?
 from scipy.interpolate import dfitpack
 from tqdm.auto import tqdm
 
