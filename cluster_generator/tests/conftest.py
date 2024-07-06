@@ -1,37 +1,37 @@
+"""
+Configure pytest for cluster_generator
+"""
+
 import os
 
 import pytest
 
 
 def pytest_collection_modifyitems(session, config, items):
-    _module_order = [
-        "cluster_generator.tests." + i
-        for i in ["test_particles", "test_profile", "test_gravity", "test_ics"]
+
+    # Ensuring the order of necessary tests
+    # --------------------------------------#
+    # This is done to avoid having to rebuild toy-models for every test when one is already generated.
+    # As such, we run tests on ``test_model`` first to ensure that a model is generated and saved to disk.
+    _enforced_test_ordering = [
+        ("cluster_generator.tests.test_model", "test_model_build")
     ]
-    _doc_test, its = [it for it in items if isinstance(it, pytest.DoctestItem)], [
-        it for it in items if not isinstance(it, pytest.DoctestItem)
-    ]
 
-    print(
-        f"\nFound \u001b[31m{len(_doc_test)}\u001b[0m doctests: \u001b[35m{_doc_test}\u001b[0m"
+    _doc_tests, _standard_tests = (
+        [test for test in items if isinstance(test, pytest.DoctestItem)],
+        [test for test in items if not isinstance(test, pytest.DoctestItem)],
     )
-    print(f"Found \u001b[31m{len(its)}\u001b[0m tests: \u001b[35m{its}\u001b[0m")
-    module_mapping = {item: item.module.__name__ for item in its}
 
-    sorted_items = its.copy()
+    _test_dictionary = {
+        (test.module.__name__, test.name): test for test in _standard_tests
+    }
 
-    for module in _module_order:
-        sorted_items = [it for it in sorted_items if module_mapping[it] != module] + [
-            it for it in sorted_items if module_mapping[it] == module
-        ]
-
-    its[:] = sorted_items
-
-    items[:] = its + _doc_test
-    print(f"\nPrescribed order \u001b[35m{_module_order}\u001b[0m.")
-    print(
-        f"Asserted order \u001b[35m{[item.module.__name__.replace('cluster_generator.tests.', '') for item in its] + _doc_test}\u001b[0m.\n"
+    items[:] = (
+        [_test_dictionary.pop(test_name) for test_name in _enforced_test_ordering]
+        + list(_test_dictionary.values())
+        + _doc_tests
     )
+    print([k.name for k in items])
 
 
 def pytest_addoption(parser):
@@ -41,6 +41,7 @@ def pytest_addoption(parser):
         action="store_true",
         help="Generate new answers, but don't test.",
     )
+    parser.addoption("--tmp", help="The temporary directory to use.", default=None)
 
 
 @pytest.fixture()
@@ -59,5 +60,17 @@ def answer_dir(request):
 
 
 @pytest.fixture()
-def gravity(request):
-    return request.config.getoption("--gravity")
+def temp_dir(request):
+    """fetches the --tmp option"""
+    td = request.config.getoption("--tmp")
+
+    if td is None:
+        from tempfile import TemporaryDirectory
+
+        td = TemporaryDirectory()
+
+        yield td.name
+
+        td.cleanup()
+    else:
+        yield os.path.abspath(td)
