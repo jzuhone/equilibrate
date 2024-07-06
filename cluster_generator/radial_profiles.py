@@ -443,9 +443,7 @@ def cored_snfw_density_profile(M, a, r_c):
 
     def _snfw(r):
         x = r / a
-        return (
-            3.0 * M * b / (16.0 * np.pi * a**3) / ((1.0 + b * x) * (1.0 + x) ** 2.5)
-        )
+        return 3.0 * M * b / (16.0 * np.pi * a**3) / ((1.0 + b * x) * (1.0 + x) ** 2.5)
 
     return RadialProfile(_snfw)
 

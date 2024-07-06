@@ -264,6 +264,8 @@ class YTHDF5:
         bbox: Collection[float],
         chunksize: int,
     ):
+        from cluster_generator.utils import mue
+
         # loading the hdf5 file and constructing groups.
         try:
             _buffer = h5py.File(filename, "a")
@@ -277,6 +279,7 @@ class YTHDF5:
         _buffer.attrs["bbox"] = bbox
         _buffer.attrs["chunksize"] = chunksize
         _buffer.attrs["model_count"] = 0
+        _buffer.attrs["mu"] = mue
 
         _grid = _buffer.create_group("grid")  # stores the grid information
         _ = _buffer.create_group("chunks")  # group for storing chunk information.

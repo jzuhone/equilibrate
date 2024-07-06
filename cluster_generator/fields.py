@@ -1,6 +1,7 @@
 """
 3D fields for magnetic field initiation and other field based tasks.
 """
+
 import os
 
 import numpy as np

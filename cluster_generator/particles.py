@@ -1,6 +1,7 @@
 """
 Particles IC module
 """
+
 from collections import OrderedDict, defaultdict
 from pathlib import Path
 

@@ -1,6 +1,7 @@
 """
 Utility functions for basic functionality of the py:module:`cluster_generator` package.
 """
+
 import logging
 import os
 import pathlib as pt

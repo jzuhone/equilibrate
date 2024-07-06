@@ -24,7 +24,7 @@ class ClusterGeneratorGrid(AMRGridPatch):
 class ClusterGeneratorHierarchy(GridIndex):
     grid = ClusterGeneratorGrid
 
-    def __init__(self, ds, dataset_type="cluster_generator_hdf5"):
+    def __init__(self, ds, dataset_type="cluster_generator"):
         self.dataset_type = dataset_type
         self.dataset = weakref.proxy(ds)
         # for now, the index file is the dataset!
@@ -70,7 +70,7 @@ class ClusterGeneratorHierarchy(GridIndex):
         # ------------------------------------------------------------------
         # Notes:
         # We require a grid divisible by the chunksize, so all grids are 1 cube-chunksize.
-        self.grid_dimensions = np.ones((self.num_grids, 3), dtype=int) * (
+        self.grid_dimensions = np.ones((self.num_grids, 3), dtype="int32") * (
             self.dataset.parameters["chunksize"]
         )
 
@@ -90,8 +90,8 @@ class ClusterGeneratorHierarchy(GridIndex):
             self._handle["chunks"]["chunkmap"][:, 1, :].T * _dx
         ) + self.dataset.domain_left_edge
 
-        self.grid_particle_count = np.zeros((self.num_grids, 1), dtype=int)
-        self.grid_levels = np.zeros((self.num_grids, 1), dtype=int)
+        self.grid_particle_count = np.zeros((self.num_grids, 1), dtype="int32")
+        self.grid_levels = np.zeros((self.num_grids, 1), dtype="int32")
         self.max_level = 0
         self.grids = np.empty(self.num_grids, dtype="object")
 
@@ -125,14 +125,14 @@ class ClusterGeneratorDataset(Dataset):
     def __init__(
         self,
         filename,
-        dataset_type="cluster_generator_hdf5",
+        dataset_type="cluster_generator",
         storage_filename=None,
         units_override=None,
         unit_system="cgs",
         default_species_fields=None,
     ):
         self._handle = HDF5FileHandler(filename)
-        self.fluid_types += ("cluster_generator_hdf5",)
+        self.fluid_types += ("cluster_generator",)
         super().__init__(
             filename,
             dataset_type,
@@ -172,6 +172,8 @@ class ClusterGeneratorDataset(Dataset):
         self.omega_lambda = 0
         self.omega_matter = 0
         self.hubble_constant = 0
+        self._periodicity = tuple((True, True, True))
+        self.mu = self.parameters.get("mu", 1.2)  # mean molecular weight.
 
         # -- pulling the chunkmap information -- #
         self.parameters["NGRID"] = self._handle["chunks"]["chunkmap"].shape[-1]
