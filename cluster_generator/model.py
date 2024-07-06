@@ -6,7 +6,10 @@ from typing import Collection
 
 import h5py
 import numpy as np
-from scipy.integrate import cumtrapz, quad
+from scipy.integrate import (
+    cumulative_trapezoid as cumtrapz,  # compliant with scipy 1.14.0+
+)
+from scipy.integrate import quad
 from scipy.interpolate import InterpolatedUnivariateSpline
 from unyt import unyt_array, unyt_quantity
 
