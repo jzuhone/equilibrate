@@ -7,7 +7,7 @@ import os
 import pathlib as pt
 from contextlib import contextmanager
 from numbers import Number
-from typing import Any, Collection, Generic, Self, Type, TypeVar, Union
+from typing import Any, Collection, Generic, Type, TypeVar, Union
 
 import h5py
 import numpy as np
@@ -19,7 +19,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from cluster_generator.ics import ClusterICs
 from cluster_generator.model import ClusterModel
 from cluster_generator.opt.structures import construct_chunks, dump_field_to_hdf5
-from cluster_generator.utils import cgparams, ensure_ytarray, mylog
+from cluster_generator.utils import Self, cgparams, ensure_ytarray, mylog
 
 Instance = TypeVar("Instance")
 Value = TypeVar("Value")

@@ -9,7 +9,7 @@ import pathlib as pt
 import sys
 from functools import reduce
 from numbers import Number
-from typing import Any, Callable, Collection, Iterable, Mapping, Self
+from typing import Any, Callable, Collection, Iterable, Mapping
 
 import numpy as np
 import ruamel.yaml
@@ -20,6 +20,11 @@ from scipy.integrate import quad
 from unyt import Unit, kpc
 from unyt import physical_constants as pc
 from unyt import unyt_array, unyt_quantity
+
+try:
+    from typing import Self  # noqa
+except ImportError:
+    from typing_extensions import Self as Self  # noqa
 
 config_directory = os.path.join(pt.Path(__file__).parents[0], "bin", "config.yaml")
 # :py:class:`pathlib.Path`: The directory in which the ``cluster_generator`` configuration files are located.

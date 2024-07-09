@@ -2,12 +2,12 @@
 Module for generating radial profiles used to build galaxy cluster models.
 """
 from numbers import Number
-from typing import Any, Callable, Literal, Self
+from typing import Any, Callable, Literal
 
 import numpy as np
 from numpy.typing import ArrayLike
 
-from cluster_generator.utils import Registry, enforce_style
+from cluster_generator.utils import Registry, Self, enforce_style  # back-compat.
 
 _nfw_factor = lambda conc: 1.0 / (np.log(conc + 1.0) - conc / (1.0 + conc))
 
