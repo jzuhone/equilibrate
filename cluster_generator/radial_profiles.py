@@ -848,11 +848,11 @@ def rescale_profile_by_mass(profile, mass, radius):
     >>> a_c = 60.0
     >>> c = 0.17
     >>> alpha = -2.0
-    >>> beta = -3.0
-    >>> gas_density = am06_density_profile(rho_0, a, a_c, c, alpha, beta)
+    >>> gas_density = am06_density_profile(rho_0, a, a_c, c, alpha)
     >>> M200 = 1.0e14
     >>> r200 = 900.0
     >>> gas_density = rescale_profile_by_mass(gas_density, M200, r200)
+
     """
     from scipy.integrate import quad
 

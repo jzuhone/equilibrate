@@ -99,7 +99,9 @@ class ClusterParticles:
         fields = self.fields.copy()
         for field in other.fields:
             if field in fields:
-                fields[field] = uconcatenate([self[field], other[field]])
+                fields[field] = uconcatenate(
+                    [self[field], other[field]]
+                )  # TODO: future deprecation anticipated.
             else:
                 fields[field] = other[field]
         particle_types = list(set(self.particle_types + other.particle_types))
@@ -231,8 +233,12 @@ class ClusterParticles:
 
         Examples
         --------
-        >>> from cluster_generator import ClusterParticles
-        >>> dm_particles = ClusterParticles.from_file("dm_particles.h5")
+
+        .. code-block:: python
+
+            from cluster_generator import ClusterParticles
+            dm_particles = ClusterParticles.from_file("dm_particles.h5")
+
         """
         names = {}
         with h5py.File(filename, "r") as f:
@@ -277,9 +283,13 @@ class ClusterParticles:
 
         Examples
         --------
-        >>> from cluster_generator import ClusterParticles
-        >>> ptypes = ["gas", "dm"]
-        >>> particles = ClusterParticles.from_gadget_file("snapshot_060.h5", ptypes=ptypes)
+
+        .. code-block:: python
+
+            from cluster_generator import ClusterParticles
+            ptypes = ["gas", "dm"]
+            particles = ClusterParticles.from_gadget_file("snapshot_060.h5", ptypes=ptypes)
+
         """
         fields = OrderedDict()
         f = h5py.File(filename, "r")

@@ -437,6 +437,8 @@ class YTHDF5:
         _, _, _, _, _, k, _, n, t, c, _, _, _, _ = dfitpack.fpcurf0(
             r, y, 3, w=None, xb=r[0], xe=r[-1], s=0.0
         )
+        # As per scipy release 1.14, this should be deprecated as of scipy 2.0. It is still present in core scipy code
+        # but will need to be replaced to allow compatibility with scipy 2.0.
         _buffer_obj = fileio["grid"][fieldname]
 
         # Dump the field to HDF5 -> cython.

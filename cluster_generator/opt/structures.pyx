@@ -17,7 +17,13 @@ import array
 cimport numpy as np
 
 np.import_array() # --> fix numpy error at runtime for not having it. Why do we need this?
-from scipy.interpolate import dfitpack
+try:
+    # See https://github.com/scipy/scipy/issues/16729 and related issues. This may need continual updating as
+    # Scipy continues to update its conventions for interfacing with Dierckx FITPACK.
+    from scipy.interpolate import _dfitpack  # noqa
+except ImportError:
+    from scipy.interpolate import dfitpack as _dfitpack #noqa
+
 from tqdm.auto import tqdm
 
 

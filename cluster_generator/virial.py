@@ -1,3 +1,6 @@
+"""
+Module containing methods for particle virialization.
+"""
 from collections import OrderedDict
 
 import numpy as np

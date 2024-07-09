@@ -92,8 +92,12 @@ class ClusterModel:
 
         Examples
         --------
-        >>> from cluster_generator import ClusterModel
-        >>> hse_model = ClusterModel.from_h5_file("hse_model.h5")
+
+        .. code-block:: python
+
+            from cluster_generator import ClusterModel
+            hse_model = ClusterModel.from_h5_file("hse_model.h5")
+
         """
         from cluster_generator.virial import VirialEquilibrium
 
