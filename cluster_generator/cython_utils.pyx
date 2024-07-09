@@ -16,7 +16,15 @@ import numpy as np
 cimport cython
 cimport numpy as np
 
-from scipy.interpolate import dfitpack
+np.import_array() # --> fix numpy error at runtime for not having it. Why do we need this?
+
+try:
+    # See https://github.com/scipy/scipy/issues/16729 and related issues. This may need continual updating as
+    # Scipy continues to update its conventions for interfacing with Dierckx FITPACK.
+    from scipy.interpolate import _dfitpack  # noqa
+except ImportError:
+    from scipy.interpolate import dfitpack as _dfitpack #noqa
+
 from tqdm.auto import tqdm
 
 
@@ -67,7 +75,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
             v2 = drand48()*vesc[i]
             v2 *= v2
             e[0] = psi[i]-0.5*v2
-            f = dfitpack.splev(t, c, k, e, ext)[0]
+            f[0] = _dfitpack.splev(t, c, k, e, ext)[0][0]  # see https://github.com/numpy/numpy/pull/10615
             not_done = f*v2 < drand48()*fv2esc[i]
         velocity[i] = sqrt(v2)
         pbar.update()
