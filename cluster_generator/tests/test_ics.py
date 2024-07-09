@@ -1,6 +1,7 @@
 """
 Testing module for initial conditions objects.
 """
+import warnings
 
 import pytest
 
@@ -67,3 +68,24 @@ def test_double_ics(answer_dir: str, answer_store: bool, temp_dir: str):
 
     # Perform the answer tests.
     particle_answer_testing(parts, "particles_double.h5", answer_store, answer_dir)
+
+
+if __name__ == "__main__":
+    from cluster_generator.tests.utils import generate_model
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        model = generate_model()
+        model.write_model_to_h5("test.h5", overwrite=True)
+        num_particles = {k: 100000 for k in ["dm", "star", "gas"]}
+        ics = ClusterICs(
+            "single",
+            1,
+            "test.h5",
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+            num_particles=num_particles,
+        )
+
+        # Generate the particles
+        parts = ics.setup_particle_ics(prng=prng)
