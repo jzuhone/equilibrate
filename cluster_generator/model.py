@@ -19,10 +19,10 @@ from scipy.integrate import quad
 from scipy.interpolate import InterpolatedUnivariateSpline
 from unyt import unyt_array, unyt_quantity
 
-from cluster_generator.model import ClusterModel
 from cluster_generator.particles import ClusterParticles
 from cluster_generator.utils import (
     G,
+    Self,
     ensure_ytarray,
     ensure_ytquantity,
     generate_particle_radii,
@@ -126,7 +126,7 @@ class ClusterModel:
         return self._star_virial
 
     @classmethod
-    def from_arrays(cls, fields: dict[str, unyt_array]) -> ClusterModel:
+    def from_arrays(cls, fields: dict[str, unyt_array]) -> Self:
         """
         Initialize a :py:class:`ClusterModel` instance from arrays.
 
@@ -142,12 +142,12 @@ class ClusterModel:
             The returned cluster model.
         """
 
-        return ClusterModel(fields["radius"].size, fields)
+        return cls(fields["radius"].size, fields)
 
     @classmethod
     def from_h5_file(
         cls, filename: str | Path, r_min: Number = None, r_max: Number = None
-    ) -> ClusterModel:
+    ) -> Self:
         r"""
         Generate an equilibrium model from an HDF5 file.
 
@@ -214,7 +214,7 @@ class ClusterModel:
         cls,
         fields: dict[str, unyt_array],
         stellar_density: Callable[[Number], float] = None,
-    ) -> ClusterModel:
+    ) -> Self:
         rr = fields["radius"].d
         mylog.info("Integrating gravitational potential profile.")
         tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
@@ -267,7 +267,7 @@ class ClusterModel:
 
         return cls(rr.size, fields)
 
-    def set_rmax(self, r_max: float) -> ClusterModel:
+    def set_rmax(self, r_max: float) -> Self:
         """
         Set the maximum radius for the model.
 
@@ -479,7 +479,7 @@ class ClusterModel:
         temperature: Callable[[ArrayLike[float]], ArrayLike[float]],
         stellar_density: Callable[[ArrayLike[float]], ArrayLike[float]] = None,
         num_points: int = 1000,
-    ) -> ClusterModel:
+    ) -> Self:
         """
         Construct a hydrostatic equilibrium model using gas density
         and temperature profiles.
@@ -530,7 +530,7 @@ class ClusterModel:
         entropy: Callable[[ArrayLike[float]], ArrayLike[float]],
         stellar_density: Callable[[ArrayLike[float]], ArrayLike[float]] = None,
         num_points: int = 1000,
-    ) -> ClusterModel:
+    ) -> Self:
         """
         Construct a hydrostatic equilibrium model using gas density
         and entropy profiles.
@@ -570,7 +570,7 @@ class ClusterModel:
         total_density: Callable[[ArrayLike[float]], ArrayLike[float]],
         stellar_density: Callable[[ArrayLike[float]], ArrayLike[float]] = None,
         num_points: int = 1000,
-    ) -> ClusterModel:
+    ) -> Self:
         """
         Construct a hydrostatic equilibrium model using gas density
         and total density profiles
@@ -624,7 +624,7 @@ class ClusterModel:
         total_density: Callable[[ArrayLike[float]], ArrayLike[float]],
         stellar_density: Callable[[ArrayLike[float]], ArrayLike[float]] = None,
         num_points: int = 1000,
-    ) -> ClusterModel:
+    ) -> Self:
         """
         Initialize a model without a gas component.
 
