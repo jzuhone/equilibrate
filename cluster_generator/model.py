@@ -11,7 +11,7 @@ from typing import Any, Callable, Collection
 import h5py
 import numpy as np
 from numpy.random import RandomState
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 from scipy.integrate import (
     cumulative_trapezoid as cumtrapz,  # compliant with scipy 1.14.0+
 )
@@ -475,9 +475,9 @@ class ClusterModel:
         cls,
         rmin: float,
         rmax: float,
-        density: Callable[[ArrayLike[float]], ArrayLike[float]],
-        temperature: Callable[[ArrayLike[float]], ArrayLike[float]],
-        stellar_density: Callable[[ArrayLike[float]], ArrayLike[float]] = None,
+        density: Callable[[ArrayLike], NDArray[np.float64]],
+        temperature: Callable[[ArrayLike], NDArray[np.float64]],
+        stellar_density: Callable[[ArrayLike], NDArray[np.float64]] = None,
         num_points: int = 1000,
     ) -> Self:
         """
@@ -526,9 +526,9 @@ class ClusterModel:
         cls,
         rmin: float,
         rmax: float,
-        density: Callable[[ArrayLike[float]], ArrayLike[float]],
-        entropy: Callable[[ArrayLike[float]], ArrayLike[float]],
-        stellar_density: Callable[[ArrayLike[float]], ArrayLike[float]] = None,
+        density: Callable[[ArrayLike], NDArray[np.float64]],
+        entropy: Callable[[ArrayLike], NDArray[np.float64]],
+        stellar_density: Callable[[ArrayLike], NDArray[np.float64]] = None,
         num_points: int = 1000,
     ) -> Self:
         """
@@ -566,9 +566,9 @@ class ClusterModel:
         cls,
         rmin: float,
         rmax: float,
-        density: Callable[[ArrayLike[float]], ArrayLike[float]],
-        total_density: Callable[[ArrayLike[float]], ArrayLike[float]],
-        stellar_density: Callable[[ArrayLike[float]], ArrayLike[float]] = None,
+        density: Callable[[ArrayLike], NDArray[np.float64]],
+        total_density: Callable[[ArrayLike], NDArray[np.float64]],
+        stellar_density: Callable[[ArrayLike], NDArray[np.float64]] = None,
         num_points: int = 1000,
     ) -> Self:
         """
@@ -621,8 +621,8 @@ class ClusterModel:
         cls,
         rmin: float,
         rmax: float,
-        total_density: Callable[[ArrayLike[float]], ArrayLike[float]],
-        stellar_density: Callable[[ArrayLike[float]], ArrayLike[float]] = None,
+        total_density: Callable[[ArrayLike], NDArray[np.float64]],
+        stellar_density: Callable[[ArrayLike], NDArray[np.float64]] = None,
         num_points: int = 1000,
     ) -> Self:
         """
@@ -654,7 +654,7 @@ class ClusterModel:
 
         return cls._from_scratch(fields, stellar_density=stellar_density)
 
-    def find_field_at_radius(self, field: str, r: ArrayLike[float]) -> unyt_array:
+    def find_field_at_radius(self, field: str, r: ArrayLike) -> unyt_array:
         """
         Find the value of a *field* in the profiles
         at radius *r*.
