@@ -2,13 +2,13 @@
 Tests for the ``RadialProfile`` objects
 """
 
-import logging
 import os
 import pathlib as pt
 
+import h5py
 import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_allclose
 
 import cluster_generator.radial_profiles as rp
 from cluster_generator.utils import integrate_mass
@@ -27,6 +27,8 @@ _params = (
         "tnfw_mass_profile": [1, 1000, 1200],
         "snfw_density_profile": [1, 1000],
         "snfw_mass_profile": [1, 1000],
+        "cored_snfw_density_profile": [1, 1000, 600],
+        "cored_snfw_mass_profile": [1, 1000, 600],
         "einasto_density_profile": [1, 1000, 2],
         "einasto_mass_profile": [1, 1000, 2],
         "am06_density_profile": [1, 0.5, 0.7, 50, 2],
@@ -35,39 +37,42 @@ _params = (
         "am06_temperature_profile": [1, 0.1, 0.3, 50],
         "ad07_density_profile": [1, 1, 1, 1, 1],
         "ad07_temperature_profile": [1, 1, 1, 1],
+        "baseline_entropy_profile": [1, 1, 1, 1],
         "broken_entropy_profile": [1, 1, 1],
         "walker_entropy_profile": [1, 1, 1, 1],
     }
 )
 
 
-@pytest.mark.usefixtures("answer_dir")
-class TestProfiles:
-    """Base tests for core functionality of profiles"""
+@pytest.mark.parametrize("profile", list(rp.DEFAULT_PROFILE_REGISTRY.keys()))
+def test_profiles(profile: str, answer_dir: str, answer_store: bool, temp_dir: str):
+    """
+    Test that radial profiles successfully produce arrays and match answers.
+    """
+    # Setup
+    _r = np.geomspace(1, 10000, 1000)
+    _answer_file = pt.Path(os.path.join(answer_dir, "radial_profiles.h5"))
 
-    prof_a = rp.constant_profile(5)
-    prof_b = rp.power_law_profile(1, 50, 4)
+    # Ensure that we have a parameter set.
+    assert (
+        profile in _params
+    ), f"The profile {profile} is not present in the testing parameters."
 
-    def test_dunder(self):
-        _ = [self.prof_b.__str__(), self.prof_b.__repr__(), self.prof_b.__pow__(3)]
+    # Generate the profile
+    radial_profile = getattr(rp.DEFAULT_PROFILE_REGISTRY, profile)(*_params[profile])
+    output = radial_profile(_r)
 
-    def test_core(self, answer_dir):
-        import matplotlib.pyplot as plt
+    # Checking answers
+    with h5py.File(_answer_file, "a") as fio:
+        if answer_store:
+            if profile in fio.keys():
+                del fio[profile]
 
-        test_profile = self.prof_b.add_core(20, 3)
+            fio.create_dataset(profile, data=output)
 
-        fig, axes = plt.subplots(1, 1)
-        test_profile.plot(1, 1000, fig=fig, ax=axes)
-        fig.savefig(f"{answer_dir}/profile_core_test.png")
-
-    def test_trunc(self, answer_dir):
-        import matplotlib.pyplot as plt
-
-        test_profile = self.prof_b.cutoff(500)
-
-        fig, axes = plt.subplots(1, 1)
-        test_profile.plot(1, 1000, fig=fig, ax=axes)
-        fig.savefig(f"{answer_dir}/profile_trunc_test.png")
+        else:
+            check_output = fio[profile][:]
+            assert_allclose(output, check_output, rtol=1e-7)
 
 
 class TestUtilities:
@@ -81,43 +86,3 @@ class TestUtilities:
         int = integrate_mass(profile, rr)
 
         np.testing.assert_allclose(int, answer_profile(rr))
-
-
-@pytest.mark.filterwarnings("ignore:Casting")
-@pytest.mark.skip(reason="Implementation not-complete.")
-def test_profiles(answer_dir, answer_store):
-    """Tests for consistency"""
-
-    # -- checking if we are writing -- #
-    output_directory = f"{answer_dir}/pkl"
-    pt.Path(output_directory).mkdir(parents=True, exist_ok=True)
-
-    # -- building and checking -- #
-    x = np.geomspace(0.1, 1e6, 10000)
-
-    for name, args in _params.items():
-        try:
-            _f = getattr(rp, name)(*args)
-        except KeyError:
-            raise ValueError(
-                f"Failed to find profile {name} in globals. Did you write the name correctly?"
-            )
-
-        if answer_store:
-            _f.to_binary(os.path.join(output_directory, f"{name}.rp"))
-        else:
-            # -- actually checking -- #
-            try:
-                old = rp.RadialProfile.from_binary(
-                    os.path.join(output_directory, f"{name}.rp")
-                )
-            except FileNotFoundError:
-                logging.info(
-                    f"The profile {name} did not have a prior instance in the pkl file."
-                )
-                _f.to_binary(os.path.join(output_directory, f"{name}.rp"))
-                continue
-
-            assert_array_equal(
-                old(x), _f(x), err_msg=f"Failed to match prior values for {name}."
-            )

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import h5py
+from numpy.random import RandomState
 from numpy.testing import assert_equal
 
 from cluster_generator.model import ClusterModel
@@ -15,6 +16,8 @@ from cluster_generator.radial_profiles import (
     snfw_total_mass,
     vikhlinin_density_profile,
 )
+
+prng: RandomState = RandomState(25)
 
 
 def generate_model() -> ClusterModel:
@@ -45,6 +48,53 @@ def generate_model() -> ClusterModel:
     m.set_magnetic_field_from_beta(100.0, gaussian=True)
 
     return m
+
+
+def get_base_model(temp_dir: str | Path) -> ClusterModel:
+    """
+    Fetch the base model from the temp directory. If it can't be found, generate a new one.
+
+    Parameters
+    ----------
+    temp_dir: str
+        The path to the temporary directory.
+
+    Returns
+    -------
+    ClusterModel
+        The base model.
+    """
+    _base_model_path = Path(os.path.join(temp_dir, "base_model.h5"))
+
+    if _base_model_path.exists():
+        return ClusterModel.from_h5_file(_base_model_path)
+    else:
+        model = generate_model()
+        model.write_model_to_h5(_base_model_path)
+        return model
+
+
+def get_base_model_path(temp_dir: str | Path) -> Path:
+    """
+    Fetch the base model path from the temp directory. If it can't be found, generate a new one.
+
+    Parameters
+    ----------
+    temp_dir: str
+        The path to the temporary directory.
+
+    Returns
+    -------
+    str
+        The path to the base model
+    """
+    _base_model_path = Path(os.path.join(temp_dir, "base_model.h5"))
+
+    if _base_model_path.exists():
+        return _base_model_path
+    else:
+        _ = get_base_model(temp_dir)
+        return _base_model_path
 
 
 def _h5_recursive_check(
@@ -141,7 +191,23 @@ def h5_answer_testing(
             _h5_recursive_check(nfio, ofio)
 
 
-def particle_answer_testing(parts, filename, answer_store, answer_dir):
+def particle_answer_testing(
+    parts: ClusterParticles, filename: str, answer_store: bool, answer_dir: str
+):
+    """
+    Check equivalence of particle datasets.
+
+    Parameters
+    ----------
+    parts: ClusterParticles
+        The particles to check against the existing answers.
+    filename: str
+        The name of the old model (as was saved in the answer directory).
+    answer_store: bool
+        If ``True``, the new model will replace the old and no checks are run.
+    answer_dir: str
+        The directory where the answers are stored.
+    """
     p = Path(answer_dir) / filename
     if answer_store:
         parts.write_particles(p, overwrite=True)

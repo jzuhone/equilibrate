@@ -1,7 +1,6 @@
 """
 Testing module for the :py:mod:``data_structures`` module.
 """
-
 import os
 
 import pytest

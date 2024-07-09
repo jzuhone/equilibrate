@@ -10,7 +10,7 @@ import numpy as np
 from cluster_generator.tests.utils import generate_model, model_answer_testing
 
 
-def test_model_build(answer_store, answer_dir, temp_dir):
+def test_model_build(answer_store: bool, answer_dir: str, temp_dir: str):
     """
     Test the basic construction mechanisms for a model.
 

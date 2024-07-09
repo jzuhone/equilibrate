@@ -1,25 +1,54 @@
-from pathlib import Path
+"""
+Testing module for initial conditions objects.
+"""
 
-from numpy.random import RandomState
+import pytest
 
 from cluster_generator.ics import ClusterICs, compute_centers_for_binary
-from cluster_generator.tests.utils import particle_answer_testing
+from cluster_generator.tests.utils import (
+    get_base_model_path,
+    particle_answer_testing,
+    prng,
+)
 
-prng = RandomState(25)
 
+@pytest.mark.slow
+def test_single_ics(answer_dir: str, answer_store: bool, temp_dir: str):
+    """
+    Generate a 1-cluster IC object and create its particles. Then check against answers.
+    """
+    # -- Making sure that there is a model -- #
+    # The model should be at temp_dir/base_model.h5. If not, we may need to generate a new one.
+    base_model_path = get_base_model_path(temp_dir)
 
-def test_single_ics(answer_dir):
-    p = Path(answer_dir) / "profile.h5"
+    # Configure and generate the ICs
     num_particles = {k: 100000 for k in ["dm", "star", "gas"]}
     ics = ClusterICs(
-        "single", 1, p, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], num_particles=num_particles
+        "single",
+        1,
+        base_model_path,
+        [0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0],
+        num_particles=num_particles,
     )
+
+    # Generate the particles
     parts = ics.setup_particle_ics(prng=prng)
-    particle_answer_testing(parts, "particles.h5", False, answer_dir)
+
+    # Perform the answer tests.
+    particle_answer_testing(parts, "particles_single.h5", answer_store, answer_dir)
 
 
-def test_double_ics(answer_store, answer_dir):
-    p = Path(answer_dir) / "profile.h5"
+@pytest.mark.slow
+def test_double_ics(answer_dir: str, answer_store: bool, temp_dir: str):
+    """
+    Generate a 2-cluster IC object and create its particles. Then check against answers.
+    """
+    # -- Making sure that there is a model -- #
+    # The model should be at temp_dir/base_model.h5. If not, we may need to generate a new one.
+    base_model_path = get_base_model_path(temp_dir)
+
+    # Configure and generate the ICs
     num_particles = {k: 200000 for k in ["dm", "star", "gas"]}
     center1, center2 = compute_centers_for_binary([0.0, 0.0, 0.0], 3000.0, 500.0)
     velocity1 = [500.0, 0.0, 0.0]
@@ -27,10 +56,14 @@ def test_double_ics(answer_store, answer_dir):
     ics = ClusterICs(
         "double",
         2,
-        [p, p],
+        [base_model_path, base_model_path],
         [center1, center2],
         [velocity1, velocity2],
         num_particles=num_particles,
     )
+
+    # Generate the particles
     parts = ics.setup_particle_ics(prng=prng)
-    particle_answer_testing(parts, "double_particles.h5", answer_store, answer_dir)
+
+    # Perform the answer tests.
+    particle_answer_testing(parts, "particles_double.h5", answer_store, answer_dir)

@@ -1,44 +1,84 @@
+"""
+Module for generating radial profiles used to build galaxy cluster models.
+"""
+from numbers import Number
+from typing import Any, Callable, Literal, Self
+
 import numpy as np
+from numpy.typing import ArrayLike
+
+from cluster_generator.utils import Registry, enforce_style
 
 _nfw_factor = lambda conc: 1.0 / (np.log(conc + 1.0) - conc / (1.0 + conc))
 
 
+class ProfileRegistry(Registry):
+    """
+    Registry class for storing collections of profile types.
+    """
+
+    @property
+    def types(self) -> list[str]:
+        """
+        The available types of profile in this registry.
+        """
+        _t = []
+        for _, v in self._mapping.items():
+            if hasattr(v, "type"):
+                _t.append(v.type)
+
+        return list(set(list(_t)))
+
+
+DEFAULT_PROFILE_REGISTRY: ProfileRegistry = ProfileRegistry()
+
+
 class RadialProfile:
-    def __init__(self, profile):
+    """
+    Class representation of a single radial profile.
+    """
+
+    def __init__(
+        self, profile: Self | Callable[[ArrayLike | Number], ArrayLike | Number]
+    ):
         if isinstance(profile, RadialProfile):
             self.profile = profile.profile
         else:
             self.profile = profile
 
-    def __call__(self, r):
+    def __call__(self, r: ArrayLike | Number) -> ArrayLike | Number:
         return self.profile(r)
 
-    def _do_op(self, other, op):
+    def _do_op(
+        self,
+        other: Any,
+        op: Callable[[ArrayLike | Number, ArrayLike | Number], ArrayLike | Number],
+    ) -> Callable[[ArrayLike | Number], ArrayLike | Number]:
         if hasattr(other, "profile"):
             p = lambda r: op(self.profile(r), other.profile(r))
         else:
             p = lambda r: op(self.profile(r), other)
         return p
 
-    def __add__(self, other):
+    def __add__(self, other: Any) -> Self:
         p = self._do_op(other, np.add)
         return RadialProfile(p)
 
-    def __mul__(self, other):
+    def __mul__(self, other: Any) -> Self:
         p = self._do_op(other, np.multiply)
         return RadialProfile(p)
 
     __radd__ = __add__
     __rmul__ = __mul__
 
-    def __pow__(self, power):
+    def __pow__(self, power: int | float | complex) -> Self:
         p = lambda r: self.profile(r) ** power
         return RadialProfile(p)
 
-    def add_core(self, r_core, alpha):
+    def add_core(self, r_core: float, alpha: float) -> Self:
         """
-        Add a small core with radius *r_core* to the profile by
-        multiplying it by 1-exp(-(r/r_core)**alpha).
+        Add a small core with radius ``r_core`` to the profile by
+        multiplying it by :math:`1-exp(-(r/r_core)^alpha)`.
 
         Parameters
         ----------
@@ -55,7 +95,22 @@ class RadialProfile:
 
         return RadialProfile(_core)
 
-    def cutoff(self, r_cut, k=5):
+    def cutoff(self, r_cut: float, k: float = 5) -> Self:
+        """
+        Truncate the profile with a particular sharpness dictated by ``k`` at radius ``r_cut``.
+
+        Parameters
+        ----------
+        r_cut: float
+            The cutoff point.
+        k: float
+            The truncation sharpness parameter.
+
+        Returns
+        -------
+
+        """
+
         def _cutoff(r):
             x = r / r_cut
             step = 1.0 / (1.0 + np.exp(-2 * k * (x - 1)))
@@ -65,7 +120,7 @@ class RadialProfile:
         return RadialProfile(_cutoff)
 
     @classmethod
-    def from_array(cls, r, f_r):
+    def from_array(cls, r: ArrayLike, f_r: ArrayLike) -> Self:
         """
         Generate a callable radial profile using an array of radii
         and an array of values.
@@ -82,7 +137,17 @@ class RadialProfile:
         f = UnivariateSpline(r, f_r)
         return cls(f)
 
-    def plot(self, rmin, rmax, num_points=1000, fig=None, ax=None, lw=2, **kwargs):
+    @enforce_style
+    def plot(
+        self,
+        rmin: Number,
+        rmax: Number,
+        num_points: int = 1000,
+        fig: Any = None,
+        ax: Any = None,
+        scale: Literal["log", "linear"] = "log",
+        **kwargs
+    ):
         """
         Make a quick plot of a profile using Matplotlib.
 
@@ -95,6 +160,8 @@ class RadialProfile:
         num_points : integer, optional
             The number of logspaced points between rmin
             and rmax to use when making the plot. Default: 1000
+        scale: str, optional
+            The display scale to utilize. Either ``'log'`` or ``'linear'``
         fig : :class:`~matplotlib.figure.Figure`, optional
             A Figure instance to plot in. Default: None, one will be
             created if not provided.
@@ -104,20 +171,27 @@ class RadialProfile:
         """
         import matplotlib.pyplot as plt
 
-        plt.rc("font", size=18)
-        plt.rc("axes", linewidth=2)
+        # setup the figure if not provided.
         if fig is None:
             fig = plt.figure(figsize=(10, 10))
         if ax is None:
             ax = fig.add_subplot(111)
+
+        # Construct abscissa
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
-        ax.loglog(rr, self(rr), lw=lw, **kwargs)
+
+        # plotting
+        ax.plot(rr, self(rr), **kwargs)
         ax.set_xlabel("Radius (kpc)")
-        ax.tick_params(which="major", width=2, length=6)
-        ax.tick_params(which="minor", width=2, length=3)
+
+        if scale == "log":
+            ax.set_yscale("log")
+            ax.set_xscale("log")
+
         return fig, ax
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="generic")
 def constant_profile(const):
     """
     A constant profile.
@@ -128,9 +202,12 @@ def constant_profile(const):
         The value of the constant.
     """
     p = lambda r: const
-    return RadialProfile(p)
+    return RadialProfile(
+        np.vectorize(p)
+    )  # Ensure that r array-like -> f(r) array-like.
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="generic")
 def power_law_profile(A, r_s, alpha):
     """
     A profile which is a power-law with radius, scaled
@@ -152,6 +229,7 @@ def power_law_profile(A, r_s, alpha):
     return RadialProfile(p)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def beta_model_profile(rho_c, r_c, beta):
     """
     A beta-model density profile (Cavaliere A.,
@@ -170,6 +248,7 @@ def beta_model_profile(rho_c, r_c, beta):
     return RadialProfile(p)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def hernquist_density_profile(M_0, a):
     """
     A Hernquist density profile (Hernquist, L. 1990,
@@ -186,6 +265,7 @@ def hernquist_density_profile(M_0, a):
     return RadialProfile(p)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def cored_hernquist_density_profile(M_0, a, b):
     """
     A Hernquist density profile (Hernquist, L. 1990,
@@ -209,6 +289,7 @@ def cored_hernquist_density_profile(M_0, a, b):
     return RadialProfile(p)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="mass")
 def hernquist_mass_profile(M_0, a):
     """
     A Hernquist mass profile (Hernquist, L. 1990,
@@ -246,6 +327,7 @@ def convert_nfw_to_hernquist(M_200, r_200, conc):
     return M0, a
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def nfw_density_profile(rho_s, r_s):
     """
     An NFW density profile (Navarro, J.F., Frenk, C.S.,
@@ -262,6 +344,7 @@ def nfw_density_profile(rho_s, r_s):
     return RadialProfile(p)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="mass")
 def nfw_mass_profile(rho_s, r_s):
     """
     An NFW mass profile (Navarro, J.F., Frenk, C.S.,
@@ -313,6 +396,7 @@ def nfw_scale_density(conc, z=0.0, delta=200.0, cosmo=None):
     return rho_s
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def tnfw_density_profile(rho_s, r_s, r_t):
     """
     A truncated NFW (tNFW) density profile (Baltz, E.A.,
@@ -336,6 +420,7 @@ def tnfw_density_profile(rho_s, r_s, r_t):
     return RadialProfile(_tnfw)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="mass")
 def tnfw_mass_profile(rho_s, r_s, r_t):
     """
     A truncated NFW (tNFW) mass profile (Baltz, E.A.,
@@ -366,6 +451,7 @@ def tnfw_mass_profile(rho_s, r_s, r_t):
     return RadialProfile(_tnfw)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def snfw_density_profile(M, a):
     """
     A "super-NFW" density profile (Lilley, E. J.,
@@ -386,6 +472,7 @@ def snfw_density_profile(M, a):
     return RadialProfile(_snfw)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="mass")
 def snfw_mass_profile(M, a):
     """
     A "super-NFW" mass profile (Lilley, E. J.,
@@ -425,6 +512,7 @@ def snfw_total_mass(mass, radius, a):
     return mass / mp(radius)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def cored_snfw_density_profile(M, a, r_c):
     """
     A cored "super-NFW" density profile (Lilley, E. J.,
@@ -443,11 +531,14 @@ def cored_snfw_density_profile(M, a, r_c):
 
     def _snfw(r):
         x = r / a
-        return 3.0 * M * b / (16.0 * np.pi * a**3) / ((1.0 + b * x) * (1.0 + x) ** 2.5)
+        return (
+            3.0 * M * b / (16.0 * np.pi * a**3) / ((1.0 + b * x) * (1.0 + x) ** 2.5)
+        )
 
     return RadialProfile(_snfw)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="mass")
 def cored_snfw_mass_profile(M, a, r_c):
     """
     A cored "super-NFW" mass profile (Lilley, E. J.,
@@ -516,6 +607,7 @@ def cored_snfw_total_mass(mass, radius, a, r_c):
 _dn = lambda n: 3.0 * n - 1.0 / 3.0 + 8.0 / (1215.0 * n) + 184.0 / (229635.0 * n * n)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def einasto_density_profile(M, r_s, n):
     """
     A density profile where the logarithmic slope is a
@@ -544,6 +636,7 @@ def einasto_density_profile(M, r_s, n):
     return RadialProfile(_einasto)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="mass")
 def einasto_mass_profile(M, r_s, n):
     """
     A mass profile where the logarithmic slope is a
@@ -571,6 +664,7 @@ def einasto_mass_profile(M, r_s, n):
     return RadialProfile(_einasto)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def am06_density_profile(rho_0, a, a_c, c, n):
     """
     The density profile for galaxy clusters suggested by
@@ -600,6 +694,7 @@ def am06_density_profile(rho_0, a, a_c, c, n):
     return RadialProfile(p)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="density")
 def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta, epsilon, gamma=None):
     """
     A modified beta-model density profile for galaxy
@@ -635,6 +730,7 @@ def vikhlinin_density_profile(rho_0, r_c, r_s, alpha, beta, epsilon, gamma=None)
     return RadialProfile(profile)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="temperature")
 def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min, r_cool, a_cool):
     """
     A temperature profile for galaxy clusters from
@@ -669,6 +765,7 @@ def vikhlinin_temperature_profile(T_0, a, b, c, r_t, T_min, r_cool, a_cool):
     return RadialProfile(_temp)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="temperature")
 def am06_temperature_profile(T_0, a, a_c, c):
     """
     The temperature profile for galaxy clusters suggested by
@@ -690,6 +787,7 @@ def am06_temperature_profile(T_0, a, a_c, c):
     return RadialProfile(p)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="entropy")
 def baseline_entropy_profile(K_0, K_200, r_200, alpha):
     """
     The baseline entropy profile for galaxy clusters (Voit, G.M.,
@@ -710,6 +808,7 @@ def baseline_entropy_profile(K_0, K_200, r_200, alpha):
     return RadialProfile(p)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="entropy")
 def broken_entropy_profile(r_s, K_scale, alpha, K_0=0.0):
     def _entr(r):
         x = r / r_s
@@ -719,6 +818,7 @@ def broken_entropy_profile(r_s, K_scale, alpha, K_0=0.0):
     return RadialProfile(_entr)
 
 
+@DEFAULT_PROFILE_REGISTRY.autoregister(type="entropy")
 def walker_entropy_profile(r_200, A, B, K_scale, alpha=1.1):
     def _entr(r):
         x = r / r_200
