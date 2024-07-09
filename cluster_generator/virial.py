@@ -7,7 +7,7 @@ from unyt import unyt_array
 
 from cluster_generator.opt.cython_utils import generate_velocities
 from cluster_generator.particles import ClusterParticles
-from cluster_generator.utils import generate_particle_radii, mylog, quad
+from cluster_generator.utils import cgparams, generate_particle_radii, mylog, quad
 
 
 class VirialEquilibrium:
@@ -42,7 +42,12 @@ class VirialEquilibrium:
         density_spline = InterpolatedUnivariateSpline(self.ee, pden)
         g = np.zeros(self.num_elements)
         dgdp = lambda t, e: 2 * density_spline(e - t * t, 1)
-        pbar = tqdm(leave=True, total=self.num_elements, desc="Computing particle DF ")
+        pbar = tqdm(
+            leave=True,
+            total=self.num_elements,
+            desc="Computing particle DF ",
+            disable=cgparams.config.system.preferences.disable_progress_bars,
+        )
         for i in range(self.num_elements):
             g[i] = quad(
                 dgdp,
@@ -192,6 +197,7 @@ class VirialEquilibrium:
             self.f.get_knots(),
             self.f.get_coeffs(),
             self.f._eval_args[2],
+            int(cgparams.config.system.preferences.disable_progress_bars),
         )
 
         if sub_sample > 1:
