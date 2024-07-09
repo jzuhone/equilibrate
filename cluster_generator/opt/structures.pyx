@@ -175,7 +175,7 @@ def dump_field_to_hdf5(
                      ]
 
         _r = np.sqrt(_x ** 2 + _y ** 2 + _z ** 2)
-        buffer_object[chunk_id,:,:,:] += dfitpack.splev(t,c,k,_r,0)[0].reshape(s)
+        buffer_object[chunk_id,:,:,:] += _dfitpack.splev(t,c,k,_r,0)[0].reshape(s)
 
         pbar.update()
     pbar.close()
