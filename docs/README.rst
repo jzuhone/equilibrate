@@ -2,13 +2,13 @@ Cluster Generator
 =================
 
 +-------------------+----------------------------------------------------------+
-| **Code**          + |black| |isort| |yt-project| |Pre-Commit|                +
+| **Code**          | |black| |isort| |yt-project| |Pre-Commit|                |
 +-------------------+----------------------------------------------------------+
-| **Documentation** + |docformatter| |NUMPSTYLE| |docs|                        +
+| **Documentation** | |docformatter| |NUMPSTYLE| |docs|                        |
 +-------------------+----------------------------------------------------------+
-| **GitHub**        +  |CONTRIBUTORS| |COMMIT|                                 +
+| **GitHub**        | |CONTRIBUTORS| |COMMIT|                                  |
 +-------------------+----------------------------------------------------------+
-| **PyPi**          +                                                          +
+| **PyPi**          |                                                          |
 +-------------------+----------------------------------------------------------+
 
 `Cluster Generator <https://jzuhone.github.io/cluster_generator>`_ (CG) is a cross-platform Python library for generating
@@ -57,22 +57,31 @@ should therefore acknowledge its use in the prose of their work with a statement
     be accessed at http://www.github.com/jzuhone/cluster_generator.
 
 
-.. |yt-project| image:: https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet"
-    :target: https://yt-project.org
-.. |docs| image:: https://img.shields.io/badge/docs-latest-brightgreen.svg
-    :target: https://github.com/jzuhone/cluster_generator
-.. |testing| image:: https://github.com/jzuhone/cluster_generator/actions/workflows/test.yml/badge.svg
-.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
+.. |yt-project| image:: https://img.shields.io/badge/works%20with-yt-purple
+   :target: https://yt-project.org
+
+.. |docs| image:: https://img.shields.io/badge/docs-latest-brightgreen
+   :target: https://github.com/jzuhone/cluster_generator
+
+.. |testing| image:: https://github.com/jzuhone/cluster_generator/actions/workflows/test.yml/badge
+
+.. |black| image:: https://img.shields.io/badge/code%20style-black-000000
+   :target: https://github.com/psf/black
+
 .. |isort| image:: https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336
-    :target: https://pycqa.github.io/isort/
+   :target: https://pycqa.github.io/isort/
+
 .. |Pre-Commit| image:: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white
    :target: https://github.com/pre-commit/pre-commit
    :alt: pre-commit
+
 .. |CONTRIBUTORS| image:: https://img.shields.io/github/contributors/jzuhone/cluster_generator
     :target: https://github.com/jzuhone/cluster_generator/graphs/contributors
+
 .. |COMMIT| image:: https://img.shields.io/github/last-commit/jzuhone/cluster_generator
-.. |NUMPSTYLE| image:: https://img.shields.io/badge/%20style-numpy-459db9.svg
+
+.. |NUMPSTYLE| image:: https://img.shields.io/badge/%20style-numpy-459db9
     :target: https://numpydoc.readthedocs.io/en/latest/format.html
-.. |docformatter| image:: https://img.shields.io/badge/%20formatter-docformatter-fedcba.svg
+
+.. |docformatter| image:: https://img.shields.io/badge/%20formatter-docformatter-fedcba
     :target: https://github.com/PyCQA/docformatter
