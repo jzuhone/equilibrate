@@ -103,8 +103,6 @@ class ClusterField:
         right_edge,
         ddims,
         padding=0.1,
-        vector_potential=False,
-        divergence_clean=False,
     ):
         ddims = np.array(ddims).astype("int")
         left_edge = parse_value(left_edge, "kpc").v
@@ -117,6 +115,11 @@ class ClusterField:
         self.ddims = ddims + pad_dims
         self.comps = [f"{self._name}_{ax}" for ax in "xyz"]
         self.dx, self.dy, self.dz = self.deltas
+        le = self.left_edge + self.deltas * 0.5
+        re = self.right_edge - self.deltas * 0.5
+        self.x = np.linspace(le[0], re[0], self.ddims[0])
+        self.y = np.linspace(le[1], re[1], self.ddims[1])
+        self.z = np.linspace(le[2], re[2], self.ddims[2])
 
     def _generate_field(self):
         raise NotImplementedError("This method must be implemented in a subclass.")
@@ -129,11 +132,14 @@ class ClusterField:
 
         mylog.info("Field generation complete.")
 
+    def gg(self):
+        return self.gx**2 + self.gy**2 + self.gz**2
+
     def _post_generate(self):
         if self._divergence_clean:
-            rescale = (self.gx**2 + self.gy**2 + self.gz**2).sum()
+            rescale = self.gg().sum()
             self._clean_divergence()
-            rescale /= (self.gx**2 + self.gy**2 + self.gz**2).sum()
+            rescale /= self.gg().sum()
             self.gx *= rescale
             self.gy *= rescale
             self.gz *= rescale
@@ -141,16 +147,6 @@ class ClusterField:
 
         if self._vector_potential:
             self._compute_vector_potential()
-
-    def _compute_coords(self):
-        le = self.left_edge + self.deltas * 0.5
-        re = self.right_edge - self.deltas * 0.5
-        x, y, z = np.mgrid[
-            le[0] : re[0] : self.ddims[0] * 1j,
-            le[1] : re[1] : self.ddims[1] * 1j,
-            le[2] : re[2] : self.ddims[2] * 1j,
-        ]
-        return x, y, z
 
     def _compute_waves(self):
         nx, ny, nz = self.ddims
@@ -490,9 +486,16 @@ class GaussianRandomField(ClusterField):
 class RadialRandomField(GaussianRandomField):
     def __init__(
         self,
+        left_edge,
+        right_edge,
+        ddims,
+        l_min,
+        l_max,
         ctr1,
         r1,
         g1,
+        padding=0.1,
+        alpha=-11.0 / 3.0,
         ctr2=None,
         ctr3=None,
         r2=None,
@@ -500,7 +503,19 @@ class RadialRandomField(GaussianRandomField):
         g2=None,
         g3=None,
         r_max=None,
+        prng=None,
     ):
+        super().__init__(
+            left_edge=left_edge,
+            right_edge=right_edge,
+            ddims=ddims,
+            l_min=l_min,
+            l_max=l_max,
+            padding=padding,
+            alpha=alpha,
+            g_rms=1.0,
+            prng=prng,
+        )
         num_halos = 1
         if r2 is not None:
             num_halos += 1
@@ -529,46 +544,43 @@ class RadialRandomField(GaussianRandomField):
     def _generate_field(self):
         super()._generate_field()
 
-        g_avg = np.sqrt(np.mean(self.gx**2 + self.gy**2 + self.gz**2))
-
-        x, y, z = self._compute_coords()
+        g_avg = np.sqrt(np.mean(self.gg()))
 
         mylog.info("Scaling the fields by cluster 1.")
-        rr1 = np.sqrt(
-            (x - self.ctr1[0]) ** 2 + (y - self.ctr1[1]) ** 2 + (z - self.ctr1[2]) ** 2
+        rr = np.sqrt(
+            (self.x[:, np.newaxis, np.newaxis] - self.ctr1[0]) ** 2
+            + (self.y[np.newaxis, :, np.newaxis] - self.ctr1[1]) ** 2
+            + (self.z[np.newaxis, np.newaxis, :] - self.ctr1[2]) ** 2
         )
         if self.r_max is not None:
-            rr1[rr1 > self.r_max] = self.r_max
-        idxs1 = np.searchsorted(self.r1, rr1) - 1
-        dr1 = (rr1 - self.r1[idxs1]) / (self.r1[idxs1 + 1] - self.r1[idxs1])
-        g_rms = ((1.0 - dr1) * self.g1[idxs1] + dr1 * self.g1[idxs1 + 1]) ** 2
-        del idxs1, dr1, rr1
+            rr[rr > self.r_max] = self.r_max
+        idxs = np.searchsorted(self.r1, rr) - 1
+        dr = (rr - self.r1[idxs]) / (self.r1[idxs + 1] - self.r1[idxs])
+        g_rms = ((1.0 - dr) * self.g1[idxs] + dr * self.g1[idxs + 1]) ** 2
         if self.num_halos >= 2:
             mylog.info("Scaling the fields by cluster 2.")
-            rr2 = np.sqrt(
-                (x - self.ctr2[0]) ** 2
-                + (y - self.ctr2[1]) ** 2
-                + (z - self.ctr2[2]) ** 2
+            rr = np.sqrt(
+                (self.x[:, np.newaxis, np.newaxis] - self.ctr2[0]) ** 2
+                + (self.y[np.newaxis, :, np.newaxis] - self.ctr2[1]) ** 2
+                + (self.z[np.newaxis, np.newaxis, :] - self.ctr2[2]) ** 2
             )
             if self.r_max is not None:
-                rr2[rr2 > self.r_max] = self.r_max
-            idxs2 = np.searchsorted(self.r2, rr2) - 1
-            dr2 = (rr2 - self.r2[idxs2]) / (self.r2[idxs2 + 1] - self.r2[idxs2])
-            g_rms += ((1.0 - dr2) * self.g2[idxs2] + dr2 * self.g2[idxs2 + 1]) ** 2
-            del idxs2, dr2, rr2
+                rr[rr > self.r_max] = self.r_max
+            idxs = np.searchsorted(self.r2, rr) - 1
+            dr = (rr - self.r2[idxs]) / (self.r2[idxs + 1] - self.r2[idxs])
+            g_rms += ((1.0 - dr) * self.g2[idxs] + dr * self.g2[idxs + 1]) ** 2
         if self.num_halos == 3:
             mylog.info("Scaling the fields by cluster 3.")
-            rr3 = np.sqrt(
-                (x - self.ctr3[0]) ** 2
-                + (y - self.ctr3[1]) ** 2
-                + (z - self.ctr3[2]) ** 2
+            rr = np.sqrt(
+                (self.x[:, np.newaxis, np.newaxis] - self.ctr3[0]) ** 2
+                + (self.y[np.newaxis, :, np.newaxis] - self.ctr3[1]) ** 2
+                + (self.z[np.newaxis, np.newaxis, :] - self.ctr3[2]) ** 2
             )
             if self.r_max is not None:
-                rr3[rr3 > self.r_max] = self.r_max
-            idxs3 = np.searchsorted(self.r3, rr3) - 1
-            dr3 = (rr3 - self.r3[idxs3]) / (self.r3[idxs3 + 1] - self.r3[idxs3])
-            g_rms += ((1.0 - dr3) * self.g3[idxs3] + dr3 * self.g3[idxs3 + 1]) ** 2
-            del idxs3, dr3, rr3
+                rr[rr > self.r_max] = self.r_max
+            idxs = np.searchsorted(self.r3, rr) - 1
+            dr = (rr - self.r3[idxs]) / (self.r3[idxs + 1] - self.r3[idxs])
+            g_rms += ((1.0 - dr) * self.g3[idxs] + dr * self.g3[idxs + 1]) ** 2
         g_rms = np.sqrt(g_rms).in_units(self._units).d / g_avg
 
         self.gx *= g_rms
@@ -697,20 +709,18 @@ class RadialRandomMagneticField(RadialRandomField):
             ddims,
             l_min,
             l_max,
+            ctr1,
+            r1,
+            B1,
             padding=padding,
             alpha=alpha,
-            ctr1=ctr1,
             ctr2=ctr2,
             ctr3=ctr3,
-            r1=r1,
             r2=r2,
             r3=r3,
-            g1=B1,
             g2=B2,
             g3=B3,
-            divergence_clean=True,
             r_max=r_max,
-            vector_potential=self._vector_potential,
             prng=prng,
         )
 
@@ -740,7 +750,9 @@ class RandomVelocityField(GaussianRandomField):
         padding=0.1,
         alpha=-11.0 / 3.0,
         prng=None,
+        divergence_clean=False,
     ):
+        self._divergence_clean = divergence_clean
         super().__init__(
             left_edge,
             right_edge,
@@ -775,7 +787,9 @@ class RadialRandomVelocityField(RadialRandomField):
         alpha=-11.0 / 3.0,
         r_max=None,
         prng=None,
+        divergence_clean=False,
     ):
+        self._divergence_clean = divergence_clean
         if isinstance(profile1, ClusterModel):
             r1 = profile1["radius"].to_value("kpc")
             V1 = profile1["velocity_dispersion"]
@@ -830,15 +844,15 @@ class RadialRandomVelocityField(RadialRandomField):
             ddims,
             l_min,
             l_max,
+            ctr1,
+            r1,
+            V1,
             padding=padding,
             alpha=alpha,
-            ctr1=ctr1,
             ctr2=ctr2,
             ctr3=ctr3,
-            r1=r1,
             r2=r2,
             r3=r3,
-            g1=V1,
             g2=V2,
             g3=V3,
             r_max=r_max,
