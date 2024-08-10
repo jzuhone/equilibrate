@@ -492,16 +492,14 @@ class RadialRandomField(GaussianRandomField):
         l_min,
         l_max,
         ctr1,
-        r1,
-        g1,
+        profile1,
+        field,
         padding=0.1,
         alpha=-11.0 / 3.0,
         ctr2=None,
         ctr3=None,
-        r2=None,
-        r3=None,
-        g2=None,
-        g3=None,
+        profile2=None,
+        profile3=None,
         r_max=None,
         prng=None,
     ):
@@ -516,30 +514,77 @@ class RadialRandomField(GaussianRandomField):
             g_rms=1.0,
             prng=prng,
         )
+
         num_halos = 1
-        if r2 is not None:
-            num_halos += 1
-        if r3 is not None:
-            num_halos += 1
-
-        self.num_halos = num_halos
-
         self.ctr1 = parse_value(ctr1, "kpc").v
+        if isinstance(profile1, ClusterModel):
+            r1 = profile1["radius"].to_value("kpc")
+            g1 = profile1[field]
+        elif isinstance(profile1, str):
+            r1 = (
+                unyt_array.from_hdf5(
+                    profile1, dataset_name="radius", group_name="fields"
+                )
+                .to("kpc")
+                .d
+            )
+            g1 = unyt_array.from_hdf5(profile1, dataset_name=field, group_name="fields")
+        else:
+            r1, g1 = profile1
         self.r1 = parse_value(r1, "kpc").v
         self.g1 = parse_value(g1, self._units)
-        if num_halos >= 2:
+        if profile2 is not None:
+            if isinstance(profile2, ClusterModel):
+                r2 = profile2["radius"].to_value("kpc")
+                g2 = profile2[field]
+            elif isinstance(profile2, str):
+                r2 = (
+                    unyt_array.from_hdf5(
+                        profile2, dataset_name="radius", group_name="fields"
+                    )
+                    .to("kpc")
+                    .d
+                )
+                g2 = unyt_array.from_hdf5(
+                    profile2,
+                    dataset_name=field,
+                    group_name="fields",
+                )
+            else:
+                r2, g2 = profile2
+            num_halos += 1
             if ctr2 is None:
                 raise RuntimeError("Need to specify 'ctr2' for the second halo!")
             self.ctr2 = parse_value(ctr2, "kpc").v
             self.r2 = parse_value(r2, "kpc").v
             self.g2 = parse_value(g2, self._units)
-        if num_halos == 3:
+        if profile3 is not None:
+            if isinstance(profile3, ClusterModel):
+                r3 = profile3["radius"].to_value("kpc")
+                g3 = profile3[field]
+            elif isinstance(profile3, str):
+                r3 = (
+                    unyt_array.from_hdf5(
+                        profile3, dataset_name="radius", group_name="fields"
+                    )
+                    .to("kpc")
+                    .d
+                )
+                g3 = unyt_array.from_hdf5(
+                    profile3,
+                    dataset_name=field,
+                    group_name="fields",
+                )
+            else:
+                r3, g3 = profile3
+            num_halos += 1
             if ctr3 is None:
                 raise RuntimeError("Need to specify 'ctr3' for the second halo!")
             self.ctr3 = parse_value(ctr3, "kpc").v
             self.r3 = parse_value(r3, "kpc").v
             self.g3 = parse_value(g3, self._units)
         self.r_max = r_max
+        self.num_halos = num_halos
 
     def _generate_field(self):
         super()._generate_field()
@@ -643,66 +688,6 @@ class RadialRandomMagneticField(RadialRandomField):
         r_max=None,
         prng=None,
     ):
-        if isinstance(profile1, ClusterModel):
-            r1 = profile1["radius"].to_value("kpc")
-            B1 = profile1["magnetic_field_strength"]
-        elif isinstance(profile1, str):
-            r1 = (
-                unyt_array.from_hdf5(
-                    profile1, dataset_name="radius", group_name="fields"
-                )
-                .to("kpc")
-                .d
-            )
-            B1 = unyt_array.from_hdf5(
-                profile1, dataset_name="magnetic_field_strength", group_name="fields"
-            )
-        else:
-            r1, B1 = profile1
-        if profile2 is not None:
-            if isinstance(profile2, ClusterModel):
-                r2 = profile2["radius"].to_value("kpc")
-                B2 = profile2["magnetic_field_strength"]
-            elif isinstance(profile2, str):
-                r2 = (
-                    unyt_array.from_hdf5(
-                        profile2, dataset_name="radius", group_name="fields"
-                    )
-                    .to("kpc")
-                    .d
-                )
-                B2 = unyt_array.from_hdf5(
-                    profile2,
-                    dataset_name="magnetic_field_strength",
-                    group_name="fields",
-                )
-            else:
-                r2, B2 = profile2
-        else:
-            r2 = None
-            B2 = None
-        if profile3 is not None:
-            if isinstance(profile3, ClusterModel):
-                r3 = profile3["radius"].to_value("kpc")
-                B3 = profile3["magnetic_field_strength"]
-            elif isinstance(profile3, str):
-                r3 = (
-                    unyt_array.from_hdf5(
-                        profile3, dataset_name="radius", group_name="fields"
-                    )
-                    .to("kpc")
-                    .d
-                )
-                B3 = unyt_array.from_hdf5(
-                    profile3,
-                    dataset_name="magnetic_field_strength",
-                    group_name="fields",
-                )
-            else:
-                r3, B3 = profile3
-        else:
-            r3 = None
-            B3 = None
         super().__init__(
             left_edge,
             right_edge,
@@ -710,16 +695,14 @@ class RadialRandomMagneticField(RadialRandomField):
             l_min,
             l_max,
             ctr1,
-            r1,
-            B1,
+            profile1,
+            "magnetic_field_strength",
             padding=padding,
             alpha=alpha,
             ctr2=ctr2,
             ctr3=ctr3,
-            r2=r2,
-            r3=r3,
-            g2=B2,
-            g3=B3,
+            profile2=profile2,
+            profile3=profile3,
             r_max=r_max,
             prng=prng,
         )
@@ -790,54 +773,6 @@ class RadialRandomVelocityField(RadialRandomField):
         divergence_clean=False,
     ):
         self._divergence_clean = divergence_clean
-        if isinstance(profile1, ClusterModel):
-            r1 = profile1["radius"].to_value("kpc")
-            V1 = profile1["velocity_dispersion"]
-        elif isinstance(profile1, str):
-            r1 = unyt_array.from_hdf5(
-                profile1, dataset_name="radius", group_name="fields"
-            ).d
-            V1 = unyt_array.from_hdf5(
-                profile1, dataset_name="velocity_dispersion", group_name="fields"
-            )
-        else:
-            r1, V1 = profile1
-        if profile2 is not None:
-            if isinstance(profile2, ClusterModel):
-                r2 = profile2["radius"].to_value("kpc")
-                V2 = profile2["velocity_dispersion"]
-            elif isinstance(profile2, str):
-                r2 = unyt_array.from_hdf5(
-                    profile2, dataset_name="radius", group_name="fields"
-                ).d
-                V2 = unyt_array.from_hdf5(
-                    profile2, dataset_name="velocity_dispersion", group_name="fields"
-                )
-            else:
-                r2, V2 = profile2
-        else:
-            r2 = None
-            V2 = None
-        if profile3 is not None:
-            if isinstance(profile3, ClusterModel):
-                r3 = profile3["radius"].to_value("kpc")
-                V3 = profile3["velocity_dispersion"]
-            elif isinstance(profile3, str):
-                r3 = (
-                    unyt_array.from_hdf5(
-                        profile3, dataset_name="radius", group_name="fields"
-                    )
-                    .to("kpc")
-                    .d
-                )
-                V3 = unyt_array.from_hdf5(
-                    profile3, dataset_name="velocity_dispersion", group_name="fields"
-                )
-            else:
-                r3, V3 = profile3
-        else:
-            r3 = None
-            V3 = None
         super().__init__(
             left_edge,
             right_edge,
@@ -845,16 +780,14 @@ class RadialRandomVelocityField(RadialRandomField):
             l_min,
             l_max,
             ctr1,
-            r1,
-            V1,
+            profile1,
+            "velocity_dispersion",
             padding=padding,
             alpha=alpha,
             ctr2=ctr2,
             ctr3=ctr3,
-            r2=r2,
-            r3=r3,
-            g2=V2,
-            g3=V3,
+            profile2=profile2,
+            profile3=profile3,
             r_max=r_max,
             prng=prng,
         )
