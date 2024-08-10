@@ -92,9 +92,9 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
 def div_clean(np.ndarray[CTYPE_t, ndim=3] gx,
                      np.ndarray[CTYPE_t, ndim=3] gy,
                      np.ndarray[CTYPE_t, ndim=3] gz,
-                     np.ndarray[DTYPE_t, ndim=3] kx,
-                     np.ndarray[DTYPE_t, ndim=3] ky,
-                     np.ndarray[DTYPE_t, ndim=3] kz,
+                     np.ndarray[DTYPE_t, ndim=1] kx,
+                     np.ndarray[DTYPE_t, ndim=1] ky,
+                     np.ndarray[DTYPE_t, ndim=1] kz,
                      np.ndarray[DTYPE_t, ndim=1] deltas):
 
     cdef int i, j, k
@@ -115,9 +115,9 @@ def div_clean(np.ndarray[CTYPE_t, ndim=3] gx,
                 ggx = gx[i,j,k]
                 ggy = gy[i,j,k]
                 ggz = gz[i,j,k]
-                kxd = sin(kx[i,j,k] * deltas[0]) / deltas[0]
-                kyd = sin(ky[i,j,k] * deltas[1]) / deltas[1]
-                kzd = sin(kz[i,j,k] * deltas[2]) / deltas[2]
+                kxd = sin(kx[i] * deltas[0]) / deltas[0]
+                kyd = sin(ky[j] * deltas[1]) / deltas[1]
+                kzd = sin(kz[k] * deltas[2]) / deltas[2]
                 kkd = sqrt(kxd*kxd + kyd*kyd + kzd*kzd)
                 if kkd > 0:
                     kxd /= kkd

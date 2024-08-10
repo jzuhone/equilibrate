@@ -4,7 +4,9 @@
 
 import os
 
+import h5py
 import numpy as np
+from tqdm.auto import tqdm
 from unyt import unyt_array
 
 from cluster_generator.model import ClusterModel
@@ -86,10 +88,6 @@ class ClusterField:
         The number of grids in each of the axes.
     padding :
         The amount of additional padding to add to the boundary.
-    vector_potential : bool
-        If ``True``, the vector potential is generated.
-    divergence_clean : bool
-        If ``True``, divergence is removed.
     """
 
     _units = "dimensionless"
@@ -117,9 +115,22 @@ class ClusterField:
         self.dx, self.dy, self.dz = self.deltas
         le = self.left_edge + self.deltas * 0.5
         re = self.right_edge - self.deltas * 0.5
-        self.x = np.linspace(le[0], re[0], self.ddims[0])
-        self.y = np.linspace(le[1], re[1], self.ddims[1])
-        self.z = np.linspace(le[2], re[2], self.ddims[2])
+        nx, ny, nz = self.ddims
+        self.x = np.linspace(le[0], re[0], nx)
+        self.y = np.linspace(le[1], re[1], ny)
+        self.z = np.linspace(le[2], re[2], nz)
+        kx = np.arange(nx, dtype="float64")
+        ky = np.arange(ny, dtype="float64")
+        kz = np.arange(nz, dtype="float64")
+        kx[kx > nx // 2] = kx[kx > nx // 2] - nx
+        ky[ky > ny // 2] = ky[ky > ny // 2] - ny
+        kz[kz > nz // 2] = kz[kz > nz // 2] - nz
+        kx *= 2.0 * np.pi / (nx * self.dx)
+        ky *= 2.0 * np.pi / (ny * self.dy)
+        kz *= 2.0 * np.pi / (nz * self.dz)
+        self.kx = kx
+        self.ky = ky
+        self.kz = kz
 
     def _generate_field(self):
         raise NotImplementedError("This method must be implemented in a subclass.")
@@ -148,18 +159,12 @@ class ClusterField:
         if self._vector_potential:
             self._compute_vector_potential()
 
-    def _compute_waves(self):
-        nx, ny, nz = self.ddims
-        kx, ky, kz = np.mgrid[0:nx, 0:ny, 0:nz].astype("float64")
-        kx[kx > nx // 2] = kx[kx > nx // 2] - nx
-        ky[ky > ny // 2] = ky[ky > ny // 2] - ny
-        kz[kz > nz // 2] = kz[kz > nz // 2] - nz
-        kx *= 2.0 * np.pi / (nx * self.dx)
-        ky *= 2.0 * np.pi / (ny * self.dy)
-        kz *= 2.0 * np.pi / (nz * self.dz)
-        self.kx = kx
-        self.ky = ky
-        self.kz = kz
+    def kk(self):
+        return np.sqrt(
+            self.kx[:, np.newaxis, np.newaxis] ** 2
+            + self.ky[np.newaxis, :, np.newaxis] ** 2
+            + self.kz[np.newaxis, np.newaxis, :] ** 2
+        )
 
     def _rot_3d(self, axis, ang):
         c = np.cos(ang)
@@ -211,7 +216,7 @@ class ClusterField:
         self.gz = np.fft.ifftn(self.gz).real
 
     def _compute_vector_potential(self):
-        kk = np.sqrt(self.kx**2 + self.ky**2 + self.kz**2)
+        kk = self.kk()
 
         mylog.info("Compute vector potential.")
 
@@ -222,11 +227,19 @@ class ClusterField:
         self.gz = np.fft.fftn(self.gz)
 
         with np.errstate(invalid="ignore", divide="ignore"):
-            alpha = np.arccos(self.kx / np.sqrt(self.kx * self.kx + self.ky * self.ky))
-        alpha[self.ky < 0.0] -= 2.0 * np.pi
-        alpha[self.ky < 0.0] *= -1.0
+            alpha = np.arccos(
+                self.kx[:, np.newaxis, np.newaxis]
+                / np.sqrt(
+                    self.kx[:, np.newaxis, np.newaxis]
+                    * self.kx[:, np.newaxis, np.newaxis]
+                    + self.ky[np.newaxis, :, np.newaxis]
+                    * self.ky[np.newaxis, :, np.newaxis]
+                )
+            )
+        alpha[self.ky[np.newaxis, :, np.newaxis] < 0.0] -= 2.0 * np.pi
+        alpha[self.ky[np.newaxis, :, np.newaxis] < 0.0] *= -1.0
         with np.errstate(invalid="ignore", divide="ignore"):
-            beta = np.arccos(self.kz / kk)
+            beta = np.arccos(self.kz[np.newaxis, np.newaxis, :] / kk)
         np.nan_to_num(alpha, posinf=0, neginf=0, copy=False)
         np.nan_to_num(beta, posinf=0, neginf=0, copy=False)
 
@@ -289,7 +302,6 @@ class ClusterField:
         field_unit : string, optional
             The units for the field
         """
-        import h5py
         from scipy.io import FortranFile
 
         if length_unit is None:
@@ -390,7 +402,8 @@ class GaussianRandomField(ClusterField):
         k0 = 2.0 * np.pi / self.l_min
         k1 = 2.0 * np.pi / self.l_max
 
-        kk = np.sqrt(self.kx**2 + self.ky**2 + self.kz**2)
+        kk = self.kk()
+
         with np.errstate(invalid="ignore", divide="ignore"):
             sigma = (1.0 + (kk / k1) ** 2) ** (0.25 * self.alpha) * np.exp(
                 -0.5 * (kk / k0) ** 2
@@ -399,7 +412,6 @@ class GaussianRandomField(ClusterField):
         return sigma
 
     def _generate_field(self):
-        self._compute_waves()
         self._compute_field()
 
     def _compute_field(self, sigma=None):
@@ -478,9 +490,55 @@ class GaussianRandomField(ClusterField):
         if sigma is None:
             sigma = self._compute_pspec()
 
-        self.gx = np.fft.ifftn(sigma * v[0, :, :, :]).real
-        self.gy = np.fft.ifftn(sigma * v[1, :, :, :]).real
-        self.gz = np.fft.ifftn(sigma * v[2, :, :, :]).real
+        self.gx, self.gy, self.gz = np.fft.ifftn(sigma * v, axes=(1, 2, 3)).real
+
+    def generate_realizations(
+        self, num_tries, prefix, project_weight=None, overwrite=False
+    ):
+        sigma = self._compute_pspec()
+        if project_weight:
+            wx = np.sum(project_weight, axis=0)
+            wy = np.sum(project_weight, axis=1)
+            wz = np.sum(project_weight, axis=2)
+        pbar = tqdm(leave=True, total=num_tries, desc="Generating field realizations ")
+        for i in range(num_tries):
+            self._compute_field(sigma=sigma)
+            self._post_generate()
+            if project_weight:
+                gwx = self.gx * project_weight
+                gwy = self.gy * project_weight
+                gwz = self.gz * project_weight
+                fx = np.sum(gwx, axis=0)
+                fy = np.sum(gwy, axis=1)
+                fz = np.sum(gwz, axis=2)
+                fx /= wx
+                fy /= wy
+                fz /= wz
+                f2x = np.sum(self.gx * gwx, axis=0)
+                f2y = np.sum(self.gy * gwy, axis=1)
+                f2z = np.sum(self.gz * gwz, axis=2)
+                f2x /= wx
+                f2y /= wy
+                f2z /= wz
+                units2 = f"{self.units}**2"
+                with h5py.File(f"{prefix}_proj_field_{i}.h5", "w") as f:
+                    d = f.create_dataset("x", data=self.x)
+                    d.attrs["units"] = "kpc"
+                    d = f.create_dataset("y", data=self.y)
+                    d.attrs["units"] = "kpc"
+                    d = f.create_dataset("z", data=self.z)
+                    d.attrs["units"] = "kpc"
+                    d = f.create_dataset("f2x", data=f2x)
+                    d.attrs["units"] = units2
+                    d = f.create_dataset("f2y", data=f2y)
+                    d.attrs["units"] = units2
+                    d = f.create_dataset("f2z", data=f2z)
+                    d.attrs["units"] = units2
+
+            else:
+                self.write_file(f"{prefix}_field_{i}.h5", overwrite=overwrite)
+            pbar.update()
+        pbar.finish()
 
 
 class RadialRandomField(GaussianRandomField):
