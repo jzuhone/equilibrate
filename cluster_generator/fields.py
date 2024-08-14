@@ -6,12 +6,33 @@ import os
 
 import h5py
 import numpy as np
+from numba import njit
 from tqdm.auto import tqdm
 from unyt import unyt_array
 
 from cluster_generator.model import ClusterModel
 from cluster_generator.opt.cython_utils import div_clean
 from cluster_generator.utils import mylog, parse_prng
+
+sqrt2 = 2.0**0.5
+
+
+@njit(parallel=True)
+def compute_pspec(kx, ky, kz, k0, k1, alpha, ddims):
+    nx, ny, nz = ddims
+    sigma = np.zeros((nx, ny, nz))
+
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
+                kk = np.sqrt(kx[i] * kx[i] + ky[j] * ky[j] + kz[k] * kz[k])
+                if kk == 0.0:
+                    sigma[i, j, k] = 0.0
+                else:
+                    sigma[i, j, k] = (1.0 + (kk / k1) ** 2) ** (0.25 * alpha) * np.exp(
+                        -0.5 * (kk / k0) ** 2
+                    )
+    return sigma
 
 
 def parse_value(value, default_units):
@@ -132,7 +153,7 @@ class ClusterField:
         self.ky = ky
         self.kz = kz
 
-    def _generate_field(self):
+    def _generate_field(self, *args, **kwargs):
         raise NotImplementedError("This method must be implemented in a subclass.")
 
     def generate_field(self):
@@ -396,29 +417,50 @@ class GaussianRandomField(ClusterField):
         self.l_min = parse_value(l_min, "kpc").v
         self.l_max = parse_value(l_max, "kpc").v
         self.alpha = alpha
-        self.g_rms = parse_value(g_rms, self._units)
+        self.g_rms = parse_value(g_rms, self._units).v
 
     def _compute_pspec(self):
         k0 = 2.0 * np.pi / self.l_min
         k1 = 2.0 * np.pi / self.l_max
 
+        """
+        print("make kk")
+
         kk = self.kk()
+
+        print("done with kk")
 
         with np.errstate(invalid="ignore", divide="ignore"):
             sigma = (1.0 + (kk / k1) ** 2) ** (0.25 * self.alpha) * np.exp(
                 -0.5 * (kk / k0) ** 2
             )
         np.nan_to_num(sigma, posinf=0, neginf=0, copy=False)
+        """
+        sigma = compute_pspec(self.kx, self.ky, self.kz, k0, k1, self.alpha, self.ddims)
         return sigma
 
-    def _generate_field(self):
-        self._compute_field()
-
-    def _compute_field(self, sigma=None):
+    def _generate_field(self, sigma=None):
         nx, ny, nz = self.ddims
 
-        mylog.info("Setting up the Gaussian random fields.")
+        v = self.prng.normal(size=(3, nx, ny, nz)) + 1j * self.prng.normal(
+            size=(3, nx, ny, nz)
+        )
 
+        real_points = [
+            (0, 0, 0),
+            (nx // 2, ny // 2, nz // 2),
+            (0, ny // 2, nz // 2),
+            (nx // 2, 0, nz // 2),
+            (nx // 2, ny // 2, 0),
+            (0, 0, nz // 2),
+            (0, ny // 2, 0),
+            (nx // 2, 0, 0),
+        ]
+
+        v[:, real_points].real *= sqrt2
+        v[:, real_points].imag = 0.0
+
+        """
         v = np.exp(2.0 * np.pi * 1j * self.prng.random((3, nx, ny, nz)))
 
         v[:, 0, 0, 0] = (
@@ -455,42 +497,44 @@ class GaussianRandomField(ClusterField):
         )
 
         np.multiply(v, np.sqrt(-2.0 * np.log(self.prng.random((3, nx, ny, nz)))), v)
+        """
 
-        v[:, nx - 1 : 0 : -1, ny - 1 : 0 : -1, nz - 1 : nz // 2 : -1] = np.conjugate(
+        v[:, nx - 1 : 0 : -1, ny - 1 : 0 : -1, nz - 1 : nz // 2 : -1] = np.conj(
             v[:, 1:nx, 1:ny, 1 : nz // 2]
         )
-        v[:, nx - 1 : 0 : -1, ny - 1 : ny // 2 : -1, nz // 2] = np.conjugate(
+        v[:, nx - 1 : 0 : -1, ny - 1 : ny // 2 : -1, nz // 2] = np.conj(
             v[:, 1:nx, 1 : ny // 2, nz // 2]
         )
-        v[:, nx - 1 : 0 : -1, ny - 1 : ny // 2 : -1, 0] = np.conjugate(
+        v[:, nx - 1 : 0 : -1, ny - 1 : ny // 2 : -1, 0] = np.conj(
             v[:, 1:nx, 1 : ny // 2, 0]
         )
-        v[:, nx - 1 : 0 : -1, 0, nz - 1 : nz // 2 : -1] = np.conjugate(
+        v[:, nx - 1 : 0 : -1, 0, nz - 1 : nz // 2 : -1] = np.conj(
             v[:, 1:nx, 0, 1 : nz // 2]
         )
-        v[:, 0, ny - 1 : 0 : -1, nz - 1 : nz // 2 : -1] = np.conjugate(
+        v[:, 0, ny - 1 : 0 : -1, nz - 1 : nz // 2 : -1] = np.conj(
             v[:, 0, 1:ny, 1 : nz // 2]
         )
-        v[:, nx - 1 : nx // 2 : -1, ny // 2, nz // 2] = np.conjugate(
+        v[:, nx - 1 : nx // 2 : -1, ny // 2, nz // 2] = np.conj(
             v[:, 1 : nx // 2, ny // 2, nz // 2]
         )
-        v[:, nx - 1 : nx // 2 : -1, ny // 2, 0] = np.conjugate(
-            v[:, 1 : nx // 2, ny // 2, 0]
-        )
-        v[:, nx - 1 : nx // 2 : -1, 0, nz // 2] = np.conjugate(
-            v[:, 1 : nx // 2, 0, nz // 2]
-        )
-        v[:, 0, ny - 1 : ny // 2 : -1, nz // 2] = np.conjugate(
-            v[:, 0, 1 : ny // 2, nz // 2]
-        )
-        v[:, nx - 1 : nx // 2 : -1, 0, 0] = np.conjugate(v[:, 1 : nx // 2, 0, 0])
-        v[:, 0, ny - 1 : ny // 2 : -1, 0] = np.conjugate(v[:, 0, 1 : ny // 2, 0])
-        v[:, 0, 0, nz - 1 : nz // 2 : -1] = np.conjugate(v[:, 0, 0, 1 : nz // 2])
+        v[:, nx - 1 : nx // 2 : -1, ny // 2, 0] = np.conj(v[:, 1 : nx // 2, ny // 2, 0])
+        v[:, nx - 1 : nx // 2 : -1, 0, nz // 2] = np.conj(v[:, 1 : nx // 2, 0, nz // 2])
+        v[:, 0, ny - 1 : ny // 2 : -1, nz // 2] = np.conj(v[:, 0, 1 : ny // 2, nz // 2])
+        v[:, nx - 1 : nx // 2 : -1, 0, 0] = np.conj(v[:, 1 : nx // 2, 0, 0])
+        v[:, 0, ny - 1 : ny // 2 : -1, 0] = np.conj(v[:, 0, 1 : ny // 2, 0])
+        v[:, 0, 0, nz - 1 : nz // 2 : -1] = np.conj(v[:, 0, 0, 1 : nz // 2])
 
         if sigma is None:
             sigma = self._compute_pspec()
 
         self.gx, self.gy, self.gz = np.fft.ifftn(sigma * v, axes=(1, 2, 3)).real
+
+    def _post_generate(self):
+        g_avg = self.g_rms / np.sqrt(np.mean(self.gg()))
+        self.gx *= g_avg
+        self.gy *= g_avg
+        self.gz *= g_avg
+        super()._post_generate()
 
     def generate_realizations(
         self, num_tries, prefix, project_weight=None, overwrite=False
@@ -502,7 +546,7 @@ class GaussianRandomField(ClusterField):
             wz = np.sum(project_weight, axis=2)
         pbar = tqdm(leave=True, total=num_tries, desc="Generating field realizations ")
         for i in range(num_tries):
-            self._compute_field(sigma=sigma)
+            self._generate_field(sigma=sigma)
             self._post_generate()
             if project_weight:
                 gwx = self.gx * project_weight
@@ -538,7 +582,7 @@ class GaussianRandomField(ClusterField):
             else:
                 self.write_file(f"{prefix}_field_{i}.h5", overwrite=overwrite)
             pbar.update()
-        pbar.finish()
+        pbar.close()
 
 
 class RadialRandomField(GaussianRandomField):
@@ -644,9 +688,7 @@ class RadialRandomField(GaussianRandomField):
         self.r_max = r_max
         self.num_halos = num_halos
 
-    def _generate_field(self):
-        super()._generate_field()
-
+    def _post_generate(self):
         g_avg = np.sqrt(np.mean(self.gg()))
 
         mylog.info("Scaling the fields by cluster 1.")

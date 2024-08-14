@@ -229,7 +229,9 @@ class ClusterModel:
             mylog.info("Integrating gas mass profile.")
             m0 = fields["density"].d[0] * rr[0] ** 3 / 3.0
             fields["gas_mass"] = unyt_array(
-                4.0 * np.pi * cumtrapz(fields["density"] * rr * rr, x=rr, initial=0.0)
+                4.0
+                * np.pi
+                * cumulative_trapezoid(fields["density"] * rr * rr, x=rr, initial=0.0)
                 + m0,
                 "Msun",
             )
