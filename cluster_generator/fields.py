@@ -422,20 +422,6 @@ class GaussianRandomField(ClusterField):
     def _compute_pspec(self):
         k0 = 2.0 * np.pi / self.l_min
         k1 = 2.0 * np.pi / self.l_max
-
-        """
-        print("make kk")
-
-        kk = self.kk()
-
-        print("done with kk")
-
-        with np.errstate(invalid="ignore", divide="ignore"):
-            sigma = (1.0 + (kk / k1) ** 2) ** (0.25 * self.alpha) * np.exp(
-                -0.5 * (kk / k0) ** 2
-            )
-        np.nan_to_num(sigma, posinf=0, neginf=0, copy=False)
-        """
         sigma = compute_pspec(self.kx, self.ky, self.kz, k0, k1, self.alpha, self.ddims)
         return sigma
 
@@ -459,45 +445,6 @@ class GaussianRandomField(ClusterField):
 
         v[:, real_points].real *= sqrt2
         v[:, real_points].imag = 0.0
-
-        """
-        v = np.exp(2.0 * np.pi * 1j * self.prng.random((3, nx, ny, nz)))
-
-        v[:, 0, 0, 0] = (
-            2.0 * np.sign((v[:, 0, 0, 0].imag < 0.0).astype("int")) - 1.0 + 0j
-        )
-        v[:, nx // 2, ny // 2, nz // 2] = (
-            2.0 * np.sign((v[:, nx // 2, ny // 2, nz // 2].imag < 0.0).astype("int"))
-            - 1.0
-            + 0j
-        )
-        v[:, 0, ny // 2, nz // 2] = (
-            2.0 * np.sign((v[:, 0, ny // 2, nz // 2].imag < 0.0).astype("int"))
-            - 1.0
-            + 0j
-        )
-        v[:, nx // 2, 0, nz // 2] = (
-            2.0 * np.sign((v[:, nx // 2, 0, nz // 2].imag < 0.0).astype("int"))
-            - 1.0
-            + 0j
-        )
-        v[:, nx // 2, ny // 2, 0] = (
-            2.0 * np.sign((v[:, nx // 2, ny // 2, 0].imag < np.pi).astype("int"))
-            - 1.0
-            + 0j
-        )
-        v[:, 0, 0, nz // 2] = (
-            2.0 * np.sign((v[:, 0, 0, nz // 2].imag < np.pi).astype("int")) - 1.0 + 0j
-        )
-        v[:, 0, ny // 2, 0] = (
-            2.0 * np.sign((v[:, 0, ny // 2, 0].imag < np.pi).astype("int")) - 1.0 + 0j
-        )
-        v[:, nx // 2, 0, 0] = (
-            2.0 * np.sign((v[:, nx // 2, 0, 0].imag < np.pi).astype("int")) - 1.0 + 0j
-        )
-
-        np.multiply(v, np.sqrt(-2.0 * np.log(self.prng.random((3, nx, ny, nz)))), v)
-        """
 
         v[:, nx - 1 : 0 : -1, ny - 1 : 0 : -1, nz - 1 : nz // 2 : -1] = np.conj(
             v[:, 1:nx, 1:ny, 1 : nz // 2]
