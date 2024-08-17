@@ -487,7 +487,7 @@ class GaussianRandomField(ClusterField):
         self, num_tries, prefix, project_weight=None, overwrite=False
     ):
         sigma = self._compute_pspec()
-        if project_weight:
+        if project_weight is not None:
             wx = np.sum(project_weight, axis=0)
             wy = np.sum(project_weight, axis=1)
             wz = np.sum(project_weight, axis=2)
@@ -495,7 +495,7 @@ class GaussianRandomField(ClusterField):
         for i in range(num_tries):
             self._generate_field(sigma=sigma)
             self._post_generate()
-            if project_weight:
+            if project_weight is not None:
                 gwx = self.gx * project_weight
                 gwy = self.gy * project_weight
                 gwz = self.gz * project_weight
@@ -519,6 +519,12 @@ class GaussianRandomField(ClusterField):
                     d.attrs["units"] = "kpc"
                     d = f.create_dataset("z", data=self.z)
                     d.attrs["units"] = "kpc"
+                    d = f.create_dataset("fx", data=fx)
+                    d.attrs["units"] = self.units
+                    d = f.create_dataset("fy", data=fy)
+                    d.attrs["units"] = self.units
+                    d = f.create_dataset("fz", data=fz)
+                    d.attrs["units"] = self.units
                     d = f.create_dataset("f2x", data=f2x)
                     d.attrs["units"] = units2
                     d = f.create_dataset("f2y", data=f2y)
