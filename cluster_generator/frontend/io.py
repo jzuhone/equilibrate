@@ -69,8 +69,6 @@ class ClusterGeneratorIOHandler(BaseIOHandler):
         for field in fields:
             ftype, fname = field
 
-            print(self._handle.keys())
-
             ds = self._handle[f"grid/{fname}"]
 
             ind = 0

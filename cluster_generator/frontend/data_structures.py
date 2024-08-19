@@ -42,7 +42,7 @@ class ClusterGeneratorHierarchy(GridIndex):
         # fluid type or particle type.  Convention suggests that the on-disk
         # fluid type is usually the dataset_type and the on-disk particle type
         # (for a single population of particles) is "io".
-        self.field_list = [
+        _available_field_list = [
             ("cluster_generator", "density"),
             ("cluster_generator", "dark_matter_density"),
             ("cluster_generator", "stellar_density"),
@@ -52,6 +52,16 @@ class ClusterGeneratorHierarchy(GridIndex):
             ("cluster_generator", "momentum_density_z"),
             ("cluster_generator", "magnetic_pressure"),
         ]
+
+        self.field_list = []
+
+        # check for each of these fields in the file.
+        for field in _available_field_list:
+            if field[1] not in self._handle["grid"].keys():
+                # the field isn't in the HDF5 file.
+                continue
+
+            self.field_list.append(field)
 
     def _count_grids(self):
         # Determine the number of grids in the dataset.
@@ -152,7 +162,7 @@ class ClusterGeneratorDataset(Dataset):
         self.length_unit = self.quan(1.0, "kpc")
         self.mass_unit = self.quan(1.0, "Msun")
         self.time_unit = self.quan(1.0, "Myr")
-        self.velocity_unit = self.quan(1.0, "km/s")
+        self.velocity_unit = self.quan(1.0, "kpc/Myr")
         self.magnetic_unit = self.quan(1.0, "gauss")
 
     def _parse_parameter_file(self):

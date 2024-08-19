@@ -3,7 +3,6 @@ IO Backend for integrating :py:class:`cluster_generator.model.ClusterModel` and 
 with external packages like :py:mod:`yt`.
 """
 
-import os
 import pathlib as pt
 from contextlib import contextmanager
 from numbers import Number
@@ -61,8 +60,9 @@ class _YTHDF5_Attribute(Generic[Instance, Attribute, Value]):
 
 
 class YTHDF5:
-    """
-    Wrapper class for YT style HDF5 files. Used to manage the writing of :py:class:`model.ClusterModel` instances
+    """Wrapper class for YT style HDF5 files.
+
+    Used to manage the writing of :py:class:`model.ClusterModel` instances
     to YT datasets.
     """
 
@@ -95,8 +95,8 @@ class YTHDF5:
     """int: The maximum size (along a single axis) of the computation chunks."""
 
     def __init__(self, filename: str | pt.Path) -> None:
-        """
-        Initialize a :py:class:`data_structures.YTHDF5` instance from an underlying HDF5 file.
+        """Initialize a :py:class:`data_structures.YTHDF5` instance from an underlying
+        HDF5 file.
 
         Parameters
         ----------
@@ -105,8 +105,7 @@ class YTHDF5:
         """
         # Manage the filename and assure that the file does exist.
         self.filename: pt.Path = pt.Path(filename)
-        """:py:class:`pathlib.Path`: The path to the underlying HDF5 data.
-        """
+        """:py:class:`pathlib.Path`: The path to the underlying HDF5 data."""
         assert (
             self.filename.exists()
         ), f"The file {self.filename} doesn't appear to exist."
@@ -129,53 +128,8 @@ class YTHDF5:
         return self.__str__()
 
     @classmethod
-    @contextmanager
-    def temporary(
-        cls,
-        domain_dimensions: Collection[int] = (512, 512, 512),
-        bbox: Collection[float] | None = None,
-        chunksize: int = 64,
-    ):
-        """
-        Create a temporary :py:class:`data_structures.YTHDF5` instance.
-
-        .. note::
-
-            This method can be used as a context manager.
-
-        Parameters
-        ----------
-        domain_dimensions: tuple
-            The dimensions of the grid for each of the fields.
-        bbox: array-like
-            The bounding box of the simulation region. Size should be ``3,2``.
-        chunksize: int
-            The maximum size of a given chunk in the HDF5 file.
-
-        Returns
-        -------
-        :py:class:`data_structures.YTHDF5`
-        """
-        import tempfile
-
-        if bbox is None:
-            bbox = np.array([[0, 1], [0, 1], [0, 1]], dtype="f64")
-
-        path = tempfile.NamedTemporaryFile(delete=False)
-        built_cls = cls.build(
-            path.name,
-            domain_dimensions=domain_dimensions,
-            bbox=bbox,
-            overwrite=True,
-            chunksize=chunksize,
-        )
-        yield built_cls
-        os.remove(path.name)
-
-    @classmethod
     def load(cls, filename: str | pt.Path) -> Self:
-        """
-        Load an existing :py:class:`data_structures.YTHDF5` instance from file.
+        """Load an existing :py:class:`data_structures.YTHDF5` instance from file.
 
         Parameters
         ----------
@@ -185,7 +139,6 @@ class YTHDF5:
         Returns
         -------
         :py:class:`data_structures.YTHDF5`
-
         """
         return cls(filename)
 
@@ -198,8 +151,7 @@ class YTHDF5:
         overwrite: bool = False,
         chunksize: int = 64,
     ) -> Self:
-        """
-        Create a new :py:class:`data_structures.YTHDF5` instance.
+        """Create a new :py:class:`data_structures.YTHDF5` instance.
 
         Parameters
         ----------
@@ -233,12 +185,12 @@ class YTHDF5:
         ), "The chunksize does not evenly divide the domain. Please alter you chunksize so that it fits."
 
         # Managing file existence logic.
-        if (filename.exists()) and (not overwrite):
+        if filename.exists() and not overwrite:
             raise IOError(
                 f"Could not create YTHDF5 object at {filename} because it already exists."
             )
         elif filename.exists():
-            mylog.info(f"{filename} exists. Overwriting it...")
+            mylog.info("%s exists. Overwriting it...", filename)
             filename.unlink()
         else:
             pass
@@ -249,9 +201,7 @@ class YTHDF5:
 
     @contextmanager
     def open(self, **kwargs):
-        """
-        Context manager for opening the HDF5 buffer for direct read write options.
-        """
+        """Context manager for opening the HDF5 buffer for direct read write options."""
         fo = h5py.File(self.filename, kwargs.pop("mode", "a"), **kwargs)
         yield fo
         fo.close()
@@ -303,10 +253,10 @@ class YTHDF5:
     @property
     def _estimated_size(self) -> float:
         return (
-            (np.prod(np.array(self.domain_dimensions)))
+            np.prod(np.array(self.domain_dimensions))
             * 8
             * len(self.__class__._yt_fields)
-            / (1e9)
+            / 1e9
         )
 
     @property
@@ -314,8 +264,8 @@ class YTHDF5:
         return (self.chunksize**3) * 8 / (1e9)
 
     def survey_memory(self):
-        """
-        Prints a survey of the expected memory and disk usage of the :py:class:`data_structures.YTHDF5` instance.
+        """Prints a survey of the expected memory and disk usage of the
+        :py:class:`data_structures.YTHDF5` instance.
 
         If ``psutil`` is installed, additional information is provided regarding the systems capacity to execute the
         chunked operations.
@@ -348,8 +298,7 @@ class YTHDF5:
         center: unyt.unyt_array | np.ndarray,
         velocity: unyt.unyt_array | np.ndarray,
     ):
-        """
-        Add a new :py:class:`model.ClusterModel`
+        """Add a new :py:class:`model.ClusterModel`
 
         Parameters
         ----------
@@ -366,7 +315,7 @@ class YTHDF5:
         )
         _relative_bbox = self.bbox - center.d.reshape((3, 1))
 
-        mylog.info(f"Adding {model} to {self.__str__()}")
+        mylog.info("Adding %s to %s", model, self)
         mylog.info(
             f"\tPos: {[np.round(j,decimals=2) for j in center.d]} kpc, Vel: {[np.round(j,decimals=2) for j in velocity.to_value('km/s')]} km/s"
         )
@@ -408,8 +357,8 @@ class YTHDF5:
             ythdf5_io.attrs["model_count"] += 1
 
     def add_ICs(self, ics: ClusterICs):
-        """
-        Add an entire :py:class:`ics.ClusterICs` instance to the :py:class:`data_structures.YTHDF5` buffer.
+        """Add an entire :py:class:`ics.ClusterICs` instance to the
+        :py:class:`data_structures.YTHDF5` buffer.
 
         Parameters
         ----------
