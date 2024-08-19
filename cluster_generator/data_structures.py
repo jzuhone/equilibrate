@@ -270,10 +270,13 @@ class YTHDF5:
         If ``psutil`` is installed, additional information is provided regarding the systems capacity to execute the
         chunked operations.
         """
-        mylog.info(f"MEMORY SURVEY: {self.filename}")
-        mylog.info(f"Total size: {np.round(self._estimated_size,decimals=4)} GB.")
+        mylog.info("MEMORY SURVEY: %s.", self.filename)
         mylog.info(
-            f"Chunk size: {np.round(self._estimated_chunk_memory,decimals=4)} GB."
+            "Total size: %s GB.", str(np.round(self._estimated_size, decimals=4))
+        )
+        mylog.info(
+            "Chunk size: %s GB.",
+            str(np.round(self._estimated_chunk_memory, decimals=4)),
         )
 
         try:
@@ -352,7 +355,7 @@ class YTHDF5:
                     ythdf5_io, _rr, _yy, field, _relative_bbox, self.chunkmap
                 )
 
-            mylog.info(f"Core fields of {model} where written to {self}.")
+            mylog.info("Core fields of %s where written to %s.", model, self)
 
             ythdf5_io.attrs["model_count"] += 1
 
@@ -365,7 +368,7 @@ class YTHDF5:
         ics: :py:class:`ics.ClusterICs`
             The initial conditions to add to the HDF5 buffer.
         """
-        mylog.info(f"Adding {ics.basename} to {self}.")
+        mylog.info("Adding %s to %s.", ics.basename, self)
 
         for ic_id, ic_model in enumerate(
             tqdm(

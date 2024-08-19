@@ -1,6 +1,4 @@
-"""
-Particles IC module
-"""
+"""Initial conditions and cluster model particle management module."""
 
 from collections import OrderedDict, defaultdict
 from pathlib import Path
@@ -23,11 +21,19 @@ gadget_fields = {
         "MagneticField",
         "Density",
         "Potential",
-        "PassiveScalars",
     ],
     "star": ["Coordinates", "Velocities", "Masses", "ParticleIDs", "Potential"],
     "black_hole": ["Coordinates", "Velocities", "Masses", "ParticleIDs"],
     "tracer": ["Coordinates"],
+}
+
+code_fields = {
+    "arepo": {
+        "gas": [
+            "PassiveScalars",
+            "GFM_Metallicity",
+        ]
+    }
 }
 
 gadget_field_map = {
@@ -38,6 +44,8 @@ gadget_field_map = {
     "Potential": "potential_energy",
     "InternalEnergy": "thermal_energy",
     "MagneticField": "magnetic_field",
+    "Metallicity": "metallicity",
+    "GFM_Metallicity": "metallicity",
 }
 
 gadget_field_units = {
@@ -49,7 +57,10 @@ gadget_field_units = {
     "Potential": "km**2/s**2",
     "PassiveScalars": "",
     "MagneticField": "1e5*sqrt(Msun)*km/s/(kpc**1.5)",
+    "Metallicity": "",
+    "GFM_Metallicity": "",
 }
+
 
 ptype_map = OrderedDict(
     [
@@ -391,7 +402,7 @@ class ClusterParticles:
                 if add:
                     self.fields[ptype, name] += value
                 else:
-                    mylog.warning(f"Overwriting field ({ptype}, {name}).")
+                    mylog.warning("Overwriting field (%s, %s).", ptype, name)
                     self.fields[ptype, name] = value
             else:
                 if add:
@@ -439,11 +450,15 @@ class ClusterParticles:
             self.fields[ptype, "particle_position"] += r_ctr
             self.fields[ptype, "particle_velocity"] += v_ctr
 
-    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype):
-        for field in gadget_fields[ptype]:
+    def _write_gadget_fields(self, ptype, h5_group, idxs, dtype, code):
+        fields = gadget_fields[ptype]
+        if code in code_fields:
+            fields += code_fields[code].get(ptype, [])
+        for field in fields:
             if field == "ParticleIDs":
+                # these are handled later
                 continue
-            if field == "PassiveScalars" and ptype == "gas":
+            if field == "PassiveScalars":
                 if self.num_passive_scalars > 0:
                     data = np.stack(
                         [self[ptype, s].d for s in self.passive_scalars], axis=-1
@@ -494,7 +509,7 @@ class ClusterParticles:
             idxs = self._clip_to_box(ptype, box_size)
             num_particles[ptype] = idxs.sum()
             g = f.create_group(gptype)
-            self._write_gadget_fields(ptype, g, idxs, dtype)
+            self._write_gadget_fields(ptype, g, idxs, dtype, code)
             ids = np.arange(num_particles[ptype]) + 1 + npart
             g.create_dataset("ParticleIDs", data=ids.astype("uint32"))
             npart += num_particles[ptype]
@@ -591,10 +606,12 @@ def _sample_clusters(
     if passive_scalars is not None:
         num_scalars = len(passive_scalars)
         s = np.zeros((num_halos, num_scalars, particles.num_particles["gas"]))
-    for i in range(num_halos):
-        hse = hses[i]
+
+    for i, hse in enumerate(hses):
         if "density" not in hse:
+            mylog.warning("No density field found in %s. Skipping.", hse)
             continue
+
         get_density = InterpolatedUnivariateSpline(hse["radius"], hse["density"])
         d[i, :] = get_density(r[i, :])
         e_arr = 1.5 * hse["pressure"] / hse["density"]

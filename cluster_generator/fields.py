@@ -509,7 +509,7 @@ class GaussianRandomField(ClusterField):
 
         if num_halos == 0:
             g_rms = parse_value(g_rms, self._units)
-            mylog.info(f"Scaling the fields by the constant value {g_rms}.")
+            mylog.info("Scaling the fields by the constant value %s.", str(g_rms))
         else:
             if num_halos >= 1:
                 mylog.info("Scaling the fields by cluster 1.")
