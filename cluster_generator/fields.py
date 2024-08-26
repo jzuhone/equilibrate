@@ -205,31 +205,6 @@ class ClusterField:
         self.gy = np.fft.fftn(self.gy)
         self.gz = np.fft.fftn(self.gz)
 
-        # These k's are different because we are
-        # using the finite difference form of the
-        # divergence operator.
-        """
-        kxd = np.sin(kx * self.dx) / self.dx
-        kyd = np.sin(ky * self.dy) / self.dy
-        kzd = np.sin(kz * self.dz) / self.dz
-        kkd = np.sqrt(kxd * kxd + kyd * kyd + kzd * kzd)
-        with np.errstate(invalid='ignore', divide='ignore'):
-            kxd /= kkd
-            kyd /= kkd
-            kzd /= kkd
-            np.nan_to_num(kxd, posinf=0, neginf=0, copy=False)
-            np.nan_to_num(kyd, posinf=0, neginf=0, copy=False)
-            np.nan_to_num(kzd, posinf=0, neginf=0, copy=False)
-
-        del kkd
-
-        kb = kxd*self.gx+kyd*self.gy+kzd*self.gz
-        self.gx -= kxd*kb
-        self.gy -= kyd*kb
-        self.gz -= kzd*kb
-
-        del kxd, kyd, kzd, kb
-        """
         div_clean(self.gx, self.gy, self.gz, self.kx, self.ky, self.kz, self.deltas)
 
         self.gx = np.fft.ifftn(self.gx).real
