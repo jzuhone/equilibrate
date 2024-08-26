@@ -200,7 +200,7 @@ class VirialEquilibrium:
             self.f.get_knots(),
             self.f.get_coeffs(),
             self.f._eval_args[2],
-            int(cgparams.config.system.preferences.disable_progress_bars),
+            int(~cgparams["system"]["display"]["progress_bars"]),
         )
 
         if sub_sample > 1:
