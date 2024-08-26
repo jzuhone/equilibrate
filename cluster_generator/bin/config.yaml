@@ -9,24 +9,21 @@
 #======================================================================================================================#
 system:
   # -- These are system-wide settings for basic usage. -- #
-  preferences:
-    # General user preferences
-    disable_progress_bars: true    # Change to true to disable all progress bars in the module.
-logging:
-  # -- Settings pertaining to the logging system in pyXMIP -- #
-  # There are 2 loggers in the cluster_generator module: mainlog and devlog.
-  mylog:
-    # Settings for the mainlog. This is the log which displays to stdout for most processes.
-    format: '%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s' # Logger's string format for output
-    level: INFO      # Only logging passed to this level or higher are displayed.
-    stream: stderr   # Can be STDERR or STDOUT.
-  devlog:
-    # The developer log. This will increase the ammount of technical detail printed to stdout.
-    enabled: true
-    format: '%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s' # Logger's string format for output
-    level: DEBUG    # Only logging passed to this level or higher are displayed.
-    stream: stderr   # Can be STDERR or STDOUT.
+  logging:
+    main:
+      enabled: true # Use this to disable any logging. This will stop output to terminal!
+      format: "%(name)-3s : [%(levelname)-9s] %(asctime)s %(message)s" # Logger's string format for output
+      level: "INFO" # Only logging passed to this level or higher are displayed.
+      stream: "STDERR" # Can be STDERR or STDOUT.
+    developer:
+      # ! The developer logger passes detailed logging messages to file
+      enabled: false
+      output_directory: null # You have to set this before the development logger will function.
 
+  display:
+    # Display settings change how cluster_generator appears when in use.
+    spinners: true # [WARNING] Requires Halo to be installed.
+    progress_bars: true
 
 #======================================================================================================================#
 physics:

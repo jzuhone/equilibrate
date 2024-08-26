@@ -331,7 +331,7 @@ class YTHDF5:
                 self._yt_fields.items(),
                 desc=f"Writing {model} to YTHDF5",
                 leave=False,
-                disable=cgparams.config.system.preferences.disable_progress_bars,
+                disable=(~cgparams["system"]["display"]["progress_bars"]),
             ):
                 if "momentum_density" in field:
                     # The field is a momentum density field. The axis needs to be determined before we can
@@ -376,7 +376,7 @@ class YTHDF5:
                 desc=f"Writing {ics} to YTHDF5",
                 position=0,
                 leave=False,
-                disable=cgparams.config.system.preferences.disable_progress_bars,
+                disable=(~cgparams["system"]["display"]["progress_bars"]),
             )
         ):
             model = ClusterModel.from_h5_file(ic_model)

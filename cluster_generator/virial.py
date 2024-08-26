@@ -49,7 +49,7 @@ class VirialEquilibrium:
             leave=True,
             total=self.num_elements,
             desc="Computing particle DF ",
-            disable=cgparams.config.system.preferences.disable_progress_bars,
+            disable=(~cgparams["system"]["display"]["progress_bars"]),
         )
         for i in range(self.num_elements):
             g[i] = quad(

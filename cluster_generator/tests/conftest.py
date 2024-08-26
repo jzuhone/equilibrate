@@ -8,7 +8,7 @@ import pytest
 from cluster_generator.utils import cgparams
 
 # Disable progress bars during tests -> GH actions cannot emulate console, prints each update on seperate line (slow).
-cgparams.config.system.preferences.disable_progress_bars = True
+cgparams["system"]["display"]["progress_bars"] = False
 
 
 def pytest_collection_modifyitems(session, config, items):
