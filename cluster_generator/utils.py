@@ -306,22 +306,3 @@ def parse_prng(prng):
 
 def ensure_list(x):
     return list(always_iterable(x))
-
-
-field_label_map = {
-    "density": "$\\rho_g$ (g cm$^{-3}$)",
-    "temperature": "kT (keV)",
-    "pressure": "P (erg cm$^{-3}$)",
-    "entropy": "S (keV cm$^{2}$)",
-    "dark_matter_density": "$\\rho_{\\rm DM}$ (g cm$^{-3}$)",
-    "electron_number_density": "n$_e$ (cm$^{-3}$)",
-    "stellar_mass": "M$_*$ (M$_\\odot$)",
-    "stellar_density": "$\\rho_*$ (g cm$^{-3}$)",
-    "dark_matter_mass": "$M_{\\rm DM}$ (M$_\\odot$)",
-    "gas_mass": "M$_g$ (M$_\\odot$)",
-    "total_mass": "M$_{\\rm tot}$ (M$_\\odot$)",
-    "gas_fraction": "f$_{\\rm gas}$",
-    "magnetic_field_strength": "B (G)",
-    "gravitational_potential": "$\\Phi$ (kpc$^2$ Myr$^{-2}$)",
-    "gravitational_field": "g (kpc Myr$^{-2}$)",
-}
