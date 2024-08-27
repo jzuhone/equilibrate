@@ -15,11 +15,17 @@ on:
   # Schedule: Run every 60 days at midnight UTC
   schedule:
     - cron: '0 0 */60 * *'
+
   # Trigger when a new branch is created in the repository
   create:
+
   # Trigger when a new release is published in the repository
   release:
     types: [published]
+
+  # Allow manual triggering of the workflow
+  workflow_dispatch:
+
 
 jobs:
   # ``generate-answers``: generates the answers to the tests.
