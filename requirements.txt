@@ -9,7 +9,7 @@ nbconvert
 numpy
 pytest
 ruamel.yaml
-scipy
+scipy>=1.11.4
 tqdm
 unyt
 yt
