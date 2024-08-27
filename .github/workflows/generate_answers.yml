@@ -54,10 +54,15 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+    - name: Install build dependencies
+      run: sudo apt-get install build-essential  # Add any other dependencies
 
     # Step 4: Install cluster_generator
     - name: Install the library
+      # We have to ensure that cython is present for reasons I don't fully understand.
+      # It should be installed in the requirements...
       run: |
+        pip install cython
         pip install .
 
     # Step 4: Run tests to generate answers and package them
