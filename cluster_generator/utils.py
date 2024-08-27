@@ -10,7 +10,7 @@ import sys
 import numpy as np
 import yaml
 from more_itertools import always_iterable
-from numpy.random import RandomState
+from numpy.random import Generator, RandomState
 from scipy.integrate import quad
 from unyt import kpc
 from unyt import physical_constants as pc
@@ -182,10 +182,10 @@ def ensure_ytarray(arr, units):
 
 
 def parse_prng(prng):
-    if isinstance(prng, RandomState):
+    if isinstance(prng, (RandomState, Generator)):
         return prng
     else:
-        return RandomState(prng)
+        return np.random.default_rng(seed=prng)
 
 
 def ensure_list(x):
