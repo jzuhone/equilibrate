@@ -7,7 +7,6 @@ import os
 import h5py
 import numpy as np
 from numba import njit
-from tqdm.auto import tqdm
 from unyt import unyt_array
 
 from cluster_generator.model import ClusterModel
@@ -457,60 +456,6 @@ class GaussianRandomField(ClusterField):
         self.gy *= g_avg
         self.gz *= g_avg
         super()._post_generate()
-
-    def generate_realizations(
-        self, num_tries, prefix, project_weight=None, overwrite=False
-    ):
-        sigma = self._compute_pspec()
-        if project_weight is not None:
-            wx = np.sum(project_weight, axis=0)
-            wy = np.sum(project_weight, axis=1)
-            wz = np.sum(project_weight, axis=2)
-        pbar = tqdm(leave=True, total=num_tries, desc="Generating field realizations ")
-        for i in range(num_tries):
-            self._generate_field(sigma=sigma)
-            self._post_generate()
-            if project_weight is not None:
-                gwx = self.gx * project_weight
-                gwy = self.gy * project_weight
-                gwz = self.gz * project_weight
-                fx = np.sum(gwx, axis=0)
-                fy = np.sum(gwy, axis=1)
-                fz = np.sum(gwz, axis=2)
-                fx /= wx
-                fy /= wy
-                fz /= wz
-                f2x = np.sum(self.gx * gwx, axis=0)
-                f2y = np.sum(self.gy * gwy, axis=1)
-                f2z = np.sum(self.gz * gwz, axis=2)
-                f2x /= wx
-                f2y /= wy
-                f2z /= wz
-                units2 = f"{self.units}**2"
-                with h5py.File(f"{prefix}_proj_field_{i}.h5", "w") as f:
-                    d = f.create_dataset("x", data=self.x)
-                    d.attrs["units"] = "kpc"
-                    d = f.create_dataset("y", data=self.y)
-                    d.attrs["units"] = "kpc"
-                    d = f.create_dataset("z", data=self.z)
-                    d.attrs["units"] = "kpc"
-                    d = f.create_dataset("fx", data=fx)
-                    d.attrs["units"] = self.units
-                    d = f.create_dataset("fy", data=fy)
-                    d.attrs["units"] = self.units
-                    d = f.create_dataset("fz", data=fz)
-                    d.attrs["units"] = self.units
-                    d = f.create_dataset("f2x", data=f2x)
-                    d.attrs["units"] = units2
-                    d = f.create_dataset("f2y", data=f2y)
-                    d.attrs["units"] = units2
-                    d = f.create_dataset("f2z", data=f2z)
-                    d.attrs["units"] = units2
-
-            else:
-                self.write_file(f"{prefix}_field_{i}.h5", overwrite=overwrite)
-            pbar.update()
-        pbar.close()
 
 
 class RadialRandomField(GaussianRandomField):
