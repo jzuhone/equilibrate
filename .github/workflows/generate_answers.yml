@@ -51,6 +51,9 @@ jobs:
     - name: Install the package
       run: pip install .
 
+    - name: Define CG_VERSION environment variable
+      run: echo "CG_VERSION=$(python -c 'import importlib.metadata; print(importlib.metadata.version("cluster_generator"))')" >> $GITHUB_ENV
+
     - name: Run tests to generate answers
       run: |
         mkdir -p ./answers
@@ -59,7 +62,7 @@ jobs:
       env:
         PYTHON_VERSION: ${{ matrix.python-version }}
         OS_NAME: ${{ matrix.os }}
-        CG_VERSION: $(python -c "import importlib.metadata; print(importlib.metadata.version('cluster_generator'))")
+        CG_VERSION: ${{ env.CG_VERSION }}
 
     - name: Upload test answers as artifacts
       uses: actions/upload-artifact@v3
