@@ -1,15 +1,13 @@
 #!/usr/bin/env python
-from distutils.extension import Extension
-
 import numpy as np
 from Cython.Build import cythonize
-from setuptools import setup
+from setuptools import Extension, setup
 
+# Define the Cython extension module
 cython_utils = Extension(
     "cluster_generator.cython_utils",
     sources=["cluster_generator/cython_utils.pyx"],
-    language="c",
-    libraries=["m"],
+    libraries=["m"],  # Standard math library for C
     include_dirs=[np.get_include()],
 )
 
@@ -17,7 +15,7 @@ setup(
     name="cluster_generator",
     packages=["cluster_generator"],
     version="0.1.0",
-    description="Generating equilbrium models of galaxy clusters.",
+    description="Generating equilibrium models of galaxy clusters.",
     author="John ZuHone",
     author_email="jzuhone@gmail.com",
     url="https://github.com/jzuhone/cluster_generator",
