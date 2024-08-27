@@ -12,6 +12,8 @@ name: Generate and Upload Test Answers
 
 # Triggers for the workflow
 on:
+  # Allow manual triggering of the workflow
+  workflow_dispatch:
   # Schedule: Run every 60 days at midnight UTC
   schedule:
     - cron: '0 0 */60 * *'
@@ -23,8 +25,6 @@ on:
   release:
     types: [published]
 
-  # Allow manual triggering of the workflow
-  workflow_dispatch:
 
 
 jobs:
