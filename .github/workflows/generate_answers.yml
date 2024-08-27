@@ -46,7 +46,7 @@ jobs:
     - name: Install Cython and compile extensions
       run: |
         pip install cython
-        python setup.py build_ext --inplace  # Explicitly build the Cython extension
+        python setup.py build_ext --inplace
         pip install .
 
     - name: Run tests to generate answers
