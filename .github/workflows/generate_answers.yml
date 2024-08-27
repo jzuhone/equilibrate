@@ -64,6 +64,7 @@ jobs:
     - name: Run tests to generate answers
       run: |
         mkdir -p ./answers
+        ls ./cluster_generator
         pytest "./cluster_generator" --answer_dir='../answers' --answer_store --package
       env:
         PYTHON_VERSION: ${{ matrix.python-version }}  # Set environment variable for Python version
