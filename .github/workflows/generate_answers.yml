@@ -65,5 +65,5 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: answers-${{ github.ref_name }}-${{ matrix.python-version }}-${{ matrix.os }}-${{ env.CG_VERSION }}
-        path: ./answers/cg_answers_*.tar.gz
+        path: ./cg_answers_*.tar.gz
         retention-days: 60
