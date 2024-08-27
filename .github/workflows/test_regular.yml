@@ -67,20 +67,23 @@ jobs:
     - name: Install the package
       run: pip install .  # Installs the `cluster_generator` package locally
 
+    - name: Define CG_VERSION environment variable
+      run: echo "CG_VERSION=$(python -c 'import importlib.metadata; print(importlib.metadata.version(\"cluster_generator\"))')" >> $GITHUB_ENV
+
     - name: Download test answers artifact
-      uses: actions/download-artifact@v2  # Downloads previously generated test answers artifact
+      uses: actions/download-artifact@v2
       with:
-        name: answers-${{ github.ref_name }}-${{ matrix.python-version }}-${{ matrix.os }}-*  # Name pattern of the artifact to download
+        name: answers-${{ github.ref_name }}-${{ matrix.python-version }}-${{ matrix.os }}-${{ env.CG_VERSION }}
 
     - name: Unpack test answers
       run: |
         mkdir -p ./answers
-        tar -xzf cg_answers_*.tar.gz -C ./answers
+        tar -xzf ./answers/cg_answers_*.tar.gz -C ./answers
 
     - name: Run tests using fetched answers
       run: |
         pytest "./cluster_generator" --answer_dir='./answers' -m "not slow"
       env:
-        PYTHON_VERSION: ${{ matrix.python-version }}  # Sets environment variable for Python version
-        OS_NAME: ${{ matrix.os }}  # Sets environment variable for OS name
-        CG_VERSION: $(python -c "import importlib.metadata; print(importlib.metadata.version('cluster_generator'))")  # Dynamically fetches the installed version of `cluster_generator` package
+        PYTHON_VERSION: ${{ matrix.python-version }}
+        OS_NAME: ${{ matrix.os }}
+        CG_VERSION: ${{ env.CG_VERSION }}
