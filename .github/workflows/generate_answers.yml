@@ -1,0 +1,72 @@
+# .github/workflows/generate_answers.yml
+#
+# Build Test Answers And Store Artifact
+# ======================================
+#
+# Runs every 60 days, and on every new release or new branch.
+# Generates the answers for the relevant tests and uploads them as
+# an artifact with a specific format so that they are easily
+# obtained and checked against.
+#
+name: Generate and Upload Test Answers
+
+# Triggers for the workflow
+on:
+  # Schedule: Run every 60 days at midnight UTC
+  schedule:
+    - cron: '0 0 */60 * *'
+  # Trigger when a new branch is created in the repository
+  create:
+  # Trigger when a new release is published in the repository
+  release:
+    types: [published]
+
+jobs:
+  # ``generate-answers``: generates the answers to the tests.
+  generate-answers:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Defining the testing environment matrix.
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: [3.8, 3.9, 3.10]
+
+    steps:
+    # Step 1: Set up the specific version of Python
+    - name: Set up Python
+      uses: actions/setup-python@v2  # Action to set up the Python environment
+      with:
+        python-version: ${{ matrix.python-version }}  # Use Python version from the matrix
+
+    # Step 2: Check out the repository to the runner
+    - name: Check out repository
+      uses: actions/checkout@v2  # Action to check out the repository code
+
+    # Step 3: Install required Python dependencies
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # Step 4: Install cluster_generator
+    - name: Install the library
+      run: |
+        pip install .
+
+    # Step 4: Run tests to generate answers and package them
+    - name: Run tests to generate answers
+      run: |
+        mkdir -p ./answers
+        pytest --answer_dir='./answers' --answer_store --package
+      env:
+        PYTHON_VERSION: ${{ matrix.python-version }}  # Set environment variable for Python version
+        OS_NAME: ${{ matrix.os }}  # Set environment variable for OS name
+        CG_VERSION: $(python -c "import importlib.metadata; print(importlib.metadata.version('cluster_generator'))")  # Dynamically get the cluster_generator version
+
+    # Step 5: Upload the generated test answers as artifacts
+    - name: Upload test answers as artifacts
+      uses: actions/upload-artifact@v3  # Action to upload artifacts to GitHub
+      with:
+        name: answers-${{ github.ref_name }}-${{ matrix.python-version }}-${{ matrix.os }}-${{ env.CG_VERSION }}  # Dynamic name for the artifact
+        path: ./answers/cg_answers_*.tar.gz  # Path to the directory containing the answers
+        retention-days: 60  # Retention period for the artifact in days
