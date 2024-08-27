@@ -67,13 +67,14 @@ jobs:
     - name: Install the package
       run: pip install .  # Installs the `cluster_generator` package locally
 
-    - name: Define CG_VERSION environment variable
-      run: echo "CG_VERSION=$(python -c 'import importlib.metadata; print(importlib.metadata.version(\"cluster_generator\"))')" >> $GITHUB_ENV
-
     - name: Download test answers artifact
       uses: actions/download-artifact@v2
       with:
         name: answers-${{ github.ref_name }}-${{ matrix.python-version }}-${{ matrix.os }}-${{ env.CG_VERSION }}
+      env:
+        PYTHON_VERSION: ${{ matrix.python-version }}
+        OS_NAME: ${{ matrix.os }}
+        CG_VERSION: $(python -c "import importlib.metadata; print(importlib.metadata.version('cluster_generator'))")
 
     - name: Unpack test answers
       run: |
