@@ -1,29 +1,14 @@
-# Workflow Name: Fetch and Use Test Answers
-#
-# Description:
-# This GitHub Actions workflow is designed to automate the process of testing the `cluster_generator` package.
-# It performs the following steps:
-# 1. Sets up the Python environment across multiple operating systems and Python versions.
-# 2. Checks out the repository to fetch the latest code.
-# 3. Installs necessary build tools for Ubuntu and macOS.
-# 4. Upgrades pip and installs dependencies listed in `requirements.txt`.
-# 5. Builds Cython extensions and installs the package locally.
-# 6. Downloads test answers artifacts generated from previous runs, unpacks them, and uses them for testing.
-# 7. Runs the tests using the fetched answers without regenerating new ones (with `--answer_store` off).
-# 8. This workflow triggers on all branches upon any push, ensuring comprehensive testing coverage.
-# 9. It also supports manual triggering through the GitHub Actions interface (`workflow_dispatch`).
-#
-# This setup helps ensure consistent quality and prevents regressions by automatically testing all branches of the repository.
-
 name: Fetch and Use Test Answers
 
 on:
   push:
     branches:
-      - '*'  # Ensures the workflow runs on any branch where changes are pushed
+      - '*'
   workflow_dispatch:  # Allows manual triggering of this workflow from the GitHub Actions interface
 
 jobs:
+  # FETCHING
+  # ======================
   fetch-and-use-answers:
     runs-on: ${{ matrix.os }}  # Defines the operating systems on which the jobs will run
     strategy:
@@ -33,25 +18,46 @@ jobs:
 
     steps:
     - name: Set up Python
-      uses: actions/setup-python@v2  # Uses the setup-python action to set up the specified Python version
+      uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version }}  # Specifies the Python version to use for this job
+        python-version: ${{ matrix.python-version }}
 
     - name: Check out repository
-      uses: actions/checkout@v2  # Checks out the repository code so that workflow actions can access it
+      uses: actions/checkout@v2
 
+    # BUILD TOOLS
+    # ====================
+    # These need to be incorporated to ensure that Cython modules
+    # can be compiled correctly. Each OS needs a separate implementation.
     - name: Install build tools on Ubuntu
-      if: matrix.os == 'ubuntu-latest'  # Condition to run only on Ubuntu
+      if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential
 
     - name: Install build tools on macOS
-      if: matrix.os == 'macos-latest'  # Condition to run only on macOS
+      if: matrix.os == 'macos-latest'
       run: |
         brew update
         brew install gcc
 
+    # GITHUB CLI
+    # ========================
+    # We use GITHUB CLI to ensure that
+    # artifacts are accessible between workflows.
+    - name: Install GitHub CLI
+      run: |
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+        sudo apt-add-repository https://cli.github.com/packages
+        sudo apt update
+        sudo apt install gh
+
+
+    # ENVIRONMENT CONSTRUCTION
+    # =========================
+    # requirements.txt used for optional (developer) dependencies.
+    # cython is compiled in place to ensure that if it fails, we get an
+    # error for it.
     - name: Upgrade pip and install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -59,28 +65,41 @@ jobs:
         pip install -r requirements.txt
 
     - name: Install Cython
-      run: pip install cython  # Explicitly installs Cython, which is required for building Cython extensions
+      run: pip install cython
 
     - name: Build Cython extensions
-      run: python setup.py build_ext --inplace  # Builds Cython extensions in-place
+      run: python setup.py build_ext --inplace
 
     - name: Install the package
-      run: pip install .  # Installs the `cluster_generator` package locally
+      run: pip install .
 
     - name: Define CG_VERSION environment variable
       run: echo "CG_VERSION=$(python -c 'import importlib.metadata; print(importlib.metadata.version("cluster_generator"))')" >> $GITHUB_ENV
 
-    - name: Download test answers artifact
-      uses: actions/download-artifact@v2
-      with:
-        name: answers-${{ github.ref_name }}-${{ matrix.python-version }}-${{ matrix.os }}-${{ env.CG_VERSION }}
+    # ARTIFACT MANAGEMENT
+    # =======================
+    # We need to use GH-CLI to find the matching artifact for the test.
+    - name: Authenticate GitHub CLI
+      run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+
+    - name: Find and download latest artifact
+      run: |
+        artifact_url=$(gh api -X GET repos/${{ github.repository }}/actions/artifacts | jq -r --arg ref_name "${{ github.ref_name }}" --arg os "${{ matrix.os }}" --arg py_ver "${{ matrix.python-version }}" --arg cg_ver "${{ env.CG_VERSION }}" '.artifacts | map(select(.name == "answers-\($ref_name)-\($py_ver)-\($os)-\($cg_ver)")) | .[0] | .archive_download_url')
+        if [[ -n "$artifact_url" && "$artifact_url" != "null" ]]; then
+          curl -L -o answers.tar.gz -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $artifact_url
+        else
+          echo "No artifact found matching criteria."
+          exit 1
+        fi
 
     - name: Unpack test answers
+      if: success()  # Only run if the previous step succeeds
       run: |
         mkdir -p ./answers
-        tar -xzf ./answers/cg_answers_*.tar.gz -C ./answers
+        tar -xzf answers.tar.gz -C ./answers
 
     - name: Run tests using fetched answers
+      if: success()  # Only run if the previous step succeeds
       run: |
         pytest "./cluster_generator" --answer_dir='./answers' -m "not slow"
       env:
