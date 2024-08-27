@@ -52,8 +52,7 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
                         np.ndarray[DTYPE_t, ndim=1] fv2esc,
                         np.ndarray[DTYPE_t, ndim=1] t,
                         np.ndarray[DTYPE_t, ndim=1] c,
-                        int k,
-                        int pbar_status):
+                        int k):
     cdef DTYPE_t v2,
     cdef np.uint8_t not_done
     cdef unsigned int i
