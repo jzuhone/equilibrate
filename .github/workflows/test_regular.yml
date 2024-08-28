@@ -8,7 +8,7 @@
 # answers from artifacts on that workflow and then    #
 # unpack and test against them.                       #
 # =================================================== #
-name: Fetch and Use Test Answers
+name: Build and Test
 
 on:
   push:
