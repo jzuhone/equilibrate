@@ -16,15 +16,7 @@ import numpy as np
 cimport cython
 cimport numpy as np
 
-np.import_array() # --> fix numpy error at runtime for not having it. Why do we need this?
-
-try:
-    # See https://github.com/scipy/scipy/issues/16729 and related issues. This may need continual updating as
-    # Scipy continues to update its conventions for interfacing with Dierckx FITPACK.
-    from scipy.interpolate import _dfitpack  # noqa
-except ImportError:
-    from scipy.interpolate import dfitpack as _dfitpack #noqa
-
+from scipy.interpolate import dfitpack
 from tqdm.auto import tqdm
 
 
@@ -52,17 +44,15 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
                         np.ndarray[DTYPE_t, ndim=1] fv2esc,
                         np.ndarray[DTYPE_t, ndim=1] t,
                         np.ndarray[DTYPE_t, ndim=1] c,
-                        int k,
-                        int pbar_status):
-    cdef DTYPE_t v2,
+                        int k):
+    cdef DTYPE_t v2, f
     cdef np.uint8_t not_done
     cdef unsigned int i
     cdef int num_particles, der, ext
     cdef long int seedval
-    cdef np.ndarray[np.float64_t, ndim=1] velocity, e, f
+    cdef np.ndarray[np.float64_t, ndim=1] velocity, e
     e = np.zeros(1)
     f = np.zeros(1)
-
     seedval = -100
     srand48(seedval)
     der = 0
@@ -70,16 +60,15 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
     num_particles = psi.shape[0]
     velocity = np.zeros(num_particles, dtype='float64')
     pbar = tqdm(leave=True, total=num_particles,
-                desc="Generating particle velocities ",
-                disable=(pbar_status==1))
+                desc="Generating particle velocities ")
     for i in range(num_particles):
         not_done = 1
         while not_done:
             v2 = drand48()*vesc[i]
             v2 *= v2
             e[0] = psi[i]-0.5*v2
-            f[0] = _dfitpack.splev(t, c, k, e, ext)[0][0] # see https://github.com/numpy/numpy/pull/10615
-            not_done = f[0]*v2 < drand48()*fv2esc[i]
+            f = dfitpack.splev(t, c, k, e, ext)[0]
+            not_done = f*v2 < drand48()*fv2esc[i]
         velocity[i] = sqrt(v2)
         pbar.update()
     pbar.close()
