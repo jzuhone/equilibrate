@@ -215,11 +215,8 @@ def packager(request: pytest.FixtureRequest) -> Generator[None, None, None]:
     based on the operating system, Python version, and ``cluster_generator`` version.
 
     """
-    import sys
     import tarfile
-    from importlib.metadata import version
     from pathlib import Path
-    from platform import system
 
     capmanager = request.config.pluginmanager.getplugin("capturemanager")
 
@@ -241,12 +238,7 @@ def packager(request: pytest.FixtureRequest) -> Generator[None, None, None]:
         print("\0338", end="", flush=True)
         return None
 
-    # Fetching system info
-    _system = system()
-    _py_version = sys.version.split(" ")[0]
-    _cg_version = version("cluster_generator")
-
-    package_name = f"cg_answers_{_system}_{_py_version}_{_cg_version}.tar.gz"
+    package_name = "cg_answers.tar.gz"
 
     with tarfile.open(package_name, "w:gz") as tar:
         for file in os.listdir(_answer_dir):

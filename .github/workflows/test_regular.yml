@@ -72,7 +72,7 @@ jobs:
       if: success()  # Only run if the previous step succeeds
       run: |
         mkdir -p ./answers
-        tar -xzf ./answers/cg_answers_${{ matrix.os }}_${{ matrix.python-version }}_${{ env.CG_VERSION }}.tar.gz -C ./answers
+        tar -xzf ./answers/cg_answers.tar.gz -C ./answers
         ls ./answers
 
     - name: Run tests using fetched answers
