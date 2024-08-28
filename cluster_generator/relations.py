@@ -1,7 +1,7 @@
 import numpy as np
 import unyt as u
 
-from .utils import mue
+from cluster_generator.utilities.physics import mue
 
 
 def f_gas(M500, hubble=0.7):

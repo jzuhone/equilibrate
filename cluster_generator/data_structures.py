@@ -5,7 +5,8 @@ import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 from unyt import Unit, exceptions, unyt_array
 
-from cluster_generator.utils import ensure_list, ensure_ytarray, mylog
+from cluster_generator.utilities.logging import mylog
+from cluster_generator.utilities.types import ensure_list, ensure_ytarray
 
 
 def build_yt_dataset_fields(grid, models, domain_dimensions, centers, velocities):
