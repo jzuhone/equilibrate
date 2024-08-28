@@ -3,9 +3,7 @@
 [![yt-project](https://img.shields.io/static/v1?label="works%20with"&message="yt"&color="blueviolet")](https://yt-project.org)
 [![ncodes](https://img.shields.io/static/v1?label="Implemented%20Sim.%20Codes"&message="7"&color="red")](https://jzuhone.github.io/cluster_generator/build/html/codes.html)
 [![docs]( https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://jzuhone.github.io/cluster_generator)
-![testing](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test.yml/badge.svg)
-![Pylint](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/pylint.yml/badge.svg)
-![Github Pages](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/docs.yml/badge.svg)
+[![Build and Test](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test_regular.yml/badge.svg)](https://github.com/Eliza-Diggins/cluster_generator/actions/workflows/test_regular.yml)
 [![Coverage](https://coveralls.io/repos/github/Eliza-Diggins/cluster_generator/badge.svg?branch=master)](https://coveralls.io/github/Eliza-Diggins/cluster_generator)
 
 [Cluster Generator](https://jzuhone.github.io/cluster_generator) (CG) is a cross-platform Python library for generating initial conditions of galaxy clusters for N-body / hydrodynamics codes.
