@@ -1,9 +1,37 @@
+"""Galaxy cluster modeling module.
+
+This module provides a class for modeling galaxy clusters, including methods for initializing
+models from various data sources, manipulating model fields, generating particle distributions,
+and exporting models to different file formats. The ``ClusterModel`` class serves as the core
+representation of a galaxy cluster, handling data for multiple physical fields and providing
+methods for hydrostatic equilibrium checks, particle generation, and plotting.
+
+Examples
+--------
+.. code-block:: python
+
+    from cluster_generator import ClusterModel
+    model = ClusterModel.from_h5_file("hse_model.h5")
+    model.plot('density')
+    model.generate_gas_particles(1000)
+
+See Also
+--------
+
+:py:mod:`cluster_generator.radial_profiles` : Provides radial profiles used for initializing models.
+:py:mod:`cluster_generator.particles` : Utilities for generating particle distributions.
+:py:mod:`cluster_generator.virial` : Functions related to virial equilibrium models.
+
+"""
 import os
 from collections import OrderedDict
 
 import h5py
 import numpy as np
-from scipy.integrate import cumtrapz, quad
+from scipy.integrate import (
+    cumulative_trapezoid as cumtrapz,  # compliant with scipy 1.14.0+
+)
+from scipy.integrate import quad
 from scipy.interpolate import InterpolatedUnivariateSpline
 from unyt import unyt_array, unyt_quantity
 
@@ -34,6 +62,32 @@ te = 3.0 / 8.0
 
 
 class ClusterModel:
+    """
+    Class representation of a single galaxy cluster.
+
+    A ``ClusterModel`` instance operates similarly to a dictionary, containing a set of **fields**
+    that parameterize the physics of the system. These fields are arrays representing physical
+    variables of the cluster model. The class also provides methods for manipulating, analyzing,
+    and exporting these models.
+
+    Notes
+    -----
+    The ``ClusterModel`` is typically initialized from a minimal set of fields provided by
+    :py:class:`~radial_profiles.RadialProfile` instances. These initial fields are then used
+    to derive additional fields necessary for the model.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        from cluster_generator import ClusterModel
+        fields = {
+            "radius": np.array([0.1, 0.2, 0.3]),
+            "density": np.array([1e-3, 2e-3, 1.5e-3])
+        }
+        model = ClusterModel.from_arrays(fields)
+    """
+
     default_fields = [
         "density",
         "temperature",
@@ -48,49 +102,137 @@ class ClusterModel:
         "stellar_density",
         "stellar_mass",
     ]
+    """list of str: The set of fields included in each cluster model."""
 
     _keep_units = ["entropy", "electron_number_density", "magnetic_field_strength"]
 
-    def __init__(self, num_elements, fields):
+    def __init__(self, num_elements: int, fields: dict):
+        """
+        Initializes the :py:class:`ClusterModel` class with a specified number of elements
+        and fields.
+
+        Parameters
+        ----------
+        num_elements : int
+            The number of points in the abscissa for the radial profiles.
+        fields : dict
+            The fields to load into this model, where each key is a field name and each value
+            is an array representing the field's data.
+
+        Notes
+        -----
+        .. warning ::
+            Direct use of the ``__init__`` method is discouraged for :py:class:`ClusterModel` because
+            the provided field list may be incomplete and will not be filled in (as it would be using
+            other initialization methods).
+        """
         self.num_elements = num_elements
+        """int: The number of elements in the abscissa."""
         self.fields = fields
+        """dict: The fields underlying the model."""
 
     _dm_virial = None
     _star_virial = None
 
     @property
-    def dm_virial(self):
+    def dm_virial(self) -> VirialEquilibrium:
+        """
+        Returns the equilibrium model for the dark matter component.
+
+        Returns
+        -------
+        VirialEquilibrium
+            The equilibrium model for the dark matter component of this model.
+        """
         if self._dm_virial is None:
             self._dm_virial = VirialEquilibrium(self, "dark_matter")
         return self._dm_virial
 
     @property
-    def star_virial(self):
+    def star_virial(self) -> VirialEquilibrium:
+        """
+        Returns the equilibrium model for the stellar component.
+
+        Returns
+        -------
+        VirialEquilibrium
+            The equilibrium model for the stellar component of this model.
+        """
         if self._star_virial is None and "stellar_density" in self:
             self._star_virial = VirialEquilibrium(self, "stellar")
         return self._star_virial
 
     @classmethod
-    def from_arrays(cls, fields):
+    def from_arrays(cls, fields: dict) -> "ClusterModel":
+        """
+        Initialize a :py:class:`ClusterModel` instance from arrays.
+
+        Parameters
+        ----------
+        fields : dict
+            The dictionary of fields. Each entry should have a field name as the key and an array as the value.
+            The ``'radius'`` field is required to be present.
+
+        Returns
+        -------
+        ClusterModel
+            The returned cluster model.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            from cluster_generator import ClusterModel
+            fields = {
+                "radius": np.array([0.1, 0.2, 0.3]),
+                "density": np.array([1e-3, 2e-3, 1.5e-3])
+            }
+            model = ClusterModel.from_arrays(fields)
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.from_h5_file` : Initialize a model from an HDF5 file.
+        :py:meth:`ClusterModel.from_dens_and_temp` : Initialize a model using density and temperature profiles.
+        :py:meth:`ClusterModel.from_dens_and_entr` : Initialize a model using density and entropy profiles.
+        :py:meth:`ClusterModel.from_dens_and_tden` : Initialize a model using density and total density profiles.
+        """
         return ClusterModel(fields["radius"].size, fields)
 
     @classmethod
-    def from_h5_file(cls, filename, r_min=None, r_max=None):
+    def from_h5_file(
+        cls, filename: str, r_min: float = None, r_max: float = None
+    ) -> "ClusterModel":
         r"""
         Generate an equilibrium model from an HDF5 file.
 
         Parameters
         ----------
-        filename : string
+        filename : str
             The name of the file to read the model from.
+        r_min : float, optional
+            The minimum radius to which to load.
+        r_max : float, optional
+            The maximum radius to which to load.
+
+        Returns
+        -------
+        ClusterModel
+            An instance of the cluster model loaded from the HDF5 file.
 
         Examples
         --------
-        >>> from cluster_generator import ClusterModel
-        >>> hse_model = ClusterModel.from_h5_file("hse_model.h5")
-        """
-        from cluster_generator.virial import VirialEquilibrium
+        .. code-block:: python
 
+            from cluster_generator import ClusterModel
+            hse_model = ClusterModel.from_h5_file("hse_model.h5")
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.from_arrays` : Initialize a model from a dictionary of fields.
+        :py:meth:`ClusterModel.from_dens_and_temp` : Initialize a model using density and temperature profiles.
+        :py:meth:`ClusterModel.from_dens_and_entr` : Initialize a model using density and entropy profiles.
+        :py:meth:`ClusterModel.from_dens_and_tden` : Initialize a model using density and total density profiles.
+        """
         with h5py.File(filename, "r") as f:
             fnames = list(f["fields"].keys())
             get_dm_virial = "dm_df" in f
@@ -130,7 +272,24 @@ class ClusterModel:
         return model
 
     @classmethod
-    def _from_scratch(cls, fields, stellar_density=None):
+    def _from_scratch(
+        cls, fields: dict, stellar_density: callable = None
+    ) -> "ClusterModel":
+        """
+        Create a new ``ClusterModel`` from scratch using provided fields and optionally a stellar density profile.
+
+        Parameters
+        ----------
+        fields : dict
+            Dictionary containing initial fields.
+        stellar_density : callable, optional
+            A callable function to calculate stellar density.
+
+        Returns
+        -------
+        ClusterModel
+            A new instance of ``ClusterModel`` initialized with the given fields.
+        """
         rr = fields["radius"].d
         mylog.info("Integrating gravitational potential profile.")
         tdens_func = InterpolatedUnivariateSpline(rr, fields["total_density"].d)
@@ -183,7 +342,20 @@ class ClusterModel:
 
         return cls(rr.size, fields)
 
-    def set_rmax(self, r_max):
+    def set_rmax(self, r_max: float) -> "ClusterModel":
+        """
+        Set the maximum radius for the model.
+
+        Parameters
+        ----------
+        r_max : float
+            The truncation radius.
+
+        Returns
+        -------
+        ClusterModel
+            The resulting truncated model.
+        """
         mask = self.fields["radius"].d <= r_max
         fields = {}
         for field in self.fields:
@@ -193,29 +365,38 @@ class ClusterModel:
             num_elements, fields, dm_virial=self.dm_virial, star_virial=self.star_virial
         )
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str):
+        """Retrieve a field from the model by key."""
         return self.fields[key]
 
-    def __contains__(self, key):
+    def __contains__(self, key: str):
+        """Check if a field is present in the model."""
         return key in self.fields
 
     def keys(self):
+        """Get all field keys in the model."""
         return self.fields.keys()
 
-    def write_model_to_ascii(self, output_filename, in_cgs=False, overwrite=False):
+    def write_model_to_ascii(
+        self, output_filename: str, in_cgs: bool = False, overwrite: bool = False
+    ):
         r"""
-        Write the equilibrium model to an ascii text file. Uses
-        AstroPy's `QTable` to write the file, so that units are
-        included.
+        Write the equilibrium model to an ASCII text file. Uses AstroPy's ``QTable`` to
+        write the file, so that units are included.
 
         Parameters
         ----------
-        output_filename : string
+        output_filename : str
             The file to write the model to.
-        in_cgs : boolean, optional
+        in_cgs : bool, optional
             Whether to convert the units to cgs before writing. Default: False.
-        overwrite : boolean, optional
+        overwrite : bool, optional
             Overwrite an existing file with the same name. Default: False.
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.write_model_to_h5` : Write the model to an HDF5 file.
+        :py:meth:`ClusterModel.write_model_to_binary` : Write the model to a binary file.
         """
         from astropy.table import QTable
 
@@ -236,19 +417,33 @@ class ClusterModel:
         t.write(output_filename, overwrite=overwrite)
 
     def write_model_to_h5(
-        self, output_filename, in_cgs=False, r_min=None, r_max=None, overwrite=False
+        self,
+        output_filename: str,
+        in_cgs: bool = False,
+        r_min: float = None,
+        r_max: float = None,
+        overwrite: bool = False,
     ):
         r"""
         Write the equilibrium model to an HDF5 file.
 
         Parameters
         ----------
-        output_filename : string
+        output_filename : str
             The file to write the model to.
-        in_cgs : boolean, optional
-            Whether to convert the units to cgs before writing. Default False.
-        overwrite : boolean, optional
-            Overwrite an existing file with the same name. Default False.
+        in_cgs : bool, optional
+            Whether to convert the units to cgs before writing. Default: False.
+        overwrite : bool, optional
+            Overwrite an existing file with the same name. Default: False.
+        r_min : float, optional
+            The minimum radius.
+        r_max : float, optional
+            The maximum radius.
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.write_model_to_ascii` : Write the model to an ASCII text file.
+        :py:meth:`ClusterModel.write_model_to_binary` : Write the model to a binary file.
         """
         if os.path.exists(output_filename) and not overwrite:
             raise IOError(
@@ -285,13 +480,36 @@ class ClusterModel:
 
     def write_model_to_binary(
         self,
-        output_filename,
-        fields_to_write=None,
-        in_cgs=False,
-        r_min=None,
-        r_max=None,
-        overwrite=False,
+        output_filename: str,
+        fields_to_write: list = None,
+        in_cgs: bool = False,
+        r_min: float = None,
+        r_max: float = None,
+        overwrite: bool = False,
     ):
+        r"""
+        Write the equilibrium model to a binary file.
+
+        Parameters
+        ----------
+        output_filename : str
+            The file to write the model to.
+        fields_to_write : list, optional
+            The fields to include. By default, all are included.
+        in_cgs : bool, optional
+            Whether to convert the units to cgs before writing. Default: False.
+        overwrite : bool, optional
+            Overwrite an existing file with the same name. Default: False.
+        r_min : float, optional
+            The minimum radius.
+        r_max : float, optional
+            The maximum radius.
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.write_model_to_ascii` : Write the model to an ASCII text file.
+        :py:meth:`ClusterModel.write_model_to_h5` : Write the model to an HDF5 file.
+        """
         if fields_to_write is None:
             fields_to_write = list(self.fields.keys())
         from scipy.io import FortranFile
@@ -324,10 +542,28 @@ class ClusterModel:
                 prof_rec.append(fd)
             f.write_record(np.array(prof_rec).T)
 
-    def set_field(self, name, value):
-        r"""
-        Set a field with name `name` to value `value`, which is an `unyt_array`.
-        The array will be checked to make sure that it has the appropriate size.
+    def set_field(self, name: str, value: unyt_array):
+        """
+        Set a field with a given name to a new value, which must be a ``unyt_array``.
+
+        Parameters
+        ----------
+        name : str
+            The name of the field to set.
+        value : unyt_array
+            The new value to assign to the field.
+
+        Raises
+        ------
+        TypeError
+            If the provided value is not a ``unyt_array``.
+        ValueError
+            If the provided array does not have the correct number of elements.
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.__getitem__` : Retrieve a field from the model by key.
+        :py:meth:`ClusterModel.__contains__` : Check if a field is present in the model.
         """
         if not isinstance(value, unyt_array):
             raise TypeError("value needs to be an unyt_array")
@@ -337,16 +573,21 @@ class ClusterModel:
             self.fields[name] = value
         else:
             raise ValueError(
-                f"The length of the array needs to be " f"{self.num_elements} elements!"
+                f"The length of the array needs to be {self.num_elements} elements!"
             )
 
     @classmethod
     def from_dens_and_temp(
-        cls, rmin, rmax, density, temperature, stellar_density=None, num_points=1000
-    ):
+        cls,
+        rmin: float,
+        rmax: float,
+        density: callable,
+        temperature: callable,
+        stellar_density: callable = None,
+        num_points: int = 1000,
+    ) -> "ClusterModel":
         """
-        Construct a hydrostatic equilibrium model using gas density
-        and temperature profiles.
+        Construct a hydrostatic equilibrium model using gas density and temperature profiles.
 
         Parameters
         ----------
@@ -354,14 +595,25 @@ class ClusterModel:
             Minimum radius of profiles in kpc.
         rmax : float
             Maximum radius of profiles in kpc.
-        density : :class:`~cluster_generator.radial_profiles.RadialProfile`
+        density : callable
             A radial profile describing the gas mass density.
-        temperature : :class:`~cluster_generator.radial_profiles.RadialProfile`
+        temperature : callable
             A radial profile describing the gas temperature.
-        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+        stellar_density : callable, optional
             A radial profile describing the stellar mass density, if desired.
-        num_points : integer, optional
-            The number of points the profiles are evaluated at.
+        num_points : int, optional
+            The number of points the profiles are evaluated at. Default is 1000.
+
+        Returns
+        -------
+        ClusterModel
+            A new instance of ``ClusterModel``.
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.from_dens_and_entr` : Initialize a model using density and entropy profiles.
+        :py:meth:`ClusterModel.from_dens_and_tden` : Initialize a model using density and total density profiles.
+        :py:meth:`ClusterModel.from_h5_file` : Initialize a model from an HDF5 file.
         """
         mylog.info("Computing the profiles from density and temperature.")
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
@@ -387,8 +639,43 @@ class ClusterModel:
 
     @classmethod
     def from_dens_and_entr(
-        cls, rmin, rmax, density, entropy, stellar_density=None, num_points=1000
-    ):
+        cls,
+        rmin: float,
+        rmax: float,
+        density: callable,
+        entropy: callable,
+        stellar_density: callable = None,
+        num_points: int = 1000,
+    ) -> "ClusterModel":
+        """
+        Construct a hydrostatic equilibrium model using gas density and entropy profiles.
+
+        Parameters
+        ----------
+        rmin : float
+            Minimum radius of profiles in kpc.
+        rmax : float
+            Maximum radius of profiles in kpc.
+        density : callable
+            A radial profile describing the gas mass density.
+        entropy : callable
+            A radial profile describing the gas entropy.
+        stellar_density : callable, optional
+            A radial profile describing the stellar mass density, if desired.
+        num_points : int, optional
+            The number of points the profiles are evaluated at. Default is 1000.
+
+        Returns
+        -------
+        ClusterModel
+            A new instance of ``ClusterModel``.
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.from_dens_and_temp` : Initialize a model using density and temperature profiles.
+        :py:meth:`ClusterModel.from_dens_and_tden` : Initialize a model using density and total density profiles.
+        :py:meth:`ClusterModel.from_h5_file` : Initialize a model from an HDF5 file.
+        """
         n_e = density / (mue * mp * kpc_to_cm**3)
         temperature = entropy * n_e**tt
         return cls.from_dens_and_temp(
@@ -402,11 +689,16 @@ class ClusterModel:
 
     @classmethod
     def from_dens_and_tden(
-        cls, rmin, rmax, density, total_density, stellar_density=None, num_points=1000
-    ):
+        cls,
+        rmin: float,
+        rmax: float,
+        density: callable,
+        total_density: callable,
+        stellar_density: callable = None,
+        num_points: int = 1000,
+    ) -> "ClusterModel":
         """
-        Construct a hydrostatic equilibrium model using gas density
-        and total density profiles
+        Construct a hydrostatic equilibrium model using gas density and total density profiles.
 
         Parameters
         ----------
@@ -414,14 +706,25 @@ class ClusterModel:
             Minimum radius of profiles in kpc.
         rmax : float
             Maximum radius of profiles in kpc.
-        density : :class:`~cluster_generator.radial_profiles.RadialProfile`
+        density : callable
             A radial profile describing the gas mass density.
-        total_density : :class:`~cluster_generator.radial_profiles.RadialProfile`
+        total_density : callable
             A radial profile describing the total mass density.
-        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+        stellar_density : callable, optional
             A radial profile describing the stellar mass density, if desired.
-        num_points : integer, optional
-            The number of points the profiles are evaluated at.
+        num_points : int, optional
+            The number of points the profiles are evaluated at. Default is 1000.
+
+        Returns
+        -------
+        ClusterModel
+            A new instance of ``ClusterModel``.
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.from_dens_and_temp` : Initialize a model using density and temperature profiles.
+        :py:meth:`ClusterModel.from_dens_and_entr` : Initialize a model using density and entropy profiles.
+        :py:meth:`ClusterModel.from_h5_file` : Initialize a model from an HDF5 file.
         """
         mylog.info("Computing the profiles from density and total density.")
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
@@ -450,7 +753,42 @@ class ClusterModel:
         return cls._from_scratch(fields, stellar_density=stellar_density)
 
     @classmethod
-    def no_gas(cls, rmin, rmax, total_density, stellar_density=None, num_points=1000):
+    def no_gas(
+        cls,
+        rmin: float,
+        rmax: float,
+        total_density: callable,
+        stellar_density: callable = None,
+        num_points: int = 1000,
+    ) -> "ClusterModel":
+        """
+        Initialize a model without a gas component.
+
+        Parameters
+        ----------
+        rmin : float
+            Minimum radius of profiles in kpc.
+        rmax : float
+            Maximum radius of profiles in kpc.
+        total_density : callable
+            A radial profile describing the total density.
+        stellar_density : callable, optional
+            A radial profile describing the stellar mass density, if desired.
+        num_points : int, optional
+            The number of points the profiles are evaluated at. Default is 1000.
+
+        Returns
+        -------
+        ClusterModel
+            A new instance of ``ClusterModel`` without a gas component.
+
+        See Also
+        --------
+        :py:meth:`ClusterModel.from_dens_and_temp` : Initialize a model using density and temperature profiles.
+        :py:meth:`ClusterModel.from_dens_and_entr` : Initialize a model using density and entropy profiles.
+        :py:meth:`ClusterModel.from_dens_and_tden` : Initialize a model using density and total density profiles.
+        :py:meth:`ClusterModel.from_h5_file` : Initialize a model from an HDF5 file.
+        """
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
         fields = OrderedDict()
         fields["radius"] = unyt_array(rr, "kpc")
@@ -464,22 +802,32 @@ class ClusterModel:
 
         return cls._from_scratch(fields, stellar_density=stellar_density)
 
-    def find_field_at_radius(self, field, r):
+    def find_field_at_radius(self, field: str, r: float) -> unyt_quantity:
         """
-        Find the value of a *field* in the profiles
-        at radius *r*.
+        Find the value of a field in the profiles at a given radius.
+
+        Parameters
+        ----------
+        field : str
+            The field name to find.
+        r : float
+            The radius at which to find the field value.
+
+        Returns
+        -------
+        unyt_quantity
+            The field value at the specified radius.
         """
         return unyt_array(np.interp(r, self["radius"], self[field]), self[field].units)
 
-    def check_hse(self):
+    def check_hse(self) -> np.ndarray:
         r"""
         Determine the deviation of the model from hydrostatic equilibrium.
 
         Returns
         -------
-        chk : NumPy array
-            An array containing the relative deviation from hydrostatic
-            equilibrium as a function of radius.
+        np.ndarray
+            An array containing the relative deviation from hydrostatic equilibrium as a function of radius.
         """
         if "pressure" not in self.fields:
             raise RuntimeError("This ClusterModel contains no gas!")
@@ -497,9 +845,31 @@ class ClusterModel:
         return chk
 
     def check_dm_virial(self):
+        """
+        Check the dark matter virial model.
+
+        Returns
+        -------
+        tuple
+            rho: Array-like
+                The true density.
+            chk: Array-like
+                The virial implied density.
+        """
         return self.dm_virial.check_virial()
 
     def check_star_virial(self):
+        """
+        Check the star matter virial model.
+
+        Returns
+        -------
+        tuple
+            rho: Array-like
+                The true density.
+            chk: Array-like
+                The virial implied density.
+        """
         if self._star_virial is None:
             raise RuntimeError(
                 "Cannot check the virial equilibrium of "
@@ -508,21 +878,18 @@ class ClusterModel:
             )
         return self.star_virial.check_virial()
 
-    def set_magnetic_field_from_beta(self, beta, gaussian=True):
+    def set_magnetic_field_from_beta(self, beta: float, gaussian: bool = True):
         """
-        Set a magnetic field radial profile from
-        a plasma beta parameter, assuming beta = p_th/p_B.
-        The field can be set in Gaussian or Lorentz-Heaviside
+        Set a magnetic field radial profile from a plasma beta parameter, assuming
+        beta = p_th/p_B. The field can be set in Gaussian or Lorentz-Heaviside
         (dimensionless) units.
 
         Parameters
         ----------
         beta : float
-            The ratio of the thermal pressure to the
-            magnetic pressure.
-        gaussian : boolean, optional
-            Set the field in Gaussian units such that
-            p_B = B^2/(8*pi), otherwise p_B = B^2/2.
+            The ratio of the thermal pressure to the magnetic pressure.
+        gaussian : bool, optional
+            Set the field in Gaussian units such that p_B = B^2/(8*pi), otherwise p_B = B^2/2.
             Default: True
         """
         B = np.sqrt(2.0 * self["pressure"] / beta)
@@ -531,23 +898,22 @@ class ClusterModel:
         B.convert_to_units("gauss")
         self.set_field("magnetic_field_strength", B)
 
-    def set_magnetic_field_from_density(self, B0, eta=2.0 / 3.0, gaussian=True):
+    def set_magnetic_field_from_density(
+        self, B0: float, eta: float = 2.0 / 3.0, gaussian: bool = True
+    ):
         """
-        Set a magnetic field radial profile assuming it is proportional
-        to some power of the density, usually 2/3. The field can be set
-        in Gaussian or Lorentz-Heaviside (dimensionless) units.
+        Set a magnetic field radial profile assuming it is proportional to some power
+        of the density, usually 2/3. The field can be set in Gaussian or Lorentz-
+        Heaviside (dimensionless) units.
 
         Parameters
         ----------
         B0 : float
-            The central magnetic field strength in units of
-            gauss.
+            The central magnetic field strength in units of gauss.
         eta : float, optional
-            The power of the density which the field is
-            proportional to. Default: 2/3.
-        gaussian : boolean, optional
-            Set the field in Gaussian units such that
-            p_B = B^2/(8*pi), otherwise p_B = B^2/2.
+            The power of the density which the field is proportional to. Default: 2/3.
+        gaussian : bool, optional
+            Set the field in Gaussian units such that p_B = B^2/(8*pi), otherwise p_B = B^2/2.
             Default: True
         """
         B0 = ensure_ytquantity(B0, "gauss")
@@ -557,29 +923,30 @@ class ClusterModel:
         self.set_field("magnetic_field_strength", B)
 
     def generate_tracer_particles(
-        self, num_particles, r_max=None, sub_sample=1, prng=None
-    ):
+        self, num_particles: int, r_max: float = None, sub_sample: int = 1, prng=None
+    ) -> ClusterParticles:
         """
         Generate a set of tracer particles based on the gas distribution.
 
         Parameters
         ----------
-        num_particles : integer
+        num_particles : int
             The number of particles to generate.
         r_max : float, optional
-            The maximum radius in kpc within which to generate
-            particle positions. If not supplied, it will generate
-            positions out to the maximum radius available. Default: None
-        sub_sample : integer, optional
-            This option allows one to generate a sub-sample of unique
-            particle radii, densities, and energies which will then be
-            repeated to fill the required number of particles. Default: 1,
-            which means no sub-sampling.
-        prng : :class:`~numpy.random.RandomState` object, integer, or None
-            A pseudo-random number generator. Typically will only
-            be specified if you have a reason to generate the same
-            set of random numbers, such as for a test. Default is None,
-            which sets the seed based on the system time.
+            The maximum radius in kpc within which to generate particle positions.
+            Default: None
+        sub_sample : int, optional
+            This option allows one to generate a sub-sample of unique particle radii, densities,
+            and energies which will then be repeated to fill the required number of particles.
+            Default: 1
+        prng : :py:class:`numpy.random.RandomState` object, int, or None, optional
+            A pseudo-random number generator. Typically will only be specified if you have a reason
+            to generate the same set of random numbers, such as for a test. Default is None.
+
+        Returns
+        -------
+        ClusterParticles
+            A set of tracer particles generated based on the gas distribution.
         """
         from cluster_generator.utils import parse_prng
 
@@ -626,36 +993,36 @@ class ClusterModel:
 
     def generate_gas_particles(
         self,
-        num_particles,
-        r_max=None,
-        sub_sample=1,
-        compute_potential=False,
+        num_particles: int,
+        r_max: float = None,
+        sub_sample: int = 1,
+        compute_potential: bool = False,
         prng=None,
-    ):
+    ) -> ClusterParticles:
         """
         Generate a set of gas particles in hydrostatic equilibrium.
 
         Parameters
         ----------
-        num_particles : integer
+        num_particles : int
             The number of particles to generate.
         r_max : float, optional
-            The maximum radius in kpc within which to generate
-            particle positions. If not supplied, it will generate
-            positions out to the maximum radius available. Default: None
-        sub_sample : integer, optional
-            This option allows one to generate a sub-sample of unique
-            particle radii, densities, and energies which will then be
-            repeated to fill the required number of particles. Default: 1,
-            which means no sub-sampling.
-        compute_potential : boolean, optional
-            If True, the gravitational potential for each particle will
-            be computed. Default: False
-        prng : :class:`~numpy.random.RandomState` object, integer, or None
-            A pseudo-random number generator. Typically will only
-            be specified if you have a reason to generate the same
-            set of random numbers, such as for a test. Default is None,
-            which sets the seed based on the system time.
+            The maximum radius in kpc within which to generate particle positions.
+            Default: None
+        sub_sample : int, optional
+            This option allows one to generate a sub-sample of unique particle radii, densities,
+            and energies which will then be repeated to fill the required number of particles.
+            Default: 1
+        compute_potential : bool, optional
+            If True, the gravitational potential for each particle will be computed. Default: False
+        prng : :py:class:`numpy.random.RandomState` object, int, or None, optional
+            A pseudo-random number generator. Typically will only be specified if you have a reason
+            to generate the same set of random numbers, such as for a test. Default is None.
+
+        Returns
+        -------
+        ClusterParticles
+            A set of gas particles in hydrostatic equilibrium.
         """
         from cluster_generator.utils import parse_prng
 
@@ -737,41 +1104,36 @@ class ClusterModel:
 
     def generate_dm_particles(
         self,
-        num_particles,
-        r_max=None,
-        sub_sample=1,
-        compute_potential=False,
+        num_particles: int,
+        r_max: float = None,
+        sub_sample: int = 1,
+        compute_potential: bool = False,
         prng=None,
-    ):
+    ) -> ClusterParticles:
         """
         Generate a set of dark matter particles in virial equilibrium.
 
         Parameters
         ----------
-        num_particles : integer
+        num_particles : int
             The number of particles to generate.
         r_max : float, optional
-            The maximum radius in kpc within which to generate
-            particle positions. If not supplied, it will generate
-            positions out to the maximum radius available. Default: None
-        sub_sample : integer, optional
-            This option allows one to generate a sub-sample of unique
-            particle radii and velocities which will then be repeated
-            to fill the required number of particles. Default: 1, which
-            means no sub-sampling.
-        compute_potential : boolean, optional
-            If True, the gravitational potential for each particle will
-            be computed. Default: False
-        prng : :class:`~numpy.random.RandomState` object, integer, or None
-            A pseudo-random number generator. Typically will only
-            be specified if you have a reason to generate the same
-            set of random numbers, such as for a test. Default is None,
-            which sets the seed based on the system time.
+            The maximum radius in kpc within which to generate particle positions.
+            Default: None
+        sub_sample : int, optional
+            This option allows one to generate a sub-sample of unique particle radii, densities,
+            and energies which will then be repeated to fill the required number of particles.
+            Default: 1
+        compute_potential : bool, optional
+            If True, the gravitational potential for each particle will be computed. Default: False
+        prng : :py:class:`numpy.random.RandomState` object, int, or None, optional
+            A pseudo-random number generator. Typically will only be specified if you have a reason
+            to generate the same set of random numbers, such as for a test. Default is None.
 
         Returns
         -------
-        particles : :class:`~cluster_generator.particles.ClusterParticles`
-            A set of dark matter particles.
+        ClusterParticles
+            A set of dark matter particles in virial equilibrium.
         """
         return self.dm_virial.generate_particles(
             num_particles,
@@ -783,41 +1145,36 @@ class ClusterModel:
 
     def generate_star_particles(
         self,
-        num_particles,
-        r_max=None,
-        sub_sample=1,
-        compute_potential=False,
+        num_particles: int,
+        r_max: float = None,
+        sub_sample: int = 1,
+        compute_potential: bool = False,
         prng=None,
-    ):
+    ) -> ClusterParticles:
         """
         Generate a set of star particles in virial equilibrium.
 
         Parameters
         ----------
-        num_particles : integer
+        num_particles : int
             The number of particles to generate.
         r_max : float, optional
-            The maximum radius in kpc within which to generate
-            particle positions. If not supplied, it will generate
-            positions out to the maximum radius available. Default: None
-        sub_sample : integer, optional
-            This option allows one to generate a sub-sample of unique
-            particle radii and velocities which will then be repeated
-            to fill the required number of particles. Default: 1, which
-            means no sub-sampling.
-        compute_potential : boolean, optional
-            If True, the gravitational potential for each particle will
-            be computed. Default: False
-        prng : :class:`~numpy.random.RandomState` object, integer, or None
-            A pseudo-random number generator. Typically will only
-            be specified if you have a reason to generate the same
-            set of random numbers, such as for a test. Default is None,
-            which sets the seed based on the system time.
+            The maximum radius in kpc within which to generate particle positions.
+            Default: None
+        sub_sample : int, optional
+            This option allows one to generate a sub-sample of unique particle radii, densities,
+            and energies which will then be repeated to fill the required number of particles.
+            Default: 1
+        compute_potential : bool, optional
+            If True, the gravitational potential for each particle will be computed. Default: False
+        prng : :py:class:`numpy.random.RandomState` object, int, or None, optional
+            A pseudo-random number generator. Typically will only be specified if you have a reason
+            to generate the same set of random numbers, such as for a test. Default is None.
 
         Returns
         -------
-        particles : :class:`~cluster_generator.particles.ClusterParticles`
-            A set of star particles.
+        ClusterParticles
+            A set of star particles in virial equilibrium.
         """
         return self.star_virial.generate_particles(
             num_particles,
@@ -827,28 +1184,37 @@ class ClusterModel:
             prng=prng,
         )
 
-    def plot(self, field, r_min=None, r_max=None, fig=None, ax=None, **kwargs):
+    def plot(
+        self,
+        field: str,
+        r_min: float = None,
+        r_max: float = None,
+        fig=None,
+        ax=None,
+        **kwargs,
+    ):
         """
-        Plot a field vs radius from this model using Matplotlib.
+        Make a quick plot of a field of the model.
 
         Parameters
         ----------
-        field : string
+        field : str
             The field to plot.
-        r_min : float
+        r_min : float, optional
             The minimum radius of the plot in kpc.
-        r_max : float
+        r_max : float, optional
             The maximum radius of the plot in kpc.
-        fig : Matplotlib Figure
-            The figure to plot in. Default; None, in which case
-            one will be generated.
-        ax : Matplotlib Axes
-            The axes to plot in. Default: None, in which case
-            one will be generated.
+        fig : :py:class:`matplotlib.figure.Figure`, optional
+            A Figure instance to plot in. Default: None, one will be created if not provided.
+        ax : :py:class:`matplotlib.axes.Axes`, optional
+            An Axes instance to plot in. Default: None, one will be created if not provided.
 
         Returns
         -------
-        The Figure, Axes tuple used for the plot.
+        fig : :py:class:`matplotlib.figure.Figure`
+            The figure.
+        ax : :py:class:`matplotlib.axes.Axes`
+            The axes.
         """
         import matplotlib.pyplot as plt
 
@@ -866,7 +1232,20 @@ class ClusterModel:
         ax.tick_params(which="minor", width=2, length=3)
         return fig, ax
 
-    def mass_in_radius(self, radius):
+    def mass_in_radius(self, radius: float) -> dict:
+        """
+        Calculate the mass in a given radius of each type.
+
+        Parameters
+        ----------
+        radius : float
+            The radius at which to compute the masses.
+
+        Returns
+        -------
+        dict
+            Dictionary containing all of the particle types and their corresponding masses.
+        """
         masses = {}
         r = self.fields["radius"].to_value("kpc")
         for mtype in ["total", "gas", "dark_matter", "stellar"]:
@@ -874,7 +1253,20 @@ class ClusterModel:
                 masses[mtype] = self.fields[f"{mtype}_mass"][r < radius][-1]
         return masses
 
-    def find_radius_for_density(self, density):
+    def find_radius_for_density(self, density: float) -> unyt_quantity:
+        """
+        Find the radius corresponding to a given density.
+
+        Parameters
+        ----------
+        density : float
+            The density to find the corresponding radius for.
+
+        Returns
+        -------
+        unyt_quantity
+            The radius corresponding to the specified density.
+        """
         density = ensure_ytquantity(density, "Msun/kpc**3").value
         r = self.fields["radius"].to_value("kpc")[::-1]
         d = self.fields["density"].to_value("Msun/kpc**3")[::-1]
@@ -883,4 +1275,6 @@ class ClusterModel:
 
 # This is only for backwards-compatibility
 class HydrostaticEquilibrium(ClusterModel):
+    """Deprecated: Use :py:class:`ClusterModel` instead."""
+
     pass

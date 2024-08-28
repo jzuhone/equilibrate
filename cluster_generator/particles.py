@@ -1,5 +1,54 @@
-"""
-Particles IC module
+""" Particle representations for cluster generator models
+
+This module provides functionality for initializing, manipulating, and exporting particles within galaxy cluster
+models. It includes support for different particle types, such as dark matter, gas, stars, black holes, and tracers,
+and allows for the creation of initial conditions (ICs) suitable for various astrophysical simulations.
+
+The central class in this module, :py:class:`ClusterParticles`, manages collections of particles and their associated
+fields, such as positions, velocities, masses, and other relevant physical properties. The module also provides utilities
+for reading particle data from different formats, generating new particles, and writing them to files suitable for use
+with astrophysical simulation codes like Gadget, Arepo, and others.
+
+Key Features
+------------
+- **Particle Management**: Support for multiple particle types (e.g., dark matter, gas, stars, black holes, tracers)
+  and their associated fields.
+- **Reading and Writing**: Functions to read particle data from HDF5 files or Gadget snapshot files and to write
+  particle data back to these formats.
+- **Cluster Operations**: Methods to add, drop, and manipulate particles within a galaxy cluster, including operations
+  like making radial cuts, adding black holes, resampling clusters, and combining multiple clusters.
+
+
+Examples
+--------
+Creating a set of cluster particles and writing them to a file:
+
+.. code-block:: python
+
+    from cluster_generator.particles import ClusterParticles
+
+    # Assume fields is a pre-defined dictionary of particle data
+    particles = ClusterParticles.from_fields(fields)
+
+    # Write particles to an HDF5 file
+    particles.write_particles("cluster_particles.h5")
+
+Combining two clusters into a single particle dataset:
+
+.. code-block:: python
+
+    particles1 = ClusterParticles.from_file("cluster1_particles.h5")
+    particles2 = ClusterParticles.from_file("cluster2_particles.h5")
+    combined_particles = combine_two_clusters(
+        particles1, particles2, hse1, hse2, center1, center2, velocity1, velocity2
+    )
+
+See Also
+--------
+:py:mod:`cluster_generator.model` : For definitions of galaxy cluster models.
+:py:mod:`cluster_generator.utils` : For utility functions including numerical integration and logging.
+:py:mod:`cluster_generator.virial` : To handle virial equilibrium calculations for cluster particles.
+
 """
 from collections import OrderedDict, defaultdict
 from pathlib import Path
@@ -77,9 +126,35 @@ rptype_map = OrderedDict([(v, k) for k, v in ptype_map.items()])
 
 
 class ClusterParticles:
+    """Class representation for particles in galaxy cluster models.
+
+    Notes
+    -----
+    The :py:class:`ClusterParticles` class is effectively a collection of fields similar to the :py:class:`model.ClusterModel` class.
+    For each particle type, particular fields can be specified. Each field entry is a ``(N,)`` array of values where ``N`` is the number
+    of such particles being represented.
+    """
+
     def __init__(self, particle_types, fields):
+        """Initialize a :py:class:`ClusterParticles` object.
+
+        Parameters
+        ----------
+        particle_types: list
+            List of included particle types. May include ``dm``, ``gas``, ``tracer``, ``star``, or ``black_hole``.
+        fields: dict
+            The fields for each of the particle types.
+        """
         self.particle_types = ensure_list(particle_types)
+        """ list of str: The types of particles included in this object.
+
+        The valid particle types are ``['dm','gas','tracer','star','black_hole']``.
+        """
         self.fields = fields
+        """ dict: The fields for particles.
+
+        Fields are formatted as ``particle_type, field_name`` with each value being an :py:class:`unyt_array` instance.
+        """
         self._update_num_particles()
         self._update_field_names()
         self.passive_scalars = []
@@ -119,6 +194,8 @@ class ClusterParticles:
 
     @property
     def num_passive_scalars(self):
+        """The number of particles (for each particle type) contained in this
+        :py:class:`ClusterParticles` object."""
         return len(self.passive_scalars)
 
     def drop_ptypes(self, ptypes):

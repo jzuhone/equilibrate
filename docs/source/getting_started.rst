@@ -1,3 +1,4 @@
+
 .. role::  raw-html(raw)
     :format: html
 
@@ -95,8 +96,6 @@ Python packages:
 - `tqdm <https://tqdm.github.io>`_ [Progress bars]
 - `ruamel.yaml <https://yaml.readthedocs.io>`_ [yaml support]
 - `dill <https://github.com/uqfoundation/dill>`_ [Serialization]
-- `halo <https://github.com/manrajgrover/halo>`_ [Progress Spinners]
-- `pandas <https://github.com/pandas-dev/pandas>`_ [Dataset Manipulations]
 
 These will be installed automatically if you use ``pip`` or ``conda`` as detailed below.
 
@@ -135,50 +134,17 @@ Quickstart Guides
 .. card-carousel:: 2
 
     .. card:: The Basics
-        :link: notebooks/quick_notebooks/quickbook
+        :link: notebooks/examples/ModelBasic
         :link-type: doc
 
         **Length**: 10 minutes
         ^^^
         Get a basic understanding of the ``cluster_generator`` library and its capabilities. Suitable for first time users.
         +++
-        :doc:`Quickstart Guide: The Basics <notebooks/quick_notebooks/quickbook>`
+        :doc:`Quickstart Guide: The Basics <notebooks/examples/ModelBasic>`
 
 
-    .. card:: Your First Simulation
-        :link: notebooks/quick_notebooks/quickbook2
-        :link-type: doc
 
-        **Length**: 20 minutes
-        ^^^
-        So you know the basics, but you want to start actually doing your science? Use this guide as a reference for the
-        entire process of initializing and simulating a cluster from ``cluster_generator``. This guide uses RAMSES as an
-        example.
-        +++
-        :doc:`Quickstart Guide: Your First Simulation <notebooks/quick_notebooks/quickbook2>`
-
-    .. card:: Getting the Most Out CG
-        :link: notebooks/quick_notebooks/quickbook3
-        :link-type: doc
-
-        **Length**: 40 minutes
-        ^^^
-        Starting to feel like you know the ropes? This guide will give you some deeper insight into the functionality of the
-        library and teach you to use advanced resources like alternative virialization methods, saving profiles, and accessing
-        collections.
-        +++
-        :doc:`Quickstart Guide: Getting the Most Out of  CG <notebooks/quick_notebooks/quickbook3>`
-
-    .. card:: Getting Funky: MONDian Gravity
-        :link: notebooks/quick_notebooks/quickbook4
-        :link-type: doc
-
-        **Length**: 20 minutes
-        ^^^
-        Feeling ready to jump down a rabbit hole? This guide will show you how to use the MONDian gravity theories built
-        into cluster generator!
-        +++
-        :doc:`Quickstart Guide: Getting Funky - MONDian Gravity <notebooks/quick_notebooks/quickbook4>`
 
 
 
@@ -186,10 +152,8 @@ If you're already somewhat familiar with
 the code and you're looking for something a little more in depth, the following sections may provide a more concrete introduction to
 many of the core aspects of the code:
 
-The best place to start is :ref:`radial_profiles`, to see which analytical radial profile models for gas, DM,
-and star properties can be used to create equilibrium models, which are discussed
-in the :ref:`cluster_models` section. This section begins with some helpful mathematical
-background in :ref:`math_overview_models`. For some, this may be all you need.
+The best place to start is the :ref:`theory page <theory>`, which should familiarize you with the general physics you'll want
+to have in order to understand the code and how it works.
 
 However, if you want to use these models to generate particles for simulations or
 other analysis, check out the :ref:`particles` section. For setting up DM and/or
@@ -201,8 +165,7 @@ cluster properties, check out :ref:`fields`.
 
 Finally, though one can follow all of the steps individually to create initial
 conditions for simulations, ``cluster_generator`` provides some handy tools and
-documentation to create initial conditions for a number of popular codes in the
-:ref:`initial_conditions` and :ref:`codes` sections.
+documentation to create initial conditions in the :ref:`codes` sections.
 
 Code examples are given throughout the text, but some fully-worked examples of
 generating models from start to finish are given in the :ref:`examples` section.
