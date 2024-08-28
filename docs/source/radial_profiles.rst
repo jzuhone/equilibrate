@@ -3,31 +3,23 @@
 Radial Profiles
 ---------------
 
-.. raw:: html
+Radial profiles of key physical quantities (temperature, density, etc.) form the backbone of CG's galaxy cluster models. Before
+generating a model, the user must first initialize a set of representative radial profiles to form the foundation for the cluster.
 
-   <hr style="height:10px;background-color:black">
-
-To set up a cluster model in spherical hydrostatic and/or virial equilibrium,
-one needs models for various quantities as a function of radius.
-:class:`~cluster_generator.radial_profiles.RadialProfile` objects provide a wrapper for the cluster profile of interest.
-There are ``RadialProfile`` objects for temperature, mass, density, and entropy profiles, all of which can be combined
-and used to generate a wide class of available galaxy clusters.
-
-The profiles available in ``cluster_generator`` will now be described, with
-the mathematical formulae given as well as an example instantiation.
-
-.. raw:: html
-
-   <hr style="height:10px;background-color:black">
+In the ``cluster_generator`` code, these radial profiles are represented by :py:class:`radial_profiles.RadialProfile` objects.
+These objects are effectively wrappers around standard functions of radius which provide some additional functionality. Additionally, CG
+provides a number of pre-built radial profiles which can be used wtih ease. The profiles available in ``cluster_generator`` will now
+be described, with the mathematical formulae given as well as an example instantiation.
 
 General Profiles
 ================
+
 These profiles fall under a general class of useful profiles and can be used to model any physical quantity of interest.
 
 Constant Profile
 ++++++++++++++++
 
-The :func:`~cluster_generator.radial_profiles.constant_profile` creates a
+The :py:func:`~radial_profiles.constant_profile` creates a
 profile which is constant with radius:
 
 .. math::
@@ -47,7 +39,7 @@ Example:
 Power-Law Profile
 +++++++++++++++++
 
-The :func:`~cluster_generator.radial_profiles.power_law_profile` creates
+The :py:func:`~radial_profiles.power_law_profile` creates
 a power-law profile.
 
 .. math::
@@ -102,9 +94,9 @@ and :math:`r_s` is a scale radius in units of kpc.
     necessary to truncate the NFW profile at some maximal radius. See TNFW profile for more information.
 
 An NFW density profile function can be generated using
-:func:`~cluster_generator.radial_profiles.nfw_density_profile`, and the NFW mass
+:py:func:`~radial_profiles.nfw_density_profile`, and the NFW mass
 profile function can be generated using
-:func:`~cluster_generator.radial_profiles.nfw_mass_profile`:
+:py:func:`~radial_profiles.nfw_mass_profile`:
 
 .. code-block:: python
 
@@ -115,7 +107,7 @@ profile function can be generated using
     mp = cg.nfw_mass_profile(rho_s, r_s)
 
 If you want to determine the scale density using a given concentration parameter,
-you can use the :func:`~cluster_generator.radial_profiles.nfw_scale_density`
+you can use the :py:func:`~radial_profiles.nfw_scale_density`
 function to determine it:
 
 .. code-block:: python
@@ -150,9 +142,9 @@ where :math:`M` is the total mass of the profile in units of
 :math:`{\rm M_\odot}`, and :math:`a` is a scale radius in units of kpc.
 
 An sNFW density profile function can be generated using
-:func:`~cluster_generator.radial_profiles.snfw_density_profile`, and the sNFW
+:py:func:`~radial_profiles.snfw_density_profile`, and the sNFW
 mass profile function can be generated using
-:func:`~cluster_generator.radial_profiles.snfw_mass_profile`:
+:py:func:`~radial_profiles.snfw_mass_profile`:
 
 .. code-block:: python
 

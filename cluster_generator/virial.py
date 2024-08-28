@@ -1,3 +1,29 @@
+""" Virial Equilibrium Modeling for Galaxy Clusters
+
+This module provides functionality for modeling the virial equilibrium of galaxy clusters, particularly
+for dark matter and stellar components. The central class in this module, :py:class:`VirialEquilibrium`,
+allows for the generation of particle distributions and the verification of virial equilibrium conditions
+in a simulated cluster environment.
+
+The module leverages several external dependencies and utilities, including numerical integration,
+interpolation, and random sampling for generating particles in a cluster model that adheres to virial equilibrium.
+Key features include:
+
+- **Generating Particle Distributions**: Using distribution functions to generate particles that represent
+  either dark matter or stellar components in a galaxy cluster.
+- **Checking Virial Equilibrium**: Calculating the relative difference between input density profiles
+  and those computed from distribution functions to verify equilibrium conditions.
+- **Customization Options**: Allowing for different particle types (e.g., dark matter or stars), subsampling,
+  and specifying custom distribution functions.
+
+
+See Also
+--------
+- :py:mod:`cluster_generator.model` : For definitions of galaxy cluster models.
+- :py:mod:`cluster_generator.particles` : To handle particle data and their properties.
+- :py:mod:`cluster_generator.utils` : For utility functions including numerical integration and logging.
+
+"""
 from collections import OrderedDict
 
 import numpy as np

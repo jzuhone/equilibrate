@@ -1,3 +1,11 @@
+"""Radial profiles for representing physical properties of galaxy clusters.
+
+Notes
+-----
+
+In addition to the built-in :py:class:`RadialProfile` instances, you can also create your own simply by initializing the :py:class:`RadialProfile`
+class on a function representing your preferred radial profile.
+"""
 import numpy as np
 
 _nfw_factor = lambda conc: 1.0 / (np.log(conc + 1.0) - conc / (1.0 + conc))

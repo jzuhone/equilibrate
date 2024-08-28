@@ -1,3 +1,11 @@
+"""Initial conditions for use in simulation codes.
+
+Notes
+-----
+
+In effect, the :py:class:`ClusterICs` class allows for the combination of individual :py:class:`model.ClusterModel` instances
+into a single, interacting system for use in external codes.
+"""
 import os
 from numbers import Number
 
@@ -17,35 +25,49 @@ from cluster_generator.utils import ensure_list, ensure_ytarray, parse_prng
 
 
 def compute_centers_for_binary(center, d, b, a=0.0):
-    """
-    Given a common center and distance parameters, calculate the
-    central positions of two clusters.
+    r"""Given a common center and distance parameters, calculate the central positions of
+    two clusters.
 
     First, the separation along the x-direction is determined
     by:
 
-    sep_x = sqrt(d**2-b**2-a**2)
+    .. math::
 
-    where d is the distance between the two clusters, b is the
-    impact parameter in the y-direction, and a is the impact
+        x = \sqrt{d^2 - b^2 - a^2}
+
+    where :math:`d` is the distance between the two clusters, :math:`b` is the
+    impact parameter in the y-direction, and :math:`a` is the impact
     parameter in the z-direction. So the resulting centers are
     calculated as:
 
-    center1 = [center-0.5*sep_x, center-0.5*b, center-0.5*a]
-    center2 = [center+0.5*sep_x, center+0.5*b, center+0.5*a]
+    .. code-block:: python
+
+        center1 = [center-0.5*sep_x, center-0.5*b, center-0.5*a]
+        center2 = [center+0.5*sep_x, center+0.5*b, center+0.5*a]
 
     Parameters
     ----------
     center : array-like
         The center from which the distance parameters for
-        the two clusters will be calculated.
+        the two clusters will be calculated. This should be a ``(3,)`` array of
+        coordinates.
+
     d : float
-        The distance between the two clusters.
+        The distance between the two clusters, in kpc.
     b : float
         The impact parameter in the y-direction, in kpc.
     a : float, optional
         The impact parameter in the z-direction, in kpc.
         Default: 0.0
+
+    Examples
+    --------
+
+    If we have 2 clusters separated by 5000 kpc and with an impact parameter of 3000 kpc, then we expect that the
+    :math:`x` separation should be 4000 kpc. Thus,
+
+    >>> compute_centers_for_binary([0,0,0],5000,3000)
+    (array([-2000., -1500.,     0.]), array([2000., 1500.,    0.]))
     """
     d = np.sqrt(d * d - b * b - a * a)
     diff = np.array([d, b, a])
@@ -55,6 +77,8 @@ def compute_centers_for_binary(center, d, b, a=0.0):
 
 
 class ClusterICs:
+    """Class representing a complete set of initial conditions for a simulation."""
+
     def __init__(
         self,
         basename,
@@ -68,33 +92,84 @@ class ClusterICs:
         r_max=20000.0,
         r_max_tracer=None,
     ):
+        """Initialize a :py:class:`ClusterICs` instance.
+
+        Parameters
+        ----------
+        basename: str
+            The base name for this initial conditions file.
+        num_halos: int
+            The number of halos in this initial conditions instance.
+        profiles: Collection[str]
+            The paths to each of the constituent clusters.
+        center: array-like
+            The center of each of the clusters. Should be ``(N,3)``.
+        velocity: array-like
+            The velocity of each of the clusters. Should be ``(N,3)``.
+        num_particles: dict of str: int, optional
+            The number of particles associated with each of the particle species.
+        mag_file: str
+            The file containing the magnetic field prescription.
+        particle_files: list[str]
+            The files containing the particle data for each of the IC components.
+        r_max: array-like or float, optional
+            The maximal radius for each of the constituent clusters.
+        r_max_tracer
+        """
         self.basename = basename
+        """ str: The name of this IC system."""
         self.num_halos = num_halos
+        """ int: The number of halos present in the IC system."""
         self.profiles = ensure_list(profiles)
+        """ list of Path: The paths of the constituent profiles."""
         self.center = ensure_ytarray(center, "kpc")
+        """ list of unyt_array: The centers of the constituent profiles.
+
+        This should be a ``(N,3)`` list where ``N`` is the number of profiles included.
+        """
         self.velocity = ensure_ytarray(velocity, "kpc/Myr")
+        """ list of unyt_array: The velocities of the constituent profiles.
+
+        This should be a ``(N,3)`` list where ``N`` is the number of profiles included.
+        """
         if self.num_halos == 1:
             self.center = self.center.reshape(1, 3)
             self.velocity = self.velocity.reshape(1, 3)
         self.mag_file = mag_file
+        """ Path: The file containing the magnetic field information for the ICs."""
         if isinstance(r_max, Number):
             r_max = [r_max] * num_halos
         self.r_max = np.array(r_max)
+        """:py:class:`np.ndarray`: The maximal radii for each of the constituent
+        clusters."""
         if r_max_tracer is None:
             r_max_tracer = r_max
         if isinstance(r_max_tracer, Number):
             r_max_tracer = [r_max_tracer] * num_halos
         self.r_max_tracer = np.array(r_max_tracer)
+        """:py:class:`np.ndarray`: The maximal (tracer) radii for each of the
+        constituent clusters."""
         if num_particles is None:
             self.tot_np = {"dm": 0, "gas": 0, "star": 0, "tracer": 0}
         else:
             self.tot_np = num_particles
         self._determine_num_particles()
         self.particle_files = [None] * 3
+        """ list: The paths of the different particle files for each cluster.
+        """
         if particle_files is not None:
             self.particle_files[:num_halos] = particle_files[:]
 
+    def __repr__(self):
+        return f"<ClusterICs: {self.num_halos} models>"
+
+    def __str__(self):
+        return self.__repr__()
+
     def _determine_num_particles(self):
+        """Determines the number of particles of each type to be attributed to each
+        cluster.
+        """
         from collections import defaultdict
 
         dm_masses = []
@@ -126,6 +201,10 @@ class ClusterICs:
         tot_star_mass = np.sum(star_masses)
         tot_tracer_mass = np.sum(tracer_masses)
         self.num_particles = defaultdict(list)
+        """ dict: The number of particles of each species in each cluster.
+
+        This is calculated at instantiation from the provided number of particles and the cluster masses.
+        """
         for i in range(self.num_halos):
             if self.tot_np.get("dm", 0) > 0:
                 ndp = np.rint(self.tot_np["dm"] * dm_masses[i] / tot_dm_mass).astype(
@@ -157,6 +236,7 @@ class ClusterICs:
             self.num_particles["tracer"].append(ntp)
 
     def _generate_particles(self, regenerate_particles=False, prng=None):
+        """Generate particles for the initial conditions."""
         prng = parse_prng(prng)
         parts = []
         for i, pf in enumerate(self.profiles):
@@ -192,8 +272,7 @@ class ClusterICs:
         return parts
 
     def to_file(self, filename, overwrite=False):
-        r"""
-        Write the initial conditions information to a file.
+        r"""Write the initial conditions information to a file.
 
         Parameters
         ----------
@@ -201,6 +280,11 @@ class ClusterICs:
             The file to write the initial conditions information to.
         overwrite : boolean, optional
             If True, overwrite a file with the same name. Default: False
+
+        Notes
+        -----
+        The file representation for :py:class:`ClusterICs` is a ``.yaml`` file effectively redirecting the information
+        to other files storing the particles and the models.
         """
         if os.path.exists(filename) and not overwrite:
             raise RuntimeError(f"{filename} exists and overwrite=False!")
@@ -276,9 +360,17 @@ class ClusterICs:
 
     @classmethod
     def from_file(cls, filename):
-        r"""
-        Read the initial conditions information
-        from a YAML-formatted `filename`.
+        r"""Read a :py:class:`ClusterICs` instance from a ``.yaml`` file.
+
+        Parameters
+        ----------
+        filename: str
+            The path to the ``.yaml`` file.
+
+        Returns
+        -------
+        ClusterICs
+            The resulting initial conditions object.
         """
         from ruamel.yaml import YAML
 
@@ -313,9 +405,23 @@ class ClusterICs:
         )
 
     def setup_particle_ics(self, regenerate_particles=False, prng=None):
-        r"""
-        From a set of cluster models and their relative positions and
-        velocities, set up initial conditions for use with SPH codes.
+        r"""From a set of cluster models and their relative positions and velocities, set
+        up initial conditions for use with SPH codes.
+
+        Parameters
+        ----------
+        regenerate_particles: bool
+            If ``True``, then existing particle files are overwritten and resampled.
+        prng: RandomState or int
+            The pseudo-random number generator seed or instance.
+
+        Returns
+        -------
+        ClusterParticles
+            The combined particle dataset ready for use in SPH codes.
+
+        Notes
+        -----
 
         This routine will either generate a single cluster or will combine
         two or three clusters together. If more than one cluster is
@@ -323,9 +429,6 @@ class ClusterICs:
         adding the densities from the overlap of the two particles
         together, and will have their thermal energies and velocities
         set by mass-weighting them from the two profiles.
-
-        Parameters
-        ----------
         """
         profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
         parts = self._generate_particles(
@@ -363,17 +466,17 @@ class ClusterICs:
         return all_parts
 
     def resample_particle_ics(self, parts, passive_scalars=None):
-        r"""
-        Given a Gadget-HDF5-like initial conditions file which has been
-        output from some type of relaxation process (such as making a
-        glass or using MESHRELAX in the case of Arepo), resample the density,
-        thermal energy, and velocity fields onto the gas particles/cells from
-        the initial hydrostatic profiles.
+        r"""Given a Gadget-HDF5-like initial conditions file which has been output from
+        some type of relaxation process (such as making a glass or using MESHRELAX in
+        the case of Arepo), resample the density, thermal energy, and velocity fields
+        onto the gas particles/cells from the initial hydrostatic profiles.
 
         Parameters
         ----------
-        filename : string
-            The name of file to output the resampled ICs to.
+        particles: ClusterParticles
+            The particle dataset to resample onto.
+        passive_scalars: list of str
+            Any passive scalar fields to pull from the models and map onto the particles.
         """
         profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
         if self.num_halos == 1:

@@ -3,6 +3,19 @@
 
 .. automodule:: {{ fullname }}
 
+   {% block attributes %}
+   {% if attributes %}
+   .. rubric:: Attributes
+
+   .. autosummary::
+      :toctree:
+      :recursive:
+   {% for item in attributes %}
+      {{ item }}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
    {% block functions %}
    {% if functions %}
    .. rubric:: Functions
@@ -23,8 +36,9 @@
 
    .. autosummary::
       :toctree:
-      :template: modules.rst
+      :template: module.rst
       :recursive:
+
    {% for item in modules %}
       {{ item }}
    {%- endfor %}
