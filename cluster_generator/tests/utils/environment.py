@@ -25,9 +25,6 @@ To download a file from a URL:
 
     >>> download_file("https://example.com/data.csv", "local_data.csv")
 """
-
-import urllib.error
-import urllib.request
 from typing import Dict
 
 import yaml
@@ -71,39 +68,3 @@ def load_config(file_path: str) -> Dict:
         ) from fnf_error
     except yaml.YAMLError as yaml_error:
         raise yaml.YAMLError(f"Error parsing YAML file: {file_path}") from yaml_error
-
-
-def download_file(url: str, output_path: str) -> None:
-    """
-    Download a file from a specified URL to a local path.
-
-    This function downloads a file from the given URL and saves it to the specified local path.
-    It uses `urllib.request.urlretrieve` for the download process and handles potential exceptions
-    related to network issues or invalid URLs.
-
-    Parameters
-    ----------
-    url : str
-        The URL of the file to download.
-    output_path : str
-        The local path where the downloaded file will be saved.
-
-    Raises
-    ------
-    urllib.error.URLError
-        If there is a problem with the URL or network connectivity.
-    IOError
-        If there is an error writing the file to the specified path.
-
-    Examples
-    --------
-    >>> download_file("https://example.com/data.csv", "local_data.csv")
-    """
-    try:
-        urllib.request.urlretrieve(url, output_path)
-    except urllib.error.URLError as url_error:
-        raise urllib.error.URLError(
-            f"Failed to download file from {url}"
-        ) from url_error
-    except IOError as io_error:
-        raise IOError(f"Failed to write file to {output_path}") from io_error

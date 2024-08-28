@@ -8,7 +8,6 @@ REMOTE:
   # REMOTE SETTINGS:
   # The remote settings are utilized only when fetching test answers from the remote
   # answer bank.
-  HOST: "https://astro.utah.edu/~u1281896/cluster_generator" # The host URL
 
 SETUP:
   # SETUP SETTINGS:

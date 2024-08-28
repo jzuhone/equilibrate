@@ -73,7 +73,7 @@ from _pytest.config.argparsing import Parser
 from _pytest.main import Session
 from _pytest.nodes import Item
 
-from cluster_generator.tests.utils.environment import download_file, load_config
+from cluster_generator.tests.utils.environment import load_config
 from cluster_generator.utils import cgparams
 
 # INFRASTRUCTURE SETUP
@@ -87,13 +87,6 @@ CONFIG: dict = load_config(CONFIG_FILE)
 
 # Turning off progress bars to maintain efficiency when non-terminal interfaces are used
 cgparams["system"]["display"]["progress_bars"] = False
-
-# Setting various configuration settings.
-_REMOTEHOST: str = CONFIG["REMOTE"]["HOST"]
-""" str: The remote host from which to fetch the testing answers.
-
-Cluster generator seeks answers with the format ``answers_{OS}_{pyversion}_{cgversion}.tar.gz``.
-"""
 
 
 # TEST ORDERING:
@@ -165,16 +158,6 @@ def pytest_addoption(parser: Parser) -> None:
         "--package",
         help="Package the results of this test for use externally.",
         action="store_true",
-    )
-    parser.addoption(
-        "--fetch_remote",
-        help="Fetch answers from remote directory.",
-        action="store_true",
-    )
-    parser.addoption(
-        "--remote_file",
-        help="Explicitly set the remote file to fetch.",
-        default=None,
     )
 
 
@@ -251,118 +234,6 @@ def packager(request: pytest.FixtureRequest) -> Generator[None, None, None]:
             end="\n",
         )
         print("\0338", end="", flush=True)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def fetch_remote(request: pytest.FixtureRequest) -> Generator[None, None, None]:
-    """
-    Load remote answers into the local answer directory if required.
-
-    This fixture fetches test answers from a remote host and unpacks them into the local answer
-    directory. It is triggered automatically for the entire testing session (``scope="session"``) and
-    runs before any tests are executed. The fetching process is conditional, based on the options
-    provided when running pytest:
-
-    - The fixture fetches answers if the ``--fetch_remote`` option is enabled.
-    - It will only proceed with fetching if ``--answer_store`` is **not** enabled, to prevent overwriting
-      locally stored answers.
-
-    **Conditional Fetching**: If the conditions for fetching are met, the fixture constructs the appropriate file
-     name and remote  path for the answers based on the system's operating system,
-     Python version, and ``cluster_generator`` version.
-
-
-    Parameters
-    ----------
-    request : :py:class:`pytest.FixtureRequest`
-        The fixture request object that provides access to the configuration options set by the user via
-        the command line.
-
-    Yields
-    ------
-    None
-        The fixture yields control back to pytest after setting up, then resumes after the pre-test execution
-        phase is complete.
-
-    Example
-    -------
-    .. code-block:: python
-
-        pytest --answer_dir="./test_answers" --fetch_remote
-
-    This command will fetch the answers from the remote host specified in the configuration and extract
-    them into the ``./test_answers`` directory.
-
-    Raises
-    ------
-    :py:class:`pytest.UsageError`
-        If the remote file download fails, a ``pytest.UsageError`` is raised to indicate an issue with
-        the fetching process.
-
-    """
-    import sys
-    import tarfile
-    from importlib.metadata import version
-    from pathlib import Path
-    from platform import system
-
-    capmanager = request.config.pluginmanager.getplugin("capturemanager")
-
-    # Fetch the options from the command line
-    _answer_dir = Path(os.path.abspath(request.config.getoption("--answer_dir")))
-    _answer_store = request.config.getoption("--answer_store")
-    _fetch_remote = request.config.getoption("--fetch_remote")
-    _remote_file = request.config.getoption("--remote_file")
-
-    if (not _answer_store) and _fetch_remote:
-        # The fetching process will proceed. Determining the
-        # relevant parameters to ensure that the correct package is
-        # fetched.
-        _system = system()
-        _py_version = sys.version.split(" ")[0]
-        _cg_version = version("cluster_generator")
-
-        # Determine the package name to fetch
-        if _remote_file is None:
-            package_name = f"cg_answers_{_system}_{_py_version}_{_cg_version}.tar.gz"
-        else:
-            package_name = f"{_remote_file}.tar.gz"
-
-        remote_path = os.path.join(_REMOTEHOST, package_name)
-
-        with capmanager.global_and_fixture_disabled():
-            print("\0337", end="", flush=True)
-            print(
-                f"\n[cluster_generator tests]: Attempting to fetch answers from {remote_path}..."
-            )
-            print("\0338", end="", flush=True)
-
-            # Ensure the answer directory exists
-            if not os.path.exists(_answer_dir):
-                Path(_answer_dir).mkdir(parents=True, exist_ok=True)
-
-            try:
-                download_file(remote_path, os.path.join(_answer_dir, package_name))
-            except Exception as e:
-                raise pytest.UsageError(
-                    f"Failed to download answers {remote_path}. Error = {e.__repr__()}"
-                )
-
-            print("\0337", end="", flush=True)
-            print(
-                f"\n[cluster_generator tests]: Obtained answers for distribution: {package_name}."
-            )
-            print("\0338", end="", flush=True)
-
-            # Extract the answers into the answer directory
-            with tarfile.open(os.path.join(_answer_dir, package_name), "r:gz") as tar:
-                tar.extractall(path=_answer_dir)
-            print("\0337", end="", flush=True)
-            print(
-                f"\n[cluster_generator tests]: Dumped answers into {_answer_dir}. Ready to proceed."
-            )
-            print("\0338", end="", flush=True)
-    yield None
 
 
 @pytest.fixture()
