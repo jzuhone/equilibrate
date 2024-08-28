@@ -8,7 +8,8 @@ from unyt import unyt_array
 
 from cluster_generator.cython_utils import div_clean
 from cluster_generator.model import ClusterModel
-from cluster_generator.utils import mylog, parse_prng
+from cluster_generator.utilities.logging import mylog
+from cluster_generator.utilities.utils import parse_prng
 
 
 def parse_value(value, default_units):

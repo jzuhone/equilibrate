@@ -1,13 +1,16 @@
 from collections import OrderedDict
 
 import numpy as np
+from scipy.integrate import quad
 from scipy.interpolate import InterpolatedUnivariateSpline
 from tqdm.auto import tqdm
 from unyt import unyt_array
 
 from cluster_generator.cython_utils import generate_velocities
 from cluster_generator.particles import ClusterParticles
-from cluster_generator.utils import generate_particle_radii, mylog, quad
+from cluster_generator.utilities.config import cgparams
+from cluster_generator.utilities.logging import mylog
+from cluster_generator.utilities.utils import generate_particle_radii
 
 
 class VirialEquilibrium:
@@ -42,7 +45,12 @@ class VirialEquilibrium:
         density_spline = InterpolatedUnivariateSpline(self.ee, pden)
         g = np.zeros(self.num_elements)
         dgdp = lambda t, e: 2 * density_spline(e - t * t, 1)
-        pbar = tqdm(leave=True, total=self.num_elements, desc="Computing particle DF ")
+        pbar = tqdm(
+            leave=True,
+            total=self.num_elements,
+            desc="Computing particle DF ",
+            disable=cgparams.preferences.disable_progress_bars,
+        )
         for i in range(self.num_elements):
             g[i] = quad(
                 dgdp,
@@ -135,7 +143,7 @@ class VirialEquilibrium:
         particles : :class:`~cluster_generator.particles.ClusterParticles`
             A set of dark matter or star particles.
         """
-        from cluster_generator.utils import parse_prng
+        from cluster_generator.utilities.utils import parse_prng
 
         num_particles_sub = num_particles // sub_sample
         key = {"dark_matter": "dm", "stellar": "star"}[self.ptype]
@@ -192,6 +200,7 @@ class VirialEquilibrium:
             self.f.get_knots(),
             self.f.get_coeffs(),
             self.f._eval_args[2],
+            int(cgparams.preferences.disable_progress_bars),
         )
 
         if sub_sample > 1:
