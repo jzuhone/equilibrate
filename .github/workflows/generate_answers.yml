@@ -1,3 +1,16 @@
+# =================================================== #
+# ANSWER GENERATION ACTION                            #
+# --------------------------                          #
+# This action infrequently creates answers to the     #
+# unit tests in cluster_generator. In doing so, we    #
+# save the time of having to generate answers on all  #
+# actions.                                            #
+#                                                     #
+# We run this action every 60 days to ensure that the #
+# artifacts persist, we also generate them on every   #
+# release or when run manually from github.           #
+#                                                     #
+# =================================================== #
 name: Generate and Upload Test Answers
 
 on:

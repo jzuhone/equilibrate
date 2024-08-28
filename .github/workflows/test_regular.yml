@@ -1,10 +1,20 @@
+# =================================================== #
+# REGULAR TESTING ACTION                              #
+# ----------------------                              #
+# This action performs standard (fast) tests on every #
+# push to any remote branch.                          #
+#                                                     #
+# We use the generate_answers.yml action to grab test #
+# answers from artifacts on that workflow and then    #
+# unpack and test against them.                       #
+# =================================================== #
 name: Fetch and Use Test Answers
 
 on:
   push:
     branches:
       - '*'
-  workflow_dispatch:  # Allows manual triggering of this workflow from the GitHub Actions interface
+  workflow_dispatch:
 
 jobs:
   # FETCHING
