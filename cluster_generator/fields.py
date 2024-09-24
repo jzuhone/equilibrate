@@ -16,6 +16,12 @@ from cluster_generator.utils import mylog, parse_prng
 sqrt2 = 2.0**0.5
 
 
+@njit
+def power_spec(k, k0, k1, alpha):
+    Pk = (1.0 + (k / k1) ** 2) ** (0.25 * alpha) * np.exp(-0.5 * (k / k0) ** 2)
+    return Pk
+
+
 @njit(parallel=True)
 def compute_pspec(kx, ky, kz, k0, k1, alpha, ddims):
     nx, ny, nz = ddims
@@ -28,9 +34,8 @@ def compute_pspec(kx, ky, kz, k0, k1, alpha, ddims):
                 if kk == 0.0:
                     sigma[i, j, k] = 0.0
                 else:
-                    sigma[i, j, k] = (1.0 + (kk / k1) ** 2) ** (0.25 * alpha) * np.exp(
-                        -0.5 * (kk / k0) ** 2
-                    )
+                    sigma[i, j, k] = power_spec(kk, k0, k1, alpha)
+
     return sigma
 
 
@@ -390,13 +395,15 @@ class GaussianRandomField(ClusterField):
 
         self.l_min = parse_value(l_min, "kpc").v
         self.l_max = parse_value(l_max, "kpc").v
+        self.k0 = 2.0 * np.pi / self.l_min
+        self.k1 = 2.0 * np.pi / self.l_max
         self.alpha = alpha
         self.g_rms = parse_value(g_rms, self._units).v
 
     def _compute_pspec(self):
-        k0 = 2.0 * np.pi / self.l_min
-        k1 = 2.0 * np.pi / self.l_max
-        sigma = compute_pspec(self.kx, self.ky, self.kz, k0, k1, self.alpha, self.ddims)
+        sigma = compute_pspec(
+            self.kx, self.ky, self.kz, self.k0, self.k1, self.alpha, self.ddims
+        )
         return sigma
 
     def _generate_field(self, sigma=None):
@@ -448,7 +455,7 @@ class GaussianRandomField(ClusterField):
         if sigma is None:
             sigma = self._compute_pspec()
 
-        self.gx, self.gy, self.gz = np.fft.ifftn(sigma * v, axes=(1, 2, 3)).real
+        self.gx, self.gy, self.gz = np.fft.ifftn(0.5 * sigma * v, axes=(1, 2, 3)).real
 
     def _post_generate(self):
         g_avg = self.g_rms / np.sqrt(np.mean(self.gg()))
