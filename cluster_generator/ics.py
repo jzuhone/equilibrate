@@ -469,12 +469,12 @@ class ClusterICs:
         """
         from cluster_generator.data_structures import YTHDF5
 
-        if not left_edge:
+        if left_edge is None:
             left_edge = 3 * [-np.amax(self.r_max)]
-        if not box_size:
+        if box_size is None:
             box_size = 2 * np.amax(self.r_max)
 
-        bbox = [le + box_size for le in left_edge]
+        bbox = [[le, le + box_size] for le in left_edge]
 
         ds_obj = YTHDF5.build(
             filename,
