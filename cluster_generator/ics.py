@@ -426,28 +426,28 @@ class ClusterICs:
 
         Parameters
         ----------
-        filename: str or :py:class:`pathlib.Path`
+        filename : str or :py:class:`pathlib.Path`
             The path at which to generate the underlying HDF5 datafile.
-        domain_dimensions: Collection of int, optional
+        domain_dimensions : Collection of int, optional
             The size of the uniform grid along each axis of the domain. If specified, the argument must be an iterable type with
             shape ``(3,)``. Each element should be an ``int`` specifying the number of grid cells to place along that axis. By default,
             the selected value is ``(512,512,512)``.
-        left_edge: Collection of float or :py:class:`unyt.unyt_array`, optional
+        left_edge : Collection of float or :py:class:`unyt.unyt_array`, optional
             The left-most edge of the uniform grid's domain. In conjunction with ``box_size``, this attribute specifies the position of
             the model in the box and the amount of the model which is actually written to the disk. If specified, ``left_edge`` should be a
             length 3 iterable with each of the entries representing the minimum value of the respective axis. If elements of the iterable have units, or
             the array is a :py:class:`unyt.unyt_array` instance, then the units will be interpreted automatically; otherwise, units are assumed to be
             kpc. By default, the left edge is determined such that the resulting grid contains the full radial domain of the :py:class:`ClusterModel`.
-        box_size: Collection of float or :py:class:`unyt.unyt_array`, optional
+        box_size : Collection of float or :py:class:`unyt.unyt_array`, optional
             The length of the grid along each of the physical axes. Along with ``left_edge``, this argument determines the positioning of the grid and
             the model within it. If specified, ``box_size`` should be a length 3 iterable with each of the entries representing the length
             of the grid along the respective axis. If elements of the iterable have units, or the array is a :py:class:`unyt.unyt_array` instance,
              then the units will be interpreted automatically; otherwise, units are assumed to be kpc.
             By default, the ``box_size`` is determined such that the resulting grid contains the full radial domain of the :py:class:`ClusterModel`.
-        overwrite: bool, optional
+        overwrite : bool, optional
             If ``False`` (default), the an error is raised if ``filename`` already exists. Otherwise, ``filename`` will be deleted and overwritten
             by this method.
-        chunksize: int, optional
+        chunksize : int, optional
             The maximum chunksize for subgrid operations. Lower values with increase the execution time but save memory. By default,
             chunks contain no more that :math:`64^3` cells (``chunksize=64``).
 

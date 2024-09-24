@@ -100,7 +100,7 @@ class YTHDF5:
 
         Parameters
         ----------
-        filename: str
+        filename : str
             The HDF5 file corresponding to the intended data structure.
         """
         # Manage the filename and assure that the file does exist.
@@ -133,7 +133,7 @@ class YTHDF5:
 
         Parameters
         ----------
-        filename: str or :py:class:`pathlib.Path`
+        filename : str or :py:class:`pathlib.Path`
             The path to the file.
 
         Returns
@@ -155,16 +155,16 @@ class YTHDF5:
 
         Parameters
         ----------
-        filename: str
+        filename : str
             The path at which to generate the HDF5 file and the corresponding data structure.
-        domain_dimensions: array-like, optional
+        domain_dimensions : array-like, optional
             The dimensions of the grid along each axis (3-tuple). By default, this is ``(512,512,512)``.
-        bbox: array-like, optional
+        bbox : array-like, optional
             The bounding box of the grid. Should be of size ``(3,2)``. By default, the bounding box will be ``[0,1]`` along
             each of the axes.
-        overwrite: bool, optional
+        overwrite : bool, optional
             If ``True``, then the file will be overwritten if it already exists. Default ``False``.
-        chunksize: int, optional
+        chunksize : int, optional
             The maximum size of a chunk. Chunking is used to conserve memory during computations. A higher ``chunksize`` will
             increase the memory usage but decrease computation time, a lower value will do the opposite. Default is ``64``.
 
@@ -283,7 +283,7 @@ class YTHDF5:
             import psutil
 
             mylog.info(
-                f"Free memory: {np.round(psutil.virtual_memory().available/1e9,decimals=3)} GB"
+                f"Free memory: {np.round(psutil.virtual_memory().available / 1e9, decimals=3)} GB"
             )
 
             if psutil.virtual_memory().available / 1e9 < self._estimated_chunk_memory:
@@ -305,11 +305,11 @@ class YTHDF5:
 
         Parameters
         ----------
-        model: :py:class:`model.ClusterModel`
+        model : :py:class:`model.ClusterModel`
             The model to add to the :py:class:`data_structures.YTHDF5` instance.
-        center: array-like
+        center : array-like
             The center of the cluster in the coordinates of :py:attr:`data_structures.YTHDF5.bbox`.
-        velocity: array-like
+        velocity : array-like
             The COM velocity of the cluster in the coordinates of :py:attr:`data_structures.YTHDF5.bbox`.
         """
         # Enforce unit conventions on method arguments.
@@ -320,7 +320,9 @@ class YTHDF5:
 
         mylog.info("Adding %s to %s", model, self)
         mylog.info(
-            f"\tPos: {[np.round(j,decimals=2) for j in center.d]} kpc, Vel: {[np.round(j,decimals=2) for j in velocity.to_value('km/s')]} km/s"
+            "\tPos: %s kpc, Vel: %s km/s",
+            [np.round(j, decimals=2) for j in center.d],
+            [np.round(j, decimals=2) for j in velocity.to_value("km/s")],
         )
 
         # Pull out critical profiles as arrays to ease interpolation logic later on.
@@ -365,7 +367,7 @@ class YTHDF5:
 
         Parameters
         ----------
-        ics: :py:class:`ics.ClusterICs`
+        ics : :py:class:`ics.ClusterICs`
             The initial conditions to add to the HDF5 buffer.
         """
         mylog.info("Adding %s to %s.", ics.basename, self)

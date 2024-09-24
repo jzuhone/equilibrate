@@ -361,7 +361,7 @@ def tnfw_mass_profile(rho_s, r_s, r_t):
     def _tnfw(r):
         x = r / r_s
         a = r_t / r_s
-        return 4 * np.pi * rho_s * r_s**3 * fl(x, a).astype("float64")
+        return 4 * np.pi * rho_s * r_s**3 * fl(x, a).real
 
     return RadialProfile(_tnfw)
 
@@ -749,8 +749,8 @@ def rescale_profile_by_mass(profile, mass, radius):
     >>> a = 600.0
     >>> a_c = 60.0
     >>> c = 0.17
-    >>> alpha = -2.0
-    >>> gas_density = am06_density_profile(rho_0, a, a_c, c, alpha)
+    >>> n = 4
+    >>> gas_density = am06_density_profile(rho_0, a, a_c, c, n
     >>> M200 = 1.0e14
     >>> r200 = 900.0
     >>> gas_density = rescale_profile_by_mass(gas_density, M200, r200)

@@ -17,11 +17,11 @@ def parse_value(value, default_units):
     Parses an array of values into the correct units.
     Parameters
     ----------
-    value: array-like or tuple
+    value : array-like or tuple
         The array from which to convert values to correct units. If ``value`` is a ``unyt_array``, the unit is simply converted,
         if ``value`` is a tuple in the form ``(v_array,v_unit)``, the conversion will be made and will return an ``unyt_array``.
         Finally, if ``value`` is an array, it is assumed that the ``default_units`` are correct.
-    default_units: str
+    default_units : str
         The default unit for the quantity.
     Returns
     -------
@@ -42,23 +42,23 @@ def rot_3d(axis, gx, gy, gz, ang):
     Rotates the vector ``[gx,gy,gz]`` by an angle ``ang`` around a specified axis.
     Parameters
     ----------
-    axis: int
+    axis : int
         The axis to rotate about. Options are ``1,2,3``.
-    gx: float
+    gx : float
         Vector x component.
-    gy: float
+    gy : float
         Vector y component.
-    gz: float
+    gz : float
         Vector z component.
-    ang: float
+    ang : float
         The angle over which to rotate.
     Returns
     -------
-    gx: float
+    gx : float
         Vector x component.
-    gy: float
+    gy : float
         Vector y component.
-    gz: float
+    gz : float
         Vector z component.
     """
     c = np.cos(ang)
@@ -78,17 +78,17 @@ class ClusterField:
     """
     Parameters
     ----------
-    left_edge: array-like
+    left_edge : array-like
         The lower edge of the box [kpc] for each of the dimensions.
-    right_edge: array-like
+    right_edge : array-like
         The upper edge of the box [kpc] for each of the dimensions.
-    ddims: array-like
+    ddims : array-like
         The number of grids in each of the axes.
-    padding:
+    padding :
         The amount of additional padding to add to the boundary.
-    vector_potential: bool
+    vector_potential : bool
         If ``True``, the vector potential is generated.
-    divergence_clean: bool
+    divergence_clean : bool
         If ``True``, divergence is removed.
     """
 

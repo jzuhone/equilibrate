@@ -25,6 +25,7 @@ from cluster_generator.utils import (
     Self,
     ensure_ytarray,
     ensure_ytquantity,
+    field_label_map,
     generate_particle_radii,
     integrate,
     integrate_mass,
@@ -85,9 +86,9 @@ class ClusterModel:
 
         Parameters
         ----------
-        num_elements: int
+        num_elements : int
             The number of points in the abscissa for the radial profiles.
-        fields: dict
+        fields : dict
             The fields to load into this model.
 
         Notes
@@ -132,7 +133,7 @@ class ClusterModel:
 
         Parameters
         ----------
-        fields: dict
+        fields : dict
             The dictionary of fields. Each entry should have a field name as the key and an array as the value. The ``'radius'`` field
             is required to be present.
 
@@ -155,9 +156,9 @@ class ClusterModel:
         ----------
         filename : string
             The name of the file to read the model from.
-        r_min: float, optional
+        r_min : float, optional
             The minimum radius to which to load.
-        r_max: float, optional
+        r_max : float, optional
             The maximum radius to which to load.
 
         Examples
@@ -273,7 +274,7 @@ class ClusterModel:
 
         Parameters
         ----------
-        r_max: float
+        r_max : float
             The truncation radius.
 
         Returns
@@ -357,9 +358,9 @@ class ClusterModel:
             Whether to convert the units to cgs before writing. Default False.
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
-        r_min: float
+        r_min : float, optional
             The minimum radius.
-        r_max: float
+        r_max : float, optional
             The maximum radius.
         """
         if os.path.exists(output_filename) and not overwrite:
@@ -417,9 +418,9 @@ class ClusterModel:
             Whether to convert the units to cgs before writing. Default False.
         overwrite : boolean, optional
             Overwrite an existing file with the same name. Default False.
-        r_min: float
+        r_min : float, optional
             The minimum radius.
-        r_max: float
+        r_max : float, optional.
             The maximum radius.
         """
         if fields_to_write is None:
@@ -486,17 +487,17 @@ class ClusterModel:
 
         Parameters
         ----------
-        rmin: float
+        rmin : float
             Minimum radius of profiles in kpc.
-        rmax: float
+        rmax : float
             Maximum radius of profiles in kpc.
-        density: :class:`~cluster_generator.radial_profiles.RadialProfile`
+        density : :class:`~cluster_generator.radial_profiles.RadialProfile`
             A radial profile describing the gas mass density.
-        temperature: :class:`~cluster_generator.radial_profiles.RadialProfile`
+        temperature : :class:`~cluster_generator.radial_profiles.RadialProfile`
             A radial profile describing the gas temperature.
-        stellar_density: :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
             A radial profile describing the stellar mass density, if desired.
-        num_points: integer, optional
+        num_points : integer, optional
             The number of points the profiles are evaluated at.
         """
         mylog.info("Computing the profiles from density and temperature.")
@@ -537,17 +538,17 @@ class ClusterModel:
 
         Parameters
         ----------
-        rmin: float
+        rmin : float
             Minimum radius of profiles in kpc.
-        rmax: float
+        rmax : float
             Maximum radius of profiles in kpc.
-        density: :class:`~cluster_generator.radial_profiles.RadialProfile`
+        density : :class:`~cluster_generator.radial_profiles.RadialProfile`
             A radial profile describing the gas mass density.
-        entropy: :class:`~cluster_generator.radial_profiles.RadialProfile`
+        entropy : :class:`~cluster_generator.radial_profiles.RadialProfile`
             A radial profile describing the gas temperature.
-        stellar_density: :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
             A radial profile describing the stellar mass density, if desired.
-        num_points: integer, optional
+        num_points : integer, optional
             The number of points the profiles are evaluated at.
         """
         n_e = density / (mue * mp * kpc_to_cm**3)
@@ -577,17 +578,17 @@ class ClusterModel:
 
         Parameters
         ----------
-        rmin: float
+        rmin : float
             Minimum radius of profiles in kpc.
-        rmax: float
+        rmax : float
             Maximum radius of profiles in kpc.
-        density: :class:`~cluster_generator.radial_profiles.RadialProfile`
+        density : :class:`~cluster_generator.radial_profiles.RadialProfile`
             A radial profile describing the gas mass density.
-        total_density: :class:`~cluster_generator.radial_profiles.RadialProfile`
+        total_density : :class:`~cluster_generator.radial_profiles.RadialProfile`
             A radial profile describing the total mass density.
-        stellar_density: :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
             A radial profile describing the stellar mass density, if desired.
-        num_points: integer, optional
+        num_points : integer, optional
             The number of points the profiles are evaluated at.
         """
         mylog.info("Computing the profiles from density and total density.")
@@ -630,15 +631,15 @@ class ClusterModel:
 
         Parameters
         ----------
-        rmin: float
+        rmin : float
             Minimum radius of profiles in kpc.
-        rmax: float
+        rmax : float
             Maximum radius of profiles in kpc.
-        total_density: :class:`~cluster_generator.radial_profiles.RadialProfile`
-            A radial profile describing the the total density.
-        stellar_density: :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
+        total_density : :class:`~cluster_generator.radial_profiles.RadialProfile`
+            A radial profile describing the total density.
+        stellar_density : :class:`~cluster_generator.radial_profiles.RadialProfile`, optional
             A radial profile describing the stellar mass density, if desired.
-        num_points: integer, optional
+        num_points : integer, optional
             The number of points the profiles are evaluated at.
         """
         rr = np.logspace(np.log10(rmin), np.log10(rmax), num_points, endpoint=True)
@@ -692,9 +693,9 @@ class ClusterModel:
 
         Returns
         -------
-        rho: Array-like
+        rho : Array-like
             The true density
-        chk: Array-like
+        chk : Array-like
             The virial implied density.
         """
         return self.dm_virial.check_virial()
@@ -1077,6 +1078,7 @@ class ClusterModel:
         ax.loglog(self["radius"], self[field], **kwargs)
         ax.set_xlim(r_min, r_max)
         ax.set_xlabel("Radius (kpc)")
+        ax.set_ylabel(field_label_map.get(field, ""))
         ax.tick_params(which="major", width=2, length=6)
         ax.tick_params(which="minor", width=2, length=3)
         return fig, ax
@@ -1087,13 +1089,13 @@ class ClusterModel:
 
         Parameters
         ----------
-        radius: float
+        radius : float
             The radius at which to compute the masses.
 
         Returns
         -------
-        dict:
-            Dictionary containing all of the particle types and their corresponding masses.
+        dict :
+            Dictionary containing the matter types and their corresponding masses.
         """
         masses = {}
         r = self.fields["radius"].to_value("kpc")
@@ -1122,28 +1124,28 @@ class ClusterModel:
 
         Parameters
         ----------
-        filename: str or :py:class:`pathlib.Path`
+        filename : str or :py:class:`pathlib.Path`
             The path at which to generate the underlying HDF5 datafile.
-        domain_dimensions: Collection of int, optional
+        domain_dimensions : Collection of int, optional
             The size of the uniform grid along each axis of the domain. If specified, the argument must be an iterable type with
             shape ``(3,)``. Each element should be an ``int`` specifying the number of grid cells to place along that axis. By default,
             the selected value is ``(512,512,512)``.
-        left_edge: Collection of float or :py:class:`unyt.unyt_array`, optional
+        left_edge : Collection of float or :py:class:`unyt.unyt_array`, optional
             The left-most edge of the uniform grid's domain. In conjunction with ``box_size``, this attribute specifies the position of
             the model in the box and the amount of the model which is actually written to the disk. If specified, ``left_edge`` should be a
             length 3 iterable with each of the entries representing the minimum value of the respective axis. If elements of the iterable have units, or
             the array is a :py:class:`unyt.unyt_array` instance, then the units will be interpreted automatically; otherwise, units are assumed to be
             kpc. By default, the left edge is determined such that the resulting grid contains the full radial domain of the :py:class:`ClusterModel`.
-        box_size: Collection of float or :py:class:`unyt.unyt_array`, optional
+        box_size : Collection of float or :py:class:`unyt.unyt_array`, optional
             The length of the grid along each of the physical axes. Along with ``left_edge``, this argument determines the positioning of the grid and
             the model within it. If specified, ``box_size`` should be a length 3 iterable with each of the entries representing the length
             of the grid along the respective axis. If elements of the iterable have units, or the array is a :py:class:`unyt.unyt_array` instance,
              then the units will be interpreted automatically; otherwise, units are assumed to be kpc.
             By default, the ``box_size`` is determined such that the resulting grid contains the full radial domain of the :py:class:`ClusterModel`.
-        overwrite: bool, optional
+        overwrite : bool, optional
             If ``False`` (default), the an error is raised if ``filename`` already exists. Otherwise, ``filename`` will be deleted and overwritten
             by this method.
-        chunksize: int, optional
+        chunksize : int, optional
             The maximum chunksize for subgrid operations. Lower values with increase the execution time but save memory. By default,
             chunks contain no more that :math:`64^3` cells (``chunksize=64``).
 
