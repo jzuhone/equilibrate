@@ -7,3 +7,9 @@ requires = [
 ]
 
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+markers = [
+  "slow: mark a test as slow.",
+  "highmem: mark a test as taking high memory."
+]

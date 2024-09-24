@@ -1,6 +1,7 @@
 """
 Tests for the ``RadialProfile`` objects
 """
+
 import logging
 import os
 import pathlib as pt
