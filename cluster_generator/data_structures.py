@@ -348,7 +348,7 @@ class YTHDF5:
                 elif field in model.fields:
                     _yy = model[field].to_value(unit)
                 else:
-                    mylog.warning(
+                    mylog.debug(
                         f"Failed to write model data for {field}; the field doesn't exist in {model}."
                     )
                     continue
