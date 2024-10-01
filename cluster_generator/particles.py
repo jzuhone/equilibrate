@@ -1,6 +1,5 @@
-"""
-Particles IC module
-"""
+"""Initial conditions and cluster model particle management module."""
+
 from collections import OrderedDict, defaultdict
 from pathlib import Path
 
@@ -111,7 +110,9 @@ class ClusterParticles:
         fields = self.fields.copy()
         for field in other.fields:
             if field in fields:
-                fields[field] = uconcatenate([self[field], other[field]])
+                fields[field] = uconcatenate(
+                    [self[field], other[field]]
+                )  # TODO: future deprecation anticipated.
             else:
                 fields[field] = other[field]
         particle_types = list(set(self.particle_types + other.particle_types))
@@ -243,8 +244,12 @@ class ClusterParticles:
 
         Examples
         --------
-        >>> from cluster_generator import ClusterParticles
-        >>> dm_particles = ClusterParticles.from_file("dm_particles.h5")
+
+        .. code-block:: python
+
+            from cluster_generator import ClusterParticles
+            dm_particles = ClusterParticles.from_file("dm_particles.h5")
+
         """
         names = {}
         with h5py.File(filename, "r") as f:
@@ -289,9 +294,13 @@ class ClusterParticles:
 
         Examples
         --------
-        >>> from cluster_generator import ClusterParticles
-        >>> ptypes = ["gas", "dm"]
-        >>> particles = ClusterParticles.from_gadget_file("snapshot_060.h5", ptypes=ptypes)
+
+        .. code-block:: python
+
+            from cluster_generator import ClusterParticles
+            ptypes = ["gas", "dm"]
+            particles = ClusterParticles.from_gadget_file("snapshot_060.h5", ptypes=ptypes)
+
         """
         fields = OrderedDict()
         f = h5py.File(filename, "r")
@@ -393,7 +402,7 @@ class ClusterParticles:
                 if add:
                     self.fields[ptype, name] += value
                 else:
-                    mylog.warning(f"Overwriting field ({ptype}, {name}).")
+                    mylog.warning("Overwriting field (%s, %s).", ptype, name)
                     self.fields[ptype, name] = value
             else:
                 if add:
@@ -597,10 +606,12 @@ def _sample_clusters(
     if passive_scalars is not None:
         num_scalars = len(passive_scalars)
         s = np.zeros((num_halos, num_scalars, particles.num_particles["gas"]))
-    for i in range(num_halos):
-        hse = hses[i]
+
+    for i, hse in enumerate(hses):
         if "density" not in hse:
+            mylog.warning("No density field found in %s. Skipping.", hse)
             continue
+
         get_density = InterpolatedUnivariateSpline(hse["radius"], hse["density"])
         d[i, :] = get_density(r[i, :])
         e_arr = 1.5 * hse["pressure"] / hse["density"]

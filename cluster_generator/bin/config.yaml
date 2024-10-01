@@ -25,8 +25,6 @@ system:
     spinners: true # [WARNING] Requires Halo to be installed.
     progress_bars: true
 
-  modules:
-    #
 #======================================================================================================================#
 physics:
   # -- The physics settings are basic user-configurable physical parameters -- #

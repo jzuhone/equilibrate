@@ -52,7 +52,8 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
                         np.ndarray[DTYPE_t, ndim=1] fv2esc,
                         np.ndarray[DTYPE_t, ndim=1] t,
                         np.ndarray[DTYPE_t, ndim=1] c,
-                        int k):
+                        int k,
+                        int pbar_status):
     cdef DTYPE_t v2,
     cdef np.uint8_t not_done
     cdef unsigned int i
@@ -69,7 +70,8 @@ def generate_velocities(np.ndarray[DTYPE_t, ndim=1] psi,
     num_particles = psi.shape[0]
     velocity = np.zeros(num_particles, dtype='float64')
     pbar = tqdm(leave=True, total=num_particles,
-                desc="Generating particle velocities ")
+                desc="Generating particle velocities ",
+                disable=(pbar_status==1))
     for i in range(num_particles):
         not_done = 1
         while not_done:

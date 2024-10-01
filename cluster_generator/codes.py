@@ -1,6 +1,7 @@
 """
 Code-specific utilities for the ``cluster_generator`` library.
 """
+
 from pathlib import Path
 
 import h5py
