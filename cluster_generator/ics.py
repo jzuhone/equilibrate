@@ -381,7 +381,11 @@ class ClusterICs:
         profiles = [ClusterModel.from_h5_file(hf) for hf in self.profiles]
         if self.num_halos == 1:
             new_parts = resample_one_cluster(
-                parts, profiles[0], self.center[0], self.velocity[0]
+                parts,
+                profiles[0],
+                self.center[0],
+                self.velocity[0],
+                passive_scalars=passive_scalars,
             )
         elif self.num_halos == 2:
             new_parts = resample_two_clusters(

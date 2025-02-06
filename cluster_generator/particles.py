@@ -715,7 +715,13 @@ def combine_three_clusters(
     return particles
 
 
-def resample_one_cluster(particles, hse, center, velocity):
+def resample_one_cluster(
+    particles,
+    hse,
+    center,
+    velocity,
+    passive_scalars=None,
+):
     """
     Resample radial profiles onto a single cluster's particle
     distribution.
@@ -743,6 +749,12 @@ def resample_one_cluster(particles, hse, center, velocity):
     particles["gas", "particle_mass"] = unyt_array(dens * vol.d, "Msun")
     particles["gas", "particle_velocity"][:, :] = velocity
     particles["gas", "density"] = unyt_array(dens, "Msun/kpc**3")
+    if passive_scalars is not None:
+        num_scalars = len(passive_scalars)
+        if num_scalars > 0:
+            for name in passive_scalars:
+                get_scalar = InterpolatedUnivariateSpline(hse["radius"], hse[name])
+                particles["gas", name] = unyt_array(get_scalar(r), "")
     return particles
 
 
